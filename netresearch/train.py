@@ -237,7 +237,35 @@ def train_control(model, task, updates, batch, lr, seed, log_every, n_envs=16, u
 
 
 # ------------------------------------------------------------------------------------------------- run
-def run(model_name, task_name, seed=0, updates=1500, batch=64, lr=2e-3, target_params=100_000, log_every=100):
+CKPT_DIR = ROOT / "results" / "checkpoints"
+
+
+def checkpoint_path(model_name, task_name, seed):
+    return CKPT_DIR / task_name / f"{model_name}_s{seed}.pt"
+
+
+def save_checkpoint(model, model_name, task_name, seed, score):
+    p = checkpoint_path(model_name, task_name, seed)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    torch.save({"model": model_name, "task": task_name, "seed": seed, "width": model.width_used,
+                "score": score, "state_dict": model.state_dict()}, p)
+
+
+def load_checkpoint(model_name, task_name, seed=0):
+    """Rebuild a trained model from its checkpoint (None if it does not exist)."""
+    from .models import MODELS
+    p = checkpoint_path(model_name, task_name, seed)
+    if not p.exists():
+        return None
+    ck = torch.load(p, map_location="cpu", weights_only=True)
+    model = MODELS[model_name][0](width=ck["width"])
+    model.load_state_dict(ck["state_dict"])
+    model.width_used, model.score = ck["width"], ck["score"]
+    return model.eval()
+
+
+def run(model_name, task_name, seed=0, updates=1500, batch=64, lr=2e-3, target_params=100_000, log_every=100,
+        save=True):
     torch.manual_seed(seed)
     task = make_task(task_name)
     model = build_model(model_name, target_params, seed=seed)
@@ -253,6 +281,8 @@ def run(model_name, task_name, seed=0, updates=1500, batch=64, lr=2e-3, target_p
         base = game_baselines(task)
         score = (ret - base["random"]) / max(1e-6, base["expert"] - base["random"])
         metrics = {"return": ret, "ep_len": ln, "score": score, "random": base["random"], "expert": base["expert"]}
+    if save:
+        save_checkpoint(model, model_name, task_name, seed, metrics["score"])
     return {"model": model_name, "task": task_name, "seed": seed, "group": task.spec.group,
             "params": count_params(model), "width": model.width_used, "updates": updates,
             "train_time": round(train_time, 1), "eval_time": round(time.time() - t0 - train_time, 1),

@@ -1,19 +1,27 @@
 {
+ "crossing": {
+  "random": -1.0,
+  "expert": 11.21875
+ },
+ "paddle": {
+  "random": -2.03125,
+  "expert": 4.875
+ },
+ "paddle_mem": {
+  "random": -2.03125,
+  "expert": 4.875
+ },
+ "bricks": {
+  "random": 0.625,
+  "expert": 51.21875
+ },
+ "bricks_mem": {
+  "random": 0.625,
+  "expert": 51.21875
+ },
  "racer": {
   "random": 19.65625,
   "expert": 280.90625
- },
- "crossing": {
-  "random": -1.0,
-  "expert": 15.78125
- },
- "paddle": {
-  "random": -3.34375,
-  "expert": 5.0
- },
- "bricks": {
-  "random": 0.84375,
-  "expert": 49.9375
  },
  "maze": {
   "random": -0.8125,

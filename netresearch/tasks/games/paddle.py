@@ -3,13 +3,14 @@ from ...spec import BLUE, DOWN, NOOP, RED, UP, WHITE, YELLOW
 from ..base import Game
 from .common import canvas, put
 
-PH = 3          # paddle height
+PH = 2          # paddle height
 WIN = 5         # points to end an episode
 
 
 class Paddle(Game):
     max_steps = 400
     actions = [NOOP, UP, DOWN]
+    trail = True        # draw previous ball position (direction visible in one frame)
 
     def reset(self):
         self.py = 6          # player paddle top (x=15)
@@ -73,7 +74,8 @@ class Paddle(Game):
         for i in range(PH):
             put(img, 15, self.py + i, WHITE)
             put(img, 0, self.oy + i, RED)
-        put(img, self.prev[0], self.prev[1], BLUE)
+        if self.trail:
+            put(img, self.prev[0], self.prev[1], BLUE)
         put(img, self.bx, self.by, YELLOW)
         return img
 
@@ -97,3 +99,8 @@ class Paddle(Game):
         if target > self.py:
             return DOWN
         return NOOP
+
+
+class PaddleMem(Paddle):
+    """No ball trail: the direction of the ball must be remembered from previous frames."""
+    trail = False

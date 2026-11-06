@@ -100,7 +100,7 @@ class HierGrid(Model):
     """
     stateful = True
 
-    def __init__(self, width=12, shared=False, R=6, C=8, ticks=1):
+    def __init__(self, width=12, shared=False, R=6, C=8, ticks=1, zero_init=False):
         super().__init__()
         assert C % 2 == 0
         self.R, self.C, self.d, self.ticks = R, C, width, ticks
@@ -108,7 +108,7 @@ class HierGrid(Model):
         h = 2 * width
         self.enc = StripEncoder(C, width, 2)
         self.fc1 = CellLinear(R, self.K, 4 * width, h, shared)
-        self.fc2 = CellLinear(R, self.K, h, 4 * width, shared, zero=True)
+        self.fc2 = CellLinear(R, self.K, h, 4 * width, shared, zero=zero_init)
         self.ln = nn.LayerNorm(C * width)
         self.head = nn.Linear(C * width, N_OUT)
         for r in range(R):

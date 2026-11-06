@@ -6,3 +6,5 @@ __pycache__/
 data/digits.npz
 # logs of running benchmarks
 results/*.log
+# trained model weights (regenerate with netresearch.bench)
+results/checkpoints/

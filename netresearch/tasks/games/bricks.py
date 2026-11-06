@@ -5,7 +5,7 @@ from ...spec import BLUE, CYAN, GREEN, LEFT, MAGENTA, NOOP, RED, RIGHT, WHITE, Y
 from ..base import Game
 from .common import canvas, put
 
-PW = 4                      # paddle width
+PW = 3                      # paddle width
 ROWS = (1, 2, 3, 4)         # brick rows
 ROW_COLORS = (RED, YELLOW, GREEN, CYAN)
 LIVES = 3
@@ -14,6 +14,7 @@ LIVES = 3
 class Bricks(Game):
     max_steps = 600
     actions = [NOOP, LEFT, RIGHT]
+    trail = True
 
     def reset(self):
         self.bricks = np.zeros((16, 16), dtype=bool)
@@ -81,7 +82,8 @@ class Bricks(Game):
                 put(img, int(x), r, col)
         for i in range(PW):
             put(img, self.px + i, 15, MAGENTA)
-        put(img, self.prev[0], self.prev[1], BLUE)
+        if self.trail:
+            put(img, self.prev[0], self.prev[1], BLUE)
         put(img, self.bx, self.by, WHITE)
         return img
 
@@ -100,7 +102,7 @@ class Bricks(Game):
     def expert(self):
         if self.dy > 0:
             lx = self._landing_x()
-            off = 1 if lx >= 8 else 2            # send ball back towards the centre
+            off = 0 if lx >= 8 else PW - 1       # send ball back towards the centre
             target = lx - off
         else:
             target = self.bx - 1
@@ -110,3 +112,8 @@ class Bricks(Game):
         if target > self.px:
             return RIGHT
         return NOOP
+
+
+class BricksMem(Bricks):
+    """No ball trail: the direction of the ball must be remembered from previous frames."""
+    trail = False

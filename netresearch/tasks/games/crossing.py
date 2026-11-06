@@ -26,7 +26,7 @@ class Crossing(Game):
                 base[x:x + ln] = True
                 x += ln + int(self.rng.integers(3, 7))
             direction = 1 if i % 2 == 0 else -1
-            period = int(self.rng.integers(1, 3))
+            period = 1                       # every lane moves each step: fully visible dynamics
             self.lanes[y] = (base, direction, period)
         self.t = 0
         self.x, self.y = START
@@ -64,7 +64,25 @@ class Crossing(Game):
         put(img, self.x, self.y, YELLOW)
         return img
 
-    def expert(self, horizon=14):
+    def expert(self):
+        """Reactive rule with a 2-step look-ahead (depends only on what is visible in the current frame):
+        go up if that stays safe for two steps, otherwise wait, otherwise dodge sideways / down."""
+        def safe(x, y, k):
+            return 0 <= x < 16 and not self._hit(x, y, self.t + k) and not self._hit(x, y, self.t + k + 1)
+
+        def ok(a):
+            dx, dy = MOVES[a]
+            x, y = min(max(self.x + dx, 0), 15), min(max(self.y + dy, 0), 15)
+            if not safe(x, y, 0):
+                return False
+            # after the move, at least one safe follow-up must exist
+            return any(safe(min(max(x + ddx, 0), 15), min(max(y + ddy, 0), 15), 1) for ddx, ddy in MOVES.values())
+        for a in (UP, NOOP, LEFT, RIGHT, DOWN):
+            if ok(a):
+                return a
+        return NOOP
+
+    def expert_search(self, horizon=14):
         """Vectorised BFS over (x, y, dt) with exact traffic simulation.
 
         Maximises progress (smallest y) within the horizon, then minimises time.
@@ -102,7 +120,9 @@ class Crossing(Game):
             survive_a = NOOP if (alive == NOOP).any() else int(alive[0])
             if rows[0] < best_y:
                 best_y = rows[0]
-                best_a = int(first[best_y][first[best_y] >= 0][0])
+                xs = np.flatnonzero(first[best_y] >= 0)
+                bx = xs[np.argmin(np.abs(xs - self.x))]        # deterministic: nearest reachable cell
+                best_a = int(first[best_y, bx])
                 if best_y <= GOAL_Y:
                     break
         return survive_a if best_a is None else best_a

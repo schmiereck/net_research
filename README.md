@@ -22,6 +22,9 @@ python -m venv .venv
 
 # Report -> results/report.md + results/heatmap.png
 .venv\Scripts\python -m netresearch.report
+
+# GUI: trainierte Modelle live nebeneinander beobachten (braucht results/checkpoints aus einem Bench-Lauf)
+.venv\Scripts\python -m netresearch.gui
 ```
 
 ## Erweitern
