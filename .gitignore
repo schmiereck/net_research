@@ -1,0 +1,8 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+# generated caches
+data/digits.npz
+# logs of running benchmarks
+results/*.log
