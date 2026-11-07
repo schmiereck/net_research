@@ -17,7 +17,9 @@ Status: offen · läuft · erledigt.
 | P1 | Scratchpad auf allen 15 Aufgaben und im Multi-Task-Lauf | offen | Schadet der Speicher bei Aufgaben ohne Gedächtnisbedarf? |
 | P1 | Scratchpad für Layer- und Hierarchie-Gitter | erster Test erledigt | Globaler Teil = gemeinsamer Speicher, Schreibvorschläge gemittelt. cycle_mem: hier_s 0.78 → 0.99, hier_i 0.07 → 0.95, layer_i 0.89 → 0.99, lernt viel schneller. Spiele: kaum Änderung (Decke). 1 Seed |
 | P1 | Fremde Scratchpads lesen statt gemittelt global schreiben: 8 Nachbarn (`_sp4n`) oder per gelernter Adresse, 4 Abfragen (`_sp4a`) | erster Test: unentschieden | Die drei Gedächtnis-Aufgaben unterscheiden die Varianten nicht (cycle_mem schon mit eigenem Speicher ~0.99). Adresse kostet +40–70 % Zeit. Braucht schwerere Gedächtnis-Aufgaben |
-| P1 | Schwerere Gedächtnis-Aufgaben: assoziativer Abruf (Schlüssel→Wert), lange Verzögerung, Information wechselt die Bildregion | offen | Nötig, um Gedächtnis-Architekturen überhaupt unterscheiden zu können |
+| P1 | Schwerere Gedächtnis-Aufgaben: assoziativer Abruf (Schlüssel→Wert), lange Verzögerung, Information wechselt die Bildregion | erledigt | `recall`, `delay`, `crossmem` (tasks/memory.py). Erster Lauf (18 Modelle, 1 Seed): delay lösen nur Gitter mit Scratchpad (1.00); recall nur attnmem (1.00); crossmem niemand (attnmem 0.37). Alle anderen speichern eine Überlagerung (Bit-Genauigkeit 0.69 = Mehrheit der Wörter) |
+| P1 | Scratchpad mit Inhaltsadressierung (Schlüssel/Wert, Lesen per Vergleich mit gespeicherten Schlüsseln) | offen | recall zeigt: Adresse nach Ort reicht nicht, es fehlt das Binden von Schlüssel und Wert |
+| P2 | crossmem: ohne Verzögerung lösbar? (Auswahl per Zeiger vs. Gedächtnis trennen) | offen | |
 | P2 | Rekurrenter Bus (Zustand von Takt zu Takt) | offen | Zusatz-Modell; die Modelle ohne Gedächtnis bleiben im Feld |
 | P2 | Hierarchie-Gitter mit mehreren Ticks pro Frame | offen | Zusatz-Modell |
 | P2 | Warum vergisst hier_s im Multi-Task-Lauf sein Gedächtnis (cycle_mem 0.78 → 0.01)? | offen | |
@@ -36,6 +38,7 @@ Status: offen · läuft · erledigt.
 | Prio | Thema | Status | Notiz |
 |---|---|---|---|
 | P1 | Mehrere Seeds (mindestens 3) für die Haupttabelle | offen | Auf dem zweiten PC über Nacht |
+| P1 | **Grid-World** (Idee 2026-11-07): voll sichtbar (Start, Ziel, Hindernisse, Fallgruben); größere Welt mit Scrollen (Spieler in der Mitte bzw. Kamera mit Totzone); Option Objekte auf Zielfelder schieben | geplant | Entwurf im Chat; Gedächtnis-Variante: Ziel anfangs außer Sicht, Experte erkundet nur mit dem, was er gesehen hat |
 | P2 | crossing lernt nur cnn (0.77) | offen | Aufgabe oder Experte prüfen |
 | P2 | Maze-Experte ist schwach | offen | |
 | P2 | Geteilte Gewichte: warum hilft das Teilen im Gitter, obwohl die Gradienten der Positionen orthogonal sind? | offen | Daten in grad_summary.csv |
