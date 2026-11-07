@@ -1,0 +1,27 @@
+baseline paddle_mem: {'random': -2.03125, 'expert': 4.875}
+baseline bricks_mem: {'random': 0.625, 'expert': 51.21875}
+24 jobs (0 already done), 3 workers
+[1/24   1.6min] mlp_sp16    cycle_mem  s0 score=0.078 t=90.6s
+[2/24   1.6min] mlp_sp64    cycle_mem  s0 score=0.405 t=91.6s
+[3/24   1.6min] mlp_sp4     cycle_mem  s0 score=0.016 t=92.0s
+[4/24   5.8min] bus_add_s_sp16 cycle_mem  s0 score=0.472 t=254.5s
+[5/24   6.0min] bus_add_s_sp4 cycle_mem  s0 score=0.190 t=265.8s
+[6/24   6.4min] bus_add_s_sp64 cycle_mem  s0 score=0.990 t=286.5s
+[7/24   6.9min] mlp_sp4     paddle_mem s0 score=0.950 t=33.3s
+[8/24   7.5min] mlp_sp16    paddle_mem s0 score=0.991 t=33.3s
+[9/24   8.1min] mlp_sp64    paddle_mem s0 score=0.991 t=34.2s
+[10/24   9.7min] bus_add_i_sp16 cycle_mem  s0 score=0.962 t=219.3s
+[11/24  10.2min] bus_add_s_sp4 paddle_mem s0 score=0.986 t=125.5s
+[12/24  10.4min] bus_add_s_spg cycle_mem  s0 score=0.903 t=271.5s
+[13/24  11.7min] bus_add_s_sp16 paddle_mem s0 score=0.977 t=122.2s
+[14/24  12.5min] bus_add_s_sp64 paddle_mem s0 score=0.973 t=139.2s
+[15/24  12.5min] bus_add_s_spg paddle_mem s0 score=0.991 t=129.2s
+[16/24  13.2min] mlp_sp4     bricks_mem s0 score=0.899 t=39.4s
+[17/24  13.2min] mlp_sp16    bricks_mem s0 score=0.779 t=38.8s
+[18/24  13.5min] bus_add_i_sp16 paddle_mem s0 score=0.986 t=107.9s
+[19/24  13.8min] mlp_sp64    bricks_mem s0 score=0.828 t=40.5s
+[20/24  15.4min] bus_add_s_sp4 bricks_mem s0 score=0.888 t=132.4s
+[21/24  15.7min] bus_add_s_sp16 bricks_mem s0 score=0.935 t=128.2s
+[22/24  16.3min] bus_add_s_sp64 bricks_mem s0 score=0.870 t=146.8s
+[23/24  17.6min] bus_add_i_sp16 bricks_mem s0 score=0.833 t=111.2s
+[24/24  17.7min] bus_add_s_spg bricks_mem s0 score=0.861 t=132.4s

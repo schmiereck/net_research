@@ -6,6 +6,7 @@ import torch
 from .basic import CNN, CVNN, MLP, AttnMem, GRUNet, ViT
 from .bus import BusNet
 from .grid import HierGrid, LayerGrid
+from .scratchpad import BusScratch, MLPScratch
 
 
 def _bus(mode, shared, width, sub=False):
@@ -35,6 +36,17 @@ WIDTH_FROM = {}
 for _base in ("bus_add", "bus_mul", "bus_gate", "bus_film", "layer", "hier"):
     MODELS[f"{_base}_iw"] = MODELS[f"{_base}_i"]
     WIDTH_FROM[f"{_base}_iw"] = f"{_base}_s"
+
+# Scratchpad memory (explicit per-module memory, models/scratchpad.py): "_sp<n>" = n values per module,
+# "_spg" = additionally 4 values per position published to all positions (global scratchpad)
+SCRATCH_ORDER = []
+for _n in (4, 16, 64):
+    MODELS[f"mlp_sp{_n}"] = (partial(MLPScratch, n_mem=_n), (8, 1024), 1)
+    MODELS[f"bus_add_s_sp{_n}"] = (partial(BusScratch, shared=True, n_mem=_n), (8, 512), 1)
+    SCRATCH_ORDER += [f"mlp_sp{_n}", f"bus_add_s_sp{_n}"]
+MODELS["bus_add_s_spg"] = (partial(BusScratch, shared=True, n_mem=16, n_global=4), (8, 512), 1)
+MODELS["bus_add_i_sp16"] = (partial(BusScratch, shared=False, n_mem=16), (8, 512), 1)
+SCRATCH_ORDER += ["bus_add_s_spg", "bus_add_i_sp16"]
 
 MODEL_ORDER = ["mlp", "cnn", "cvnn", "vit", "gru", "attnmem",
                "bus_add_s", "bus_add_i", "bus_mul_s", "bus_mul_i", "bus_gate_s", "bus_gate_i",

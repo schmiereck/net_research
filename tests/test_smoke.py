@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import torch
 
-from netresearch.models import MODEL_ORDER, SHARED_TO_INDIVIDUAL, WIDTH_FROM, build_model, count_params
+from netresearch.models import MODEL_ORDER, SCRATCH_ORDER, SHARED_TO_INDIVIDUAL, WIDTH_FROM, build_model, count_params
 from netresearch.spec import N_OUT, OBS_SHAPE
 from netresearch.tasks import TASKS, make_task
 from netresearch.train import evaluate_control, reset_state, run_sequence
@@ -35,7 +35,7 @@ def test_task_shapes(name):
             env.step(a)
 
 
-@pytest.mark.parametrize("name", MODEL_ORDER)
+@pytest.mark.parametrize("name", MODEL_ORDER + SCRATCH_ORDER)
 def test_model_io_and_params(name):
     m = build_model(name, 100_000)
     if name in WIDTH_FROM:                     # equal-width variants: width of the shared partner, more params
@@ -49,7 +49,7 @@ def test_model_io_and_params(name):
     out.sum().backward()
 
 
-@pytest.mark.parametrize("name", [m for m in MODEL_ORDER if build_model(m, 20_000).stateful])
+@pytest.mark.parametrize("name", [m for m in MODEL_ORDER + SCRATCH_ORDER if build_model(m, 20_000).stateful])
 def test_state_reset_equals_fresh_start(name):
     """After a reset, a stateful model must behave exactly like a freshly initialised one."""
     m = build_model(name, 20_000)
