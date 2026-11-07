@@ -72,11 +72,18 @@ def to_t(batch):
 _eval_cache = {}
 
 
+def _compact(batch):
+    """Observations are binary: keep them as uint8 (4x less memory), convert to float on use."""
+    b = to_t(batch)
+    b["obs"] = b["obs"].to(torch.uint8)
+    return b
+
+
 def eval_set(task, n=2048, seed=12345):
     key = task.spec.name
     if key not in _eval_cache:
         rng = np.random.default_rng(seed)
-        _eval_cache[key] = [to_t(task.sample(256, rng, split="test")) for _ in range(n // 256)]
+        _eval_cache[key] = [_compact(task.sample(256, rng, split="test")) for _ in range(n // 256)]
     return _eval_cache[key]
 
 
@@ -87,7 +94,7 @@ def evaluate_supervised(model, task, n_batches=None):
     model.eval()
     correct = total = loss_sum = bit_correct = 0.0
     for b in eval_set(task)[:n_batches]:
-        logits, _ = run_sequence(model, b["obs"])
+        logits, _ = run_sequence(model, b["obs"].float())
         lg, m = logits[..., spec.out_slice], b["mask"]
         loss_sum += supervised_loss(spec, logits, b["target"], m).item() * m.sum().item()
         if spec.head == "class":
@@ -220,12 +227,12 @@ class ControlLearner:
             self.keep = (~done).astype(np.float32)
             obs_l.append(o)
             lab_l.append(ex)
-        self.buf.append((np.stack(obs_l), np.stack(lab_l), np.stack(res_l).astype(np.float32)))
+        self.buf.append((np.stack(obs_l).astype(np.uint8), np.stack(lab_l), np.stack(res_l).astype(np.float32)))
         self.c += 1
 
     def _sample(self, rng):
         idx = rng.integers(len(self.buf), size=self.chunks_per_batch)
-        obs = torch.from_numpy(np.concatenate([self.buf[j][0] for j in idx], 1))
+        obs = torch.from_numpy(np.concatenate([self.buf[j][0] for j in idx], 1)).float()
         lab = torch.from_numpy(np.concatenate([self.buf[j][1] for j in idx], 1))
         res = torch.from_numpy(np.concatenate([self.buf[j][2] for j in idx], 1))
         res[0] = 1.0                                       # every chunk starts from a zero state
