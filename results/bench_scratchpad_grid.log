@@ -1,0 +1,27 @@
+baseline paddle_mem: {'random': -2.03125, 'expert': 4.875}
+baseline bricks_mem: {'random': 0.625, 'expert': 51.21875}
+24 jobs (24 already done), 5 workers
+[1/24  10.1min] layer_i_sp4 cycle_mem  s0 score=0.993 t=599.6s
+[2/24  27.9min] layer_s_sp4 cycle_mem  s0 score=1.000 t=1660.0s
+[3/24  30.1min] layer_s_sp16 cycle_mem  s0 score=1.000 t=1790.2s
+[4/24  30.8min] layer_s_sp4g16 cycle_mem  s0 score=1.000 t=1832.3s
+[5/24  33.8min] hier_s_sp4  cycle_mem  s0 score=0.989 t=2011.9s
+[6/24  42.7min] layer_s_sp4 paddle_mem s0 score=0.973 t=713.2s
+[7/24  43.7min] hier_s_sp16 cycle_mem  s0 score=0.992 t=2002.2s
+[8/24  45.1min] hier_i_sp4  cycle_mem  s0 score=0.954 t=892.7s
+[9/24  46.5min] layer_s_sp16 paddle_mem s0 score=0.986 t=764.0s
+[10/24  48.6min] layer_i_sp4 paddle_mem s0 score=0.977 t=295.9s
+[11/24  55.9min] layer_s_sp4g16 paddle_mem s0 score=1.000 t=789.9s
+[12/24  56.6min] hier_s_sp4g16 cycle_mem  s0 score=0.992 t=1705.4s
+[13/24  59.7min] hier_s_sp4  paddle_mem s0 score=0.959 t=876.5s
+[14/24  61.3min] hier_s_sp16 paddle_mem s0 score=0.959 t=882.2s
+[15/24  62.8min] hier_s_sp4g16 paddle_mem s0 score=0.968 t=851.4s
+[16/24  63.2min] hier_i_sp4  paddle_mem s0 score=0.950 t=438.1s
+[17/24  68.1min] layer_i_sp4 bricks_mem s0 score=0.930 t=310.2s
+[18/24  68.5min] layer_s_sp4 bricks_mem s0 score=0.955 t=712.2s
+[19/24  72.6min] layer_s_sp16 bricks_mem s0 score=0.917 t=769.2s
+[20/24  74.7min] layer_s_sp4g16 bricks_mem s0 score=0.892 t=802.4s
+[21/24  77.7min] hier_s_sp4  bricks_mem s0 score=0.851 t=864.2s
+[22/24  79.3min] hier_i_sp4  bricks_mem s0 score=0.809 t=400.9s
+[23/24  81.0min] hier_s_sp4g16 bricks_mem s0 score=0.918 t=745.9s
+[24/24  81.1min] hier_s_sp16 bricks_mem s0 score=0.858 t=775.9s

@@ -15,7 +15,7 @@ Status: offen · läuft · erledigt.
 | P1 | Scratchpad-Größe: wie viele Werte pro Modul und global sind nötig? | teilweise | Spiele: 4 Werte reichen. cycle_mem (bis 64 Bit): Gesamtkapazität zählt; global teilen hilft stark (bus_s 16 lokal 0.47 → mit 4 global 0.90) |
 | P1 | Scratchpad: geteilt vs. individuell (bus_add_i_sp16 0.96 vs. bus_add_s_sp16 0.47 auf cycle_mem) | offen | Gegenteil des Gitter-Befunds; mit Seeds prüfen |
 | P1 | Scratchpad auf allen 15 Aufgaben und im Multi-Task-Lauf | offen | Schadet der Speicher bei Aufgaben ohne Gedächtnisbedarf? |
-| P1 | Scratchpad für Layer- und Hierarchie-Gitter | offen | Der erste Test trägt; global teilen muss im Gitter sparsam sein (Summe statt Aneinanderhängen) |
+| P1 | Scratchpad für Layer- und Hierarchie-Gitter | erster Test erledigt | Globaler Teil = gemeinsamer Speicher, Schreibvorschläge gemittelt. cycle_mem: hier_s 0.78 → 0.99, hier_i 0.07 → 0.95, layer_i 0.89 → 0.99, lernt viel schneller. Spiele: kaum Änderung (Decke). 1 Seed |
 | P2 | Rekurrenter Bus (Zustand von Takt zu Takt) | offen | Zusatz-Modell; die Modelle ohne Gedächtnis bleiben im Feld |
 | P2 | Hierarchie-Gitter mit mehreren Ticks pro Frame | offen | Zusatz-Modell |
 | P2 | Warum vergisst hier_s im Multi-Task-Lauf sein Gedächtnis (cycle_mem 0.78 → 0.01)? | offen | |
