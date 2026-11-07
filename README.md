@@ -98,9 +98,44 @@ Die Werte stammen aus einem einzigen Seed. Für belastbare Aussagen fehlen noch 
    initialisiert wird. Die Null-Initialisierung hatte den rekurrenten Pfad stillgelegt.
 5. **CNN:** Sie bleibt bei räumlichen Spielen (`crossing`, `maze`) ungeschlagen.
 
-Laufend: **Multi-Task** – ein Netz lernt alle 15 Aufgaben gleichzeitig, ohne Task-Kennung
-(`bench --multitask`). Gemessen werden dabei die Scores im Vergleich zum Einzeltraining und die Ähnlichkeit der
-Gradienten zwischen den Aufgaben.
+### Multi-Task: ein Netz für alle 15 Aufgaben
+
+Ein Netz lernt alle 15 Aufgaben gleichzeitig, reihum mit einem Batch pro Update (`bench --multitask`).
+- Jede Aufgabe bekommt so viele Updates wie im Einzeltraining.
+- Das Netz bekommt keine Task-Kennung und muss die Aufgabe am Input erkennen.
+- Es wurden 11 repräsentative Modelle gerechnet (Seed 0).
+
+| Modell | Einzeltraining | Multi-Task | erhalten |
+|---|---|---|---|
+| layer_s | 0.80 | **0.60** | 75 % |
+| layer_iw (19× Parameter) | 0.79 | 0.60 | 75 % |
+| hier_s | 0.70 | 0.51 | 72 % |
+| layer_i | 0.70 | 0.51 | 72 % |
+| cnn | 0.70 | 0.50 | 71 % |
+| hier_i | 0.57 | 0.47 | 83 % |
+| gru | 0.56 | 0.47 | 85 % |
+| attnmem | 0.55 | 0.45 | 83 % |
+| mlp | 0.50 | 0.39 | 77 % |
+| bus_mul_s / bus_mul_i | 0.56 / 0.56 | 0.38 / 0.37 | 68 % / 66 % |
+
+**Befunde:**
+
+1. **Bei gleichem Budget kostet Multi-Task 15–35 % der Leistung.** layer_s bleibt das beste Netz. Es erreicht
+   dieselbe Leistung wie layer_iw mit einem Neunzehntel der Parameter. Der Vorsprung geteilter Module vor
+   individuellen bleibt beim Layer-Gitter erhalten (0.60 zu 0.51), beim Hierarchie-Gitter schrumpft er (0.51 zu
+   0.47).
+2. **Am meisten leiden Aufgaben, die denselben Ausgabebereich teilen und ähnlich aussehen.** `cycle`, `count` und
+   `numseq` zeigen alle Bitzeilen und sagen alle in den Bit-Vorhersage-Bereich voraus:
+   - `cycle` verliert bei *allen* Modellen etwa 0.5.
+   - Das Netz muss aus dem Bild erschließen, ob es ein Muster fortsetzen, zählen oder eine Regel anwenden soll.
+   - Ähnlich ergeht es `bricks` gegenüber `bricks_mem`. Netze ohne Gedächtnis verlieren bei `bricks` bis zu 0.76.
+3. **Gedächtnis ist fragil.** Im Multi-Task-Training behält nur attnmem `cycle_mem` vollständig (1.00). layer_s
+   kommt auf 0.60. hier_s verliert sein Gedächtnis fast ganz, von 0.78 auf 0.01.
+4. **Was den Spielen hilft:** paddle, paddle_mem und bricks_mem bleiben bei den Gitter-Netzen auf
+   Einzeltraining-Niveau, hier_s wird bei `bricks_mem` sogar besser (+0.16).
+5. **Die Gradienten verschiedener Aufgaben stehen fast senkrecht zueinander** (mittlerer Cosinus ≈ 0). Die Aufgaben
+   ziehen also nicht direkt gegeneinander, transferieren aber auch kaum Gradienten-Richtung aufeinander.
+   Einschränkung: Gemessen wurde auf je einem kleinen Batch, das Rauschen ist entsprechend hoch.
 
 ## Setup
 
