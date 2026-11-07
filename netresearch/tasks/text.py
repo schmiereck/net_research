@@ -33,7 +33,7 @@ class CharNext(SupervisedTask):
         cut = int(len(ids) * 0.9)
         self.ids = {"train": ids[:cut], "test": ids[cut:]}
         majority = np.bincount(ids, minlength=len(VOCAB)).max() / len(ids)
-        self.spec = TaskSpec("charnext", "text", "supervised", "class", len(VOCAB), seq_len=8,
+        self.spec = TaskSpec("charnext", "text", "supervised", "class", len(VOCAB), seq_len=8, role="symbol",
                              chance=float(majority),
                              description="next char; last 16 chars as one-hot rows (col=i%16, ch=i//16)")
 

@@ -2,6 +2,7 @@
 
 Supervised tasks: sequences [T, B], truncated BPTT, loss on masked steps.
 Control tasks   : imitation learning with DAgger (expert labels the states the learner visits).
+Both are wrapped in "learners" so that one training loop serves single-task and multi-task runs.
 """
 import json
 import math
@@ -55,7 +56,7 @@ def make_opt(model, updates, lr):
 
 
 def supervised_loss(spec, logits, target, mask):
-    lg = logits[..., :spec.n_out]
+    lg = logits[..., spec.out_slice]
     if spec.head == "class":
         l = F.cross_entropy(lg.reshape(-1, spec.n_out), target.reshape(-1), reduction="none").view(mask.shape)
     else:
@@ -80,13 +81,14 @@ def eval_set(task, n=2048, seed=12345):
 
 
 @torch.no_grad()
-def evaluate_supervised(model, task):
+def evaluate_supervised(model, task, n_batches=None):
     spec = task.spec
+    was_training = model.training
     model.eval()
     correct = total = loss_sum = bit_correct = 0.0
-    for b in eval_set(task):
+    for b in eval_set(task)[:n_batches]:
         logits, _ = run_sequence(model, b["obs"])
-        lg, m = logits[..., :spec.n_out], b["mask"]
+        lg, m = logits[..., spec.out_slice], b["mask"]
         loss_sum += supervised_loss(spec, logits, b["target"], m).item() * m.sum().item()
         if spec.head == "class":
             correct += ((lg.argmax(-1) == b["target"]).float() * m).sum().item()
@@ -96,39 +98,38 @@ def evaluate_supervised(model, task):
             correct += (eq.min(-1).values * m).sum().item()
             bit_correct += (eq.mean(-1) * m).sum().item()
         total += m.sum().item()
-    model.train()
+    model.train(was_training)
     acc = correct / total
     res = {"acc": acc, "loss": loss_sum / total}
-    if spec.head == "class":
-        res["score"] = (acc - spec.chance) / (1 - spec.chance)
-    else:
-        res["score"] = acc
+    res["score"] = (acc - spec.chance) / (1 - spec.chance)          # chance = 0 for multi-bit outputs
+    if spec.head == "bits":
         res["bit_acc"] = bit_correct / total
     if spec.name == "charnext":
         res["bpc"] = res["loss"] / math.log(2)
     return res
 
 
-def train_supervised(model, task, updates, batch, lr, seed, log_every):
-    spec = task.spec
-    rng = np.random.default_rng(seed)
-    opt, sched = make_opt(model, updates, lr)
-    curve = []
-    run_loss = 0.0
-    for i in range(updates):
-        b = to_t(task.sample(batch, rng))
+class SupervisedLearner:
+    """Training batches for a supervised task; loss_on(model, batch) -> scalar loss."""
+
+    def __init__(self, task, batch, seed):
+        self.task, self.spec, self.batch = task, task.spec, batch
+        self.rng = np.random.default_rng(seed)
+        self.probe_rng = np.random.default_rng(seed + 7777)
+
+    def next_batch(self, model):
+        return to_t(self.task.sample(self.batch, self.rng))
+
+    def probe_batch(self, model):
+        """Batch for diagnostics (does not advance the training stream)."""
+        return to_t(self.task.sample(self.batch, self.probe_rng))
+
+    def loss_on(self, model, b):
         logits, _ = run_sequence(model, b["obs"])
-        loss = supervised_loss(spec, logits, b["target"], b["mask"])
-        opt.zero_grad()
-        loss.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-        opt.step()
-        sched.step()
-        run_loss += loss.item()
-        if (i + 1) % log_every == 0:
-            curve.append([i + 1, run_loss / log_every])
-            run_loss = 0.0
-    return curve
+        return supervised_loss(self.spec, logits, b["target"], b["mask"])
+
+    def log(self):
+        return []
 
 
 # ---------------------------------------------------------------------------------------------- control
@@ -178,61 +179,134 @@ def game_baselines(task):
     return data[name]
 
 
-def train_control(model, task, updates, batch, lr, seed, log_every, n_envs=16, upd_per_chunk=4,
-                  buffer_chunks=96):
-    spec = task.spec
-    T, valid = spec.seq_len, spec.valid_actions
-    label_map = torch.full((8,), -1, dtype=torch.long)
-    label_map[valid] = torch.arange(len(valid))
-    env = task.make_env(n_envs, seed)
-    rng = np.random.default_rng(seed)
-    opt, sched = make_opt(model, updates, lr)
-    buf = deque(maxlen=buffer_chunks)
-    state = model.init_state(n_envs)
-    keep = np.ones(n_envs, dtype=np.float32)
-    n_chunks = math.ceil(updates / upd_per_chunk)
-    curve, run_loss, i, agree, agree_n = [], 0.0, 0, 0.0, 0
-    chunks_per_batch = max(1, batch // n_envs)
-    for c in range(n_chunks):
-        beta = max(0.0, 1.0 - c / (0.5 * n_chunks))           # expert-mixing probability, 1 -> 0
+class ControlLearner:
+    """DAgger: the expert labels the states the learner visits; the expert-mixing probability beta goes
+    1 -> 0 over the first half of the chunks. One chunk (T steps x n_envs) is collected every upd_per_chunk
+    updates into a replay buffer of chunks."""
+
+    def __init__(self, model, task, updates, batch, seed, n_envs=16, upd_per_chunk=4, buffer_chunks=96):
+        self.task, self.spec = task, task.spec
+        self.T, self.valid = self.spec.seq_len, self.spec.valid_actions
+        self.label_map = torch.full((8,), -1, dtype=torch.long)
+        self.label_map[self.valid] = torch.arange(len(self.valid))
+        self.env = task.make_env(n_envs, seed)
+        self.n_envs, self.upd_per_chunk = n_envs, upd_per_chunk
+        self.rng = np.random.default_rng(seed)
+        self.buf = deque(maxlen=buffer_chunks)
+        self.state = model.init_state(n_envs)
+        self.keep = np.ones(n_envs, dtype=np.float32)
+        self.n_chunks = math.ceil(updates / upd_per_chunk)
+        self.chunks_per_batch = max(1, batch // n_envs)
+        self.c = self.k = 0
+        self.agree = self.agree_n = 0.0
+
+    @torch.no_grad()
+    def collect(self, model):
+        beta = max(0.0, 1.0 - self.c / (0.5 * self.n_chunks))
+        env, n = self.env, self.n_envs
         obs_l, lab_l, res_l = [], [], []
-        with torch.no_grad():
-            for t in range(T):
-                o = env.obs()
-                ex = env.expert()
-                res_l.append(1.0 - keep)
-                if model.stateful:
-                    state = reset_state(state, torch.from_numpy(keep))
-                logits, state = model(torch.from_numpy(o), state)
-                a_model = policy_actions(logits, valid)
-                agree += (a_model == ex).sum()
-                agree_n += n_envs
-                a = np.where(rng.random(n_envs) < beta, ex, a_model)
-                _, done, _ = env.step(a)
-                keep = (~done).astype(np.float32)
-                obs_l.append(o)
-                lab_l.append(ex)
-        buf.append((np.stack(obs_l), np.stack(lab_l), np.stack(res_l).astype(np.float32)))
-        for _ in range(upd_per_chunk):
-            if i >= updates:
-                break
-            idx = rng.integers(len(buf), size=chunks_per_batch)
-            obs = torch.from_numpy(np.concatenate([buf[j][0] for j in idx], 1))
-            lab = torch.from_numpy(np.concatenate([buf[j][1] for j in idx], 1))
-            res = torch.from_numpy(np.concatenate([buf[j][2] for j in idx], 1))
-            res[0] = 1.0                                       # every chunk starts from a zero state
-            logits, _ = run_sequence(model, obs, resets=res)
-            loss = F.cross_entropy(logits[..., valid].reshape(-1, len(valid)), label_map[lab].reshape(-1))
-            opt.zero_grad()
-            loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-            opt.step()
-            sched.step()
-            run_loss += loss.item()
-            i += 1
-            if i % log_every == 0:
-                curve.append([i, run_loss / log_every, agree / max(1, agree_n)])
-                run_loss, agree, agree_n = 0.0, 0.0, 0
+        for _ in range(self.T):
+            o = env.obs()
+            ex = env.expert()
+            res_l.append(1.0 - self.keep)
+            if model.stateful:
+                self.state = reset_state(self.state, torch.from_numpy(self.keep))
+            logits, self.state = model(torch.from_numpy(o), self.state)
+            a_model = policy_actions(logits, self.valid)
+            self.agree += (a_model == ex).sum()
+            self.agree_n += n
+            a = np.where(self.rng.random(n) < beta, ex, a_model)
+            _, done, _ = env.step(a)
+            self.keep = (~done).astype(np.float32)
+            obs_l.append(o)
+            lab_l.append(ex)
+        self.buf.append((np.stack(obs_l), np.stack(lab_l), np.stack(res_l).astype(np.float32)))
+        self.c += 1
+
+    def _sample(self, rng):
+        idx = rng.integers(len(self.buf), size=self.chunks_per_batch)
+        obs = torch.from_numpy(np.concatenate([self.buf[j][0] for j in idx], 1))
+        lab = torch.from_numpy(np.concatenate([self.buf[j][1] for j in idx], 1))
+        res = torch.from_numpy(np.concatenate([self.buf[j][2] for j in idx], 1))
+        res[0] = 1.0                                       # every chunk starts from a zero state
+        return {"obs": obs, "lab": lab, "res": res}
+
+    def next_batch(self, model):
+        if self.k % self.upd_per_chunk == 0:
+            self.collect(model)
+        self.k += 1
+        return self._sample(self.rng)
+
+    def probe_batch(self, model):
+        if not self.buf:
+            self.collect(model)
+        return self._sample(np.random.default_rng(self.k + 7777))
+
+    def loss_on(self, model, b):
+        logits, _ = run_sequence(model, b["obs"], resets=b["res"])
+        return F.cross_entropy(logits[..., self.valid].reshape(-1, len(self.valid)),
+                               self.label_map[b["lab"]].reshape(-1))
+
+    def log(self):
+        a = self.agree / max(1, self.agree_n)
+        self.agree = self.agree_n = 0.0
+        return [round(float(a), 4)]
+
+
+# ----------------------------------------------------------------------------------------- training
+def make_learner(model, task, updates, batch, seed):
+    if task.spec.kind == "supervised":
+        return SupervisedLearner(task, batch, seed)
+    return ControlLearner(model, task, updates, batch, seed)
+
+
+def game_score(ret, base):
+    return (ret - base["random"]) / max(1e-6, base["expert"] - base["random"])
+
+
+def quick_score(model, task):
+    """Cheaper evaluation for learning curves (512 test samples / 16 game episodes)."""
+    if task.spec.kind == "supervised":
+        return evaluate_supervised(model, task, n_batches=2)["score"]
+    ret, _ = evaluate_control(model, task, n_envs=16)
+    return game_score(ret, game_baselines(task))
+
+
+def final_metrics(model, task):
+    if task.spec.kind == "supervised":
+        return evaluate_supervised(model, task)
+    ret, ln = evaluate_control(model, task)
+    base = game_baselines(task)
+    return {"return": ret, "ep_len": ln, "score": game_score(ret, base), "random": base["random"],
+            "expert": base["expert"]}
+
+
+def train_loop(model, learners, updates, lr, log_every, on_eval=None, eval_every=None):
+    """Round-robin over the learners (one per task; a single learner = single-task training).
+    curve rows: [update, mean loss (list per task if several), DAgger agreement per control task...]."""
+    opt, sched = make_opt(model, updates, lr)
+    curve = []
+    run_loss, run_n = np.zeros(len(learners)), np.zeros(len(learners))
+    if on_eval is not None:
+        on_eval(0)
+    for i in range(updates):
+        j = i % len(learners)
+        L = learners[j]
+        loss = L.loss_on(model, L.next_batch(model))
+        opt.zero_grad()
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+        opt.step()
+        sched.step()
+        run_loss[j] += loss.item()
+        run_n[j] += 1
+        if (i + 1) % log_every == 0:
+            ls = (run_loss / np.maximum(1, run_n)).round(5).tolist()
+            extra = sum((L.log() for L in learners), [])
+            curve.append([i + 1, ls[0] if len(learners) == 1 else ls, *extra])
+            run_loss[:], run_n[:] = 0, 0
+        if on_eval is not None and eval_every and (i + 1) % eval_every == 0 and i + 1 < updates:
+            on_eval(i + 1)
     return curve
 
 
@@ -264,26 +338,87 @@ def load_checkpoint(model_name, task_name, seed=0):
     return model.eval()
 
 
+def _round(d):
+    return {k: (round(v, 5) if isinstance(v, float) else v) for k, v in d.items()}
+
+
 def run(model_name, task_name, seed=0, updates=1500, batch=64, lr=2e-3, target_params=100_000, log_every=100,
-        save=True):
+        save=True, eval_every=250):
+    """Single-task run. Besides the final metrics it records a learning curve of test scores (score_curve)
+    and, for shared-weight models, the gradient agreement between the positions that use the shared module
+    (grad_curve, see analysis.position_grad_stats)."""
+    from .analysis import position_grad_stats
+    from .models import SHARED_TO_INDIVIDUAL
     torch.manual_seed(seed)
     task = make_task(task_name)
     model = build_model(model_name, target_params, seed=seed)
+    learner = make_learner(model, task, updates, batch, seed)
+    shared = model_name in SHARED_TO_INDIVIDUAL
+    score_curve, grad_curve = [], []
+
+    def grad_stats(i):
+        b = learner.probe_batch(model)
+        grad_curve.append([i, position_grad_stats(model, model_name, lambda m: learner.loss_on(m, b))])
+
+    def on_eval(i):
+        if i > 0:
+            score_curve.append([i, round(quick_score(model, task), 4)])
+        if shared:
+            grad_stats(i)
+
     t0 = time.time()
-    if task.spec.kind == "supervised":
-        curve = train_supervised(model, task, updates, batch, lr, seed, log_every)
-        train_time = time.time() - t0
-        metrics = evaluate_supervised(model, task)
-    else:
-        curve = train_control(model, task, updates, batch, lr, seed, log_every)
-        train_time = time.time() - t0
-        ret, ln = evaluate_control(model, task)
-        base = game_baselines(task)
-        score = (ret - base["random"]) / max(1e-6, base["expert"] - base["random"])
-        metrics = {"return": ret, "ep_len": ln, "score": score, "random": base["random"], "expert": base["expert"]}
+    curve = train_loop(model, [learner], updates, lr, log_every, on_eval, eval_every)
+    train_time = time.time() - t0
+    metrics = final_metrics(model, task)
+    score_curve.append([updates, round(metrics["score"], 4)])
+    if shared:
+        grad_stats(updates)
     if save:
         save_checkpoint(model, model_name, task_name, seed, metrics["score"])
-    return {"model": model_name, "task": task_name, "seed": seed, "group": task.spec.group,
-            "params": count_params(model), "width": model.width_used, "updates": updates,
+    out = {"model": model_name, "task": task_name, "seed": seed, "group": task.spec.group,
+           "params": count_params(model), "width": model.width_used, "updates": updates,
+           "train_time": round(train_time, 1), "eval_time": round(time.time() - t0 - train_time, 1),
+           **_round(metrics), "curve": curve, "score_curve": score_curve}
+    if grad_curve:
+        out["grad_curve"] = grad_curve
+    return out
+
+
+def run_multitask(model_name, task_names, seed=0, updates_per_task=1500, batch=64, lr=2e-3,
+                  target_params=100_000, log_every=500, save=True, n_evals=4):
+    """One model learns all tasks at once (round-robin, one task batch per update); each task gets
+    updates_per_task gradient steps, as in its single-task run. There is no task id: the model has to infer
+    the task from the input. Intermediate evaluations record per-task scores, the cosine matrix between the
+    tasks' gradients and (shared models) the per-task agreement between module positions."""
+    from .analysis import position_grad_stats, task_grad_cosine
+    from .models import SHARED_TO_INDIVIDUAL
+    torch.manual_seed(seed)
+    tasks = [make_task(t) for t in task_names]
+    model = build_model(model_name, target_params, seed=seed)
+    updates = updates_per_task * len(tasks)
+    learners = [make_learner(model, t, updates_per_task, batch, seed + k) for k, t in enumerate(tasks)]
+    evals = []
+
+    def diagnostics(i, scores):
+        bs = [L.probe_batch(model) for L in learners]
+        fns = [(lambda m, L=L, b=b: L.loss_on(m, b)) for L, b in zip(learners, bs)]
+        e = {"update": i, "scores": scores, "task_cos": task_grad_cosine(model, fns)}
+        if model_name in SHARED_TO_INDIVIDUAL:
+            e["pos_mean_cos"] = {t.spec.name: position_grad_stats(model, model_name, fn)["mean_cos"]
+                                 for t, fn in zip(tasks, fns)}
+        evals.append(e)
+
+    def on_eval(i):
+        diagnostics(i, {t.spec.name: round(quick_score(model, t), 4) for t in tasks} if i > 0 else {})
+
+    t0 = time.time()
+    curve = train_loop(model, learners, updates, lr, log_every, on_eval, max(1, updates // n_evals))
+    train_time = time.time() - t0
+    metrics = {t.spec.name: _round(final_metrics(model, t)) for t in tasks}
+    diagnostics(updates, {k: round(v["score"], 4) for k, v in metrics.items()})
+    if save:
+        save_checkpoint(model, model_name, "multi", seed, float(np.mean([v["score"] for v in metrics.values()])))
+    return {"model": model_name, "seed": seed, "tasks": task_names, "params": count_params(model),
+            "width": model.width_used, "updates": updates, "updates_per_task": updates_per_task,
             "train_time": round(train_time, 1), "eval_time": round(time.time() - t0 - train_time, 1),
-            **{k: (round(v, 5) if isinstance(v, float) else v) for k, v in metrics.items()}, "curve": curve}
+            "metrics": metrics, "evals": evals, "curve": curve}

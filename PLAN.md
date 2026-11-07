@@ -19,9 +19,15 @@ Szenarien (16x16 Raster). Alles in Python 3.12 + PyTorch (CPU).
 
 ### Output
 * Ein Vektor mit **64 Logits** für jedes Netz und jedes Szenario.
-* Jedes Szenario deklariert, wie es die Slots nutzt:
-  * `class`: Softmax über die ersten `n` Slots (Aktionen, Klassen, Zeichen).
-  * `bits`: Sigmoid über die ersten `n` Slots (Bitmuster, z.B. nächste Zahl als 8 Bit).
+* Die Ausgabe ist nach Funktion in feste Bereiche aufgeteilt. Ein Ausgabe-Neuron hat damit in jeder Aufgabe
+  dieselbe Bedeutung; das ist wichtig, wenn ein Netz mehrere Aufgaben gleichzeitig lernt:
+
+  | Bereich | Slots | Nutzung | Tasks |
+  |---|---|---|---|
+  | Motorik | 0–7 | Softmax über die gültigen Aktionen | alle Spiele |
+  | Klassifikation | 8–17 | Softmax: Klasse des Bildes | shapes, digits |
+  | Bit-Vorhersage | 18–25 | Sigmoid je Bit: nächstes Bit / nächste Zeile | bitseq, cycle, cycle_mem, count, numseq |
+  | Symbol-Vorhersage | 26–63 | Softmax: nächstes Zeichen | charnext |
 * Aktions-Slots für Spiele (fest): `0 noop, 1 left, 2 right, 3 up, 4 down, 5 fire, 6 jump, 7 reserve`.
 
 ### Netz-API
@@ -40,7 +46,7 @@ Episodengrenzen werden vom Framework durch Maskieren des Zustands behandelt.
 |----------|---------------|--------------|--------------------|
 | Patterns | `cycle`       | Zufälliger Bit-Zyklus (Länge 2–12), letzte 16 Bits sichtbar → nächstes Bit | nein |
 | Patterns | `cycle_mem`   | Wie `cycle`, aber nur das aktuelle Bit sichtbar | **ja** |
-| Patterns | `count`       | Letzte 4 Zahlen (8 Bit) sichtbar, Schrittweite 1–7 → nächste Zahl (bits) | nein |
+| Patterns | `count`       | Zeilen = v0, v0+k, … (8 Bit, mod 256), Start und Schrittweite 1–15 zufällig, 2–16 Zeilen sichtbar → nächste Zahl (bits) | nein |
 | Image    | `shapes`      | 6 geometrische Figuren, zufällig Größe/Position/Farbe + Rauschen | nein |
 | Image    | `digits`      | Ziffern-OCR, gerendert aus System-Fonts; **Test-Fonts ≠ Train-Fonts** | nein |
 | Text     | `charnext`    | Nächstes Zeichen (42er Alphabet), letzte 16 Zeichen als One-Hot-Zeilen | teilweise |

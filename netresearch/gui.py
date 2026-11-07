@@ -6,7 +6,8 @@ Pick a task and a model group; every model gets its own copy of the same scenari
 Games: each panel shows the frame, the chosen action, the running episode return and the mean of finished
 episodes. Expert and random policies are shown as reference panels.
 Supervised tasks: all models see the same test sample; the panels show input, prediction and running accuracy.
-Models are loaded from results/checkpoints (written by netresearch.bench / train.run).
+Models are loaded from results/checkpoints (written by netresearch.bench / train.run). With "Multi-Task" the
+models trained on all tasks at once (bench --multitask) are shown instead of the single-task models.
 """
 import math
 import tkinter as tk
@@ -25,7 +26,8 @@ GROUPS = {
     "Alle": MODEL_ORDER,
     "Baselines": ["mlp", "cnn", "cvnn", "vit", "gru", "attnmem"],
     "Bus": [m for m in MODEL_ORDER if "bus" in m],
-    "Gitter": ["layer_s", "layer_i", "hier_s", "hier_i"],
+    "Gitter": ["layer_s", "layer_i", "layer_iw", "hier_s", "hier_i", "hier_iw"],
+    "Geteilt vs. individuell": [m for m in MODEL_ORDER if m.endswith(("_s", "_i", "_iw")) and m != "subbus_i"],
     "Gedächtnis": ["gru", "attnmem", "layer_s", "layer_i", "hier_s", "hier_i"],
 }
 SCALE = 8
@@ -117,7 +119,7 @@ class SupervisedPanel(Panel):
     def step(self, obs, target, counted):
         spec = self.task.spec
         logits, self.state = self.model(torch.from_numpy(obs[None]), self.state)
-        lg = logits[0, :spec.n_out]
+        lg = logits[0, spec.out_slice]
         if spec.head == "class":
             pred, tgt = int(lg.argmax()), int(target)
             ok = pred == tgt
@@ -147,6 +149,7 @@ class App:
         self.group_var = tk.StringVar(value="Alle")
         self.seed_var = tk.IntVar(value=0)
         self.speed_var = tk.IntVar(value=10)
+        self.multi_var = tk.BooleanVar(value=False)
         self.running = False
 
         def lab(t):
@@ -154,7 +157,9 @@ class App:
         lab("Task")
         ttk.Combobox(bar, textvariable=self.task_var, values=list(TASKS), width=12, state="readonly").pack(side="left")
         lab("Gruppe")
-        ttk.Combobox(bar, textvariable=self.group_var, values=list(GROUPS), width=11, state="readonly").pack(side="left")
+        ttk.Combobox(bar, textvariable=self.group_var, values=list(GROUPS), width=20, state="readonly").pack(side="left")
+        tk.Checkbutton(bar, text="Multi-Task", variable=self.multi_var, bg=BG, fg=FG, selectcolor=BG,
+                       activebackground=BG, activeforeground=FG).pack(side="left", padx=(8, 0))
         lab("Seed")
         tk.Spinbox(bar, from_=0, to=9999, textvariable=self.seed_var, width=6).pack(side="left")
         ttk.Button(bar, text="Laden", command=self.load).pack(side="left", padx=8)
@@ -185,7 +190,7 @@ class App:
             self.panels.append(GamePanel(self.grid, "Experte", None, task, seed, "expert"))
             self.panels.append(GamePanel(self.grid, "Zufall", None, task, seed, "random"))
         for m in GROUPS[self.group_var.get()]:
-            model = load_checkpoint(m, task.spec.name, 0)
+            model = load_checkpoint(m, "multi" if self.multi_var.get() else task.spec.name, 0)
             if model is None:
                 missing.append(m)
                 continue

@@ -108,10 +108,10 @@ class _Window(SupervisedTask):
         T = self.spec.seq_len
         s = sample_streams(batch, self.HIST + T, rng, split, self.families)
         obs = np.zeros((T, batch, 3, 16, 16), dtype=np.float32)
-        target = np.empty((T, batch), dtype=np.int64)
+        target = np.empty((T, batch, 1), dtype=np.float32)
         for t in range(T):
             obs[t] = s[:, t:t + self.HIST][:, None, None, :]
-            target[t] = s[:, t + self.HIST]
+            target[t, :, 0] = s[:, t + self.HIST]
         return {"obs": obs, "target": target, "mask": np.ones((T, batch), dtype=np.float32)}
 
 
@@ -120,7 +120,7 @@ class BitSeq(_Window):
     families = FAMILIES
 
     def __init__(self):
-        self.spec = TaskSpec("bitseq", "patterns", "supervised", "class", 2, seq_len=4, chance=0.5,
+        self.spec = TaskSpec("bitseq", "patterns", "supervised", "bits", 1, seq_len=4, chance=0.5,
                              description="mixed bit-stream generators (periodic, counter, growing runs, xor of "
                                          "cycles, LFSR), 16 bits visible -> next bit; test params held out")
 
@@ -134,12 +134,14 @@ def to_bits(v):
 
 
 def draw_rows(words, n_visible):
-    """words [B, >=n] ints, n_visible [B] -> image [B,3,16,16]; row j (top->bottom) = word j, white = 1."""
+    """words [B, >=n] ints, n_visible [B] -> image [B,3,16,16]; row j (top->bottom) = word j, white = 1.
+    Visible rows carry a green marker pixel in column 0, so a word 0 is distinguishable from 'no row'."""
     B = len(words)
     img = np.zeros((B, 3, 16, 16), dtype=np.float32)
     for b in range(B):
         n = int(n_visible[b])
         img[b, :, :n, 16 - WORD:] = to_bits(words[b, :n])[None]
+        img[b, 1, :n, 0] = 1.0
     return img
 
 
@@ -204,15 +206,28 @@ class CycleMem(SupervisedTask):
 
 
 class Count(SupervisedTask):
-    """Counter: random start, +1 per row; 2..16 rows visible -> next number (8 bit, wraps at 256)."""
+    """Counter: random start v0, random step k (1..15); 2..16 rows visible
+    -> next number (8 bit, wraps at 256). The step must be read off the visible rows. (v0, k) pairs are split
+    train/test by hash, so test sequences never occur in training."""
 
     def __init__(self):
         self.spec = TaskSpec("count", "patterns", "supervised", "bits", WORD, seq_len=1, chance=0.0,
-                             description="rows = counter v, v+1, ... (random start), 2-16 rows visible -> next")
+                             description="rows = v0, v0+k, ... (random start, step 1-15, mod 256), "
+                                         "2-16 rows visible -> next")
+        self._test = np.array([[_split_of(("count", v, k)) == "test" for k in range(256)] for v in range(256)])
 
     def sample(self, batch, rng, split="train"):
-        v0 = rng.integers(0, 256, size=batch)
-        words = (v0[:, None] + np.arange(17)) % 256
+        want = split == "test"
+        v0 = np.empty(batch, np.int64)
+        k = np.empty(batch, np.int64)
+        filled = 0
+        while filled < batch:
+            v, s = rng.integers(0, 256, size=2 * batch), rng.integers(1, 16, size=2 * batch)
+            ok = self._test[v, s] == want
+            m = min(batch - filled, int(ok.sum()))
+            v0[filled:filled + m], k[filled:filled + m] = v[ok][:m], s[ok][:m]
+            filled += m
+        words = (v0[:, None] + k[:, None] * np.arange(17)) % 256
         n = rng.integers(2, 17, size=batch)
         target = to_bits(words[np.arange(batch), n])
         return {"obs": draw_rows(words, n)[None], "target": target[None], "mask": np.ones((1, batch), np.float32)}

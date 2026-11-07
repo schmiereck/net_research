@@ -30,9 +30,18 @@ for _mode in ("add", "mul", "gate", "film"):
     MODELS[f"bus_{_mode}_s"] = (partial(_bus, _mode, True), (8, 512), 1)
     MODELS[f"bus_{_mode}_i"] = (partial(_bus, _mode, False), (8, 512), 1)
 
+# "_iw": individual modules with the module width of the shared "_s" partner (equal width, ~P x params)
+WIDTH_FROM = {}
+for _base in ("bus_add", "bus_mul", "bus_gate", "bus_film", "layer", "hier"):
+    MODELS[f"{_base}_iw"] = MODELS[f"{_base}_i"]
+    WIDTH_FROM[f"{_base}_iw"] = f"{_base}_s"
+
 MODEL_ORDER = ["mlp", "cnn", "cvnn", "vit", "gru", "attnmem",
                "bus_add_s", "bus_add_i", "bus_mul_s", "bus_mul_i", "bus_gate_s", "bus_gate_i",
-               "bus_film_s", "bus_film_i", "subbus_i", "layer_s", "layer_i", "hier_s", "hier_i"]
+               "bus_film_s", "bus_film_i", "subbus_i", "layer_s", "layer_i", "hier_s", "hier_i",
+               "bus_add_iw", "bus_mul_iw", "bus_gate_iw", "bus_film_iw", "layer_iw", "hier_iw"]
+# shared model -> its individual counterpart (used to split the shared gradient into per-position parts)
+SHARED_TO_INDIVIDUAL = {f"{b}_s": f"{b}_i" for b in ("bus_add", "bus_mul", "bus_gate", "bus_film", "layer", "hier")}
 
 
 def count_params(model):
@@ -40,7 +49,8 @@ def count_params(model):
     return sum(p.numel() * (2 if p.is_complex() else 1) for p in model.parameters())
 
 
-def build_model(name, target_params=100_000, seed=0):
+def matched_width(name, target_params=100_000):
+    """Width whose parameter count is closest to target_params (binary search)."""
     ctor, (lo, hi), mult = MODELS[name]
 
     def n(w):
@@ -54,7 +64,12 @@ def build_model(name, target_params=100_000, seed=0):
         else:
             hi = mid
     w = lo if abs(n(lo) - target_params) <= abs(n(hi) - target_params) else hi
+    return w * mult
+
+
+def build_model(name, target_params=100_000, seed=0):
+    width = matched_width(WIDTH_FROM.get(name, name), target_params)
     torch.manual_seed(seed)
-    model = ctor(width=w * mult)
-    model.width_used = w * mult
+    model = MODELS[name][0](width=width)
+    model.width_used = width
     return model
