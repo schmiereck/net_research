@@ -58,6 +58,54 @@ def global_write(G, raws):
     return write_memory(G, torch.cat(raws, 1).mean(1))
 
 
+# fixed neighbourhood (row offset, column offset) whose scratchpads a module may read in "neigh" mode
+NEIGH = {"layer": [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)],
+         "hier": [(-2, 0), (-1, -1), (-1, 1), (0, -2), (0, 2), (1, -1), (1, 1), (2, 0)]}
+
+
+class MemoryReader(nn.Module):
+    """How a module reads the scratchpads of other modules (previous tick), in addition to its own.
+    Every module still writes only its own scratchpad, so there are no write conflicts.
+      neigh: the scratchpads of its 8 nearest modules (fixed offsets, zeros at the borders) -> 8n values
+      addr : every scratchpad has a learned address; the module emits `heads` query vectors from its input and
+             reads per query the best-matching scratchpad (softmax over the top-k matches only) -> heads*n values
+    Memory M is dense over the grid [B,R,C,n] (unused checkerboard positions of the hier grid stay zero)."""
+
+    def __init__(self, mode, grid, R, C, K, n, in_dim, shared, heads=4, a=8, topk=3):
+        super().__init__()
+        self.mode, self.n = mode, n
+        self.extra = 0
+        if mode == "neigh":
+            self.offsets = NEIGH[grid]
+            self.extra = len(self.offsets) * n
+        elif mode == "addr":
+            self.heads, self.a, self.topk = heads, a, topk
+            pos = [r * C + c for r in range(R) for c in range(C) if grid == "layer" or (r + c) % 2 == 0]
+            self.register_buffer("slots", torch.tensor(pos), persistent=False)
+            self.addr = nn.Parameter(torch.randn(len(pos), a))
+            self.q = CellLinear(R, K, in_dim, heads * a, shared)
+            self.extra = heads * n
+        elif mode:
+            raise ValueError(mode)
+
+    def prepare(self, M):
+        if self.mode == "neigh":
+            return F.pad(M, (0, 0, 2, 2, 2, 2))
+        if self.mode == "addr":
+            return M.flatten(1, 2)[:, self.slots]                    # B,P,n
+        return None
+
+    def read(self, ctx, r, cols, inp):
+        if self.mode == "neigh":
+            return torch.cat([ctx[:, r + 2 + dr, cols + 2 + dc] for dr, dc in self.offsets], -1)
+        B, K = inp.shape[:2]
+        q = self.q(inp, r).view(B, K, self.heads, self.a)
+        s = torch.einsum("bkha,pa->bkhp", q, self.addr) / math.sqrt(self.a)
+        top = s.topk(self.topk, -1)
+        w = torch.full_like(s, float("-inf")).scatter(-1, top.indices, top.values).softmax(-1)
+        return torch.einsum("bkhp,bpn->bkhn", w, ctx).reshape(B, K, -1)
+
+
 class StripEncoder(nn.Module):
     """16x16 image -> C column strips -> n_rows virtual input rows of d-vectors per column."""
 
@@ -81,13 +129,15 @@ class LayerGrid(Model):
     row (previous tick); output d-vector. Row -1 is the strip encoder. Head reads the last row."""
     stateful = True
 
-    def __init__(self, width=16, shared=False, R=4, C=8, n_mem=0, n_global=0):
+    def __init__(self, width=16, shared=False, R=4, C=8, n_mem=0, n_global=0, read=""):
         super().__init__()
         self.R, self.C, self.d = R, C, width
         self.n, self.g = n_mem, n_global
         h = 2 * width
         self.enc = StripEncoder(C, width, 1)
-        self.fc1 = CellLinear(R, C, 5 * width + n_mem + n_global, h, shared)
+        self.reader = MemoryReader(read, "layer", R, C, C, n_mem, 5 * width, shared)
+        self.register_buffer("cols", torch.arange(C), persistent=False)
+        self.fc1 = CellLinear(R, C, 5 * width + n_mem + n_global + self.reader.extra, h, shared)
         self.fc2 = CellLinear(R, C, h, width + 2 * (n_mem + n_global), shared, zero=True)
         init_write_bias(self.fc2, width, n_mem, n_global)
         self.ln = nn.LayerNorm(C * width)
@@ -106,6 +156,7 @@ class LayerGrid(Model):
         if mem:
             M, G = state[1], state[2]
             Gx = G[:, None].expand(-1, self.C, -1)
+            ctx = self.reader.prepare(M)
         above = self.enc(x)[:, 0]                                    # B,C,d
         rows, new_m, graw = [], [], []
         for r in range(self.R):
@@ -114,7 +165,10 @@ class LayerGrid(Model):
             inp = torch.cat([pa[:, :-2], pa[:, 1:-1], pa[:, 2:], lat[:, :-2], lat[:, 2:]], -1)  # LP,P,RP,L,R
             inp = F.layer_norm(inp, inp.shape[-1:])
             if mem:
-                inp = torch.cat([inp, M[:, r], Gx], -1)
+                parts = [inp, M[:, r], Gx]
+                if self.reader.extra:
+                    parts.append(self.reader.read(ctx, r, self.cols, inp))
+                inp = torch.cat(parts, -1)
             o = self.fc2(F.gelu(self.fc1(inp, r)), r)
             if mem:
                 o, wl, wg = split_writes(o, self.d, self.n)
@@ -144,7 +198,7 @@ class HierGrid(Model):
     """
     stateful = True
 
-    def __init__(self, width=12, shared=False, R=6, C=8, ticks=1, zero_init=False, n_mem=0, n_global=0):
+    def __init__(self, width=12, shared=False, R=6, C=8, ticks=1, zero_init=False, n_mem=0, n_global=0, read=""):
         super().__init__()
         assert C % 2 == 0
         self.R, self.C, self.d, self.ticks = R, C, width, ticks
@@ -152,7 +206,8 @@ class HierGrid(Model):
         self.K = C // 2
         h = 2 * width
         self.enc = StripEncoder(C, width, 2)
-        self.fc1 = CellLinear(R, self.K, 4 * width + n_mem + n_global, h, shared)
+        self.reader = MemoryReader(read, "hier", R, C, self.K, n_mem, 4 * width, shared)
+        self.fc1 = CellLinear(R, self.K, 4 * width + n_mem + n_global + self.reader.extra, h, shared)
         self.fc2 = CellLinear(R, self.K, h, 4 * width + 2 * (n_mem + n_global), shared, zero=zero_init)
         init_write_bias(self.fc2, 4 * width, n_mem, n_global)
         self.ln = nn.LayerNorm(C * width)
@@ -164,7 +219,7 @@ class HierGrid(Model):
         # ORP outputs of every row from the previous tick, dense over padded columns
         st = (torch.zeros(batch, self.R, self.C + 2, self.d, device=device),)
         if self.n or self.g:
-            st += (torch.zeros(batch, self.R, self.K, self.n, device=device),
+            st += (torch.zeros(batch, self.R, self.C, self.n, device=device),   # dense, unused positions = 0
                    torch.zeros(batch, self.g, device=device))
         return st
 
@@ -177,6 +232,7 @@ class HierGrid(Model):
         new_m, graw = [], []
         if mem:
             Gx = G[:, None].expand(-1, self.K, -1)
+            ctx = self.reader.prepare(M)
 
         def row(i):
             return vrows[i + 2] if i < 0 else rows[i]
@@ -193,11 +249,15 @@ class HierGrid(Model):
             inp = torch.cat([ils, ilp, ip, irp], -1)                 # B,K,4d  (ILS, ILP, IP, IRP)
             inp = F.layer_norm(inp, inp.shape[-1:])
             if mem:
-                inp = torch.cat([inp, M[:, r], Gx], -1)
+                own = M[:, r, cols]                                  # B,K,n
+                parts = [inp, own, Gx]
+                if self.reader.extra:
+                    parts.append(self.reader.read(ctx, r, cols, inp))
+                inp = torch.cat(parts, -1)
             out = self.fc2(F.gelu(self.fc1(inp, r)), r)
             if mem:
                 out, wl, wg = split_writes(out, 4 * self.d, self.n)
-                new_m.append(write_memory(M[:, r], wl))
+                new_m.append(torch.zeros_like(M[:, r]).index_copy(1, cols, write_memory(own, wl)))
                 graw.append(wg)
             out = out.reshape(B, self.K, 4, self.d)
             out = out + torch.stack([torch.zeros_like(ip), ip, torch.zeros_like(ip), torch.zeros_like(ip)], 2)

@@ -54,6 +54,12 @@ for _grid, _cls in (("layer", LayerGrid), ("hier", HierGrid)):
         _name = f"{_grid}_{_sh}_sp{_n}" + (f"g{_k}" if _k else "")
         MODELS[_name] = (partial(_cls, shared=_sh == "s", n_mem=_n, n_global=_k), (4, 256), 1)
         SCRATCH_ORDER.append(_name)
+    # reading other modules' scratchpads: "n" = 8 nearest neighbours, "a" = by learned address (4 queries)
+    for _sh in ("s", "i"):
+        for _read, _suf in (("neigh", "n"), ("addr", "a")):
+            _name = f"{_grid}_{_sh}_sp4{_suf}"
+            MODELS[_name] = (partial(_cls, shared=_sh == "s", n_mem=4, read=_read), (4, 256), 1)
+            SCRATCH_ORDER.append(_name)
 
 MODEL_ORDER = ["mlp", "cnn", "cvnn", "vit", "gru", "attnmem",
                "bus_add_s", "bus_add_i", "bus_mul_s", "bus_mul_i", "bus_gate_s", "bus_gate_i",
