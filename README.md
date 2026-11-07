@@ -57,33 +57,42 @@ normiert.
   * `_i`: **individuelle** Module bei gleicher Parameterzahl.
   * `_iw`: individuelle Module mit gleicher Modulbreite wie `_s`, also mit 2,5- bis 19-mal mehr Parametern.
 
-## Erste Ergebnisse (Phase 3, Seed 0, 1500 Updates je Lauf)
+## Ergebnisse Einzel-Aufgaben (Phase 3, 3 Seeds, 1500 Updates je Lauf)
 
-Die Werte stammen aus einem einzigen Seed. Für belastbare Aussagen fehlen noch mehrere Seeds.
+Mittel über die 15 Aufgaben und 3 Seeds (± Standardabweichung der Seed-Mittel). Die Rangfolge ist über die
+Seeds stabil; die Streuung des Gesamtwerts liegt bei 0.01–0.02. Einzelne Spiele streuen stärker
+(bricks_mem ±0.06, crossing und racer ±0.04).
 
 | Modell | Patterns | Bilder | Text | Spiele | **Gesamt** | Parameter |
 |---|---|---|---|---|---|---|
-| layer_s | 0.86 | 0.98 | 0.44 | 0.76 | **0.80** | 101k |
-| layer_iw | 0.90 | 0.97 | 0.45 | 0.71 | 0.79 | 1879k |
-| cnn | 0.55 | 0.98 | 0.38 | 0.78 | 0.70 | 103k |
-| layer_i | 0.71 | 0.95 | 0.44 | 0.67 | 0.70 | 97k |
-| hier_s | 0.74 | 0.97 | 0.43 | 0.64 | 0.70 | 100k |
-| Bus-Varianten | 0.31–0.40 | 0.90–0.94 | 0.43–0.45 | 0.61–0.66 | 0.54–0.59 | 100–281k |
-| gru | 0.36 | 0.88 | 0.36 | 0.64 | 0.56 | 100k |
-| attnmem | 0.50 | 0.90 | 0.40 | 0.50 | 0.55 | 102k |
-| mlp | 0.29 | 0.90 | 0.35 | 0.56 | 0.50 | 100k |
-| cvnn | 0.23 | 0.72 | 0.34 | 0.53 | 0.44 | 100k |
+| layer_s | 0.86 | 0.98 | 0.43 | 0.77 | **0.80 ± 0.01** | 101k |
+| layer_iw | 0.90 | 0.97 | 0.45 | 0.72 | 0.80 ± 0.00 | 1879k |
+| layer_i | 0.71 | 0.95 | 0.44 | 0.67 | 0.71 ± 0.01 | 97k |
+| hier_iw | 0.70 | 0.96 | 0.46 | 0.67 | 0.70 ± 0.01 | 1389k |
+| hier_s | 0.73 | 0.97 | 0.43 | 0.64 | 0.70 ± 0.01 | 100k |
+| cnn | 0.55 | 0.98 | 0.38 | 0.76 | 0.69 ± 0.01 | 103k |
+| Bus-Varianten | 0.32–0.41 | 0.91–0.94 | 0.42–0.45 | 0.62–0.65 | 0.54–0.59 | 100–281k |
+| hier_i | 0.42 | 0.94 | 0.41 | 0.60 | 0.57 ± 0.01 | 100k |
+| attnmem | 0.49 | 0.90 | 0.41 | 0.55 | 0.57 ± 0.02 | 102k |
+| gru | 0.36 | 0.89 | 0.36 | 0.64 | 0.56 ± 0.00 | 100k |
+| mlp | 0.29 | 0.90 | 0.35 | 0.54 | 0.49 ± 0.01 | 100k |
+| cvnn | 0.22 | 0.72 | 0.34 | 0.53 | 0.44 ± 0.00 | 100k |
+
+Vollständige Tabellen: [results/report.md](results/report.md).
 
 ![Score je Modell und Task](results/heatmap.png)
 
 **Befunde:**
 
-1. **Geteilte Gewichte helfen in Gitter-Netzen.** layer_s und hier_s schlagen ihre individuellen
-   Gegenstücke bei gleicher Parameterzahl deutlich, mit 0.80 zu 0.70 und 0.70 zu 0.57. Sie bleiben gleichauf
-   oder vorne, wenn die individuellen Varianten gleich breit sind und 14- bis 19-mal mehr Parameter haben.
-   Sie lernen außerdem schneller: Auf 80 % ihres Endwerts kommen sie meist nach 500 statt nach 750 Updates.
-   Den größten Vorteil gibt es bei Gedächtnis- und Regelaufgaben. Bei `cycle_mem` steht hier_s bei 0.78,
-   hier_i bei 0.06; bei `numseq` stehen sie bei 0.92 und 0.23.
+1. **Geteilte Gewichte im Gitter: gleiche Leistung mit einem Bruchteil der Parameter.** layer_s und hier_s
+   schlagen ihre individuellen Gegenstücke bei gleicher Parameterzahl in jedem Seed deutlich (+0.10 und +0.10
+   bis +0.14). Gegen gleich breite individuelle Module (`_iw`, 14- bis 19-mal mehr Parameter) liegen sie aber
+   gleichauf (±0.01). Der Vorteil kommt also aus der Modulbreite, die das Teilen bei festem Parameterbudget
+   ermöglicht, und nicht daraus, dass geteilte Gewichte besser lernen. Bei gleicher Parameterzahl rechnet das
+   geteilte Gitter allerdings rund 20-mal so viel. Die geteilten Varianten lernen etwas schneller: Auf 80 %
+   ihres Endwerts kommen sie meist nach 500 statt nach 750 Updates.
+   Im Bus spielt das Teilen kaum eine Rolle (`_s` gegen `_i` +0.00 bis +0.04, gleich breite `_iw` liegen
+   0.01–0.04 vorn).
 2. **Gradienten zwischen den Positionen eines geteilten Moduls:**
    - **Gitter:** Die Positionen verlangen fast senkrecht zueinander stehende Änderungen; die Cosinus-Ähnlichkeit
      liegt bei etwa 0, und rund 40–50 % der Paare zeigen gegeneinander. Trotzdem lernt das geteilte Modul am
