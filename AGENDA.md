@@ -18,7 +18,7 @@ Status: offen · läuft · erledigt.
 | P1 | Scratchpad für Layer- und Hierarchie-Gitter | erster Test erledigt | Globaler Teil = gemeinsamer Speicher, Schreibvorschläge gemittelt. cycle_mem: hier_s 0.78 → 0.99, hier_i 0.07 → 0.95, layer_i 0.89 → 0.99, lernt viel schneller. Spiele: kaum Änderung (Decke). 1 Seed |
 | P1 | Fremde Scratchpads lesen statt gemittelt global schreiben: 8 Nachbarn (`_sp4n`) oder per gelernter Adresse, 4 Abfragen (`_sp4a`) | erster Test: unentschieden | Die drei Gedächtnis-Aufgaben unterscheiden die Varianten nicht (cycle_mem schon mit eigenem Speicher ~0.99). Adresse kostet +40–70 % Zeit. Braucht schwerere Gedächtnis-Aufgaben |
 | P1 | Schwerere Gedächtnis-Aufgaben: assoziativer Abruf (Schlüssel→Wert), lange Verzögerung, Information wechselt die Bildregion | erledigt | `recall`, `delay`, `crossmem` (tasks/memory.py). Erster Lauf (18 Modelle, 1 Seed): delay lösen nur Gitter mit Scratchpad (1.00); recall nur attnmem (1.00); crossmem niemand (attnmem 0.37). Alle anderen speichern eine Überlagerung (Bit-Genauigkeit 0.69 = Mehrheit der Wörter) |
-| P1 | Scratchpad mit Inhaltsadressierung (Schlüssel/Wert, Lesen per Vergleich mit gespeicherten Schlüsseln) | offen | recall zeigt: Adresse nach Ort reicht nicht, es fehlt das Binden von Schlüssel und Wert |
+| P1 | Scratchpad mit Inhaltsadressierung (Schlüssel/Wert) | gebaut, Test läuft | `_kv` / `_kv4`: jedes Modul hat eine Tabelle 16 Zeilen × 4 Werte; ein globales Schlüsselnetz wählt aus dem Bild, welche Zeile geschrieben und gelesen wird (1 bzw. 4 Köpfe), die Module schreiben ihren Teil des Werts mit mult/add ("globaler Schlüssel, lokaler Wert"). Schwäche: Schlüssel nur aus dem aktuellen Bild, nicht aus verarbeitetem Zustand |
 | P2 | crossmem: ohne Verzögerung lösbar? (Auswahl per Zeiger vs. Gedächtnis trennen) | offen | |
 | P2 | Rekurrenter Bus (Zustand von Takt zu Takt) | offen | Zusatz-Modell; die Modelle ohne Gedächtnis bleiben im Feld |
 | P2 | Hierarchie-Gitter mit mehreren Ticks pro Frame | offen | Zusatz-Modell |
@@ -37,8 +37,8 @@ Status: offen · läuft · erledigt.
 
 | Prio | Thema | Status | Notiz |
 |---|---|---|---|
-| P1 | Mehrere Seeds (mindestens 3) für die Haupttabelle | offen | Auf dem zweiten PC über Nacht |
-| P1 | **Grid-World** (Idee 2026-11-07): voll sichtbar (Start, Ziel, Hindernisse, Fallgruben); größere Welt mit Scrollen (Spieler in der Mitte bzw. Kamera mit Totzone); Option Objekte auf Zielfelder schieben | geplant | Entwurf im Chat; Gedächtnis-Variante: Ziel anfangs außer Sicht, Experte erkundet nur mit dem, was er gesehen hat |
+| P1 | Mehrere Seeds (mindestens 3) für die Haupttabelle | erledigt | Rangfolge stabil, Streuung des Gesamtwerts ±0.01–0.02 |
+| P1 | **Grid-World** (Idee 2026-11-07, Entscheidung: Variante A, nach der Inhaltsadressierung): voll sichtbar (Start, Ziel, Hindernisse, Fallgruben); größere Welt mit Scrollen (Spieler in der Mitte bzw. Kamera mit Totzone); Option Objekte auf Zielfelder schieben | geplant | Entwurf im Chat; Gedächtnis-Variante: Ziel anfangs außer Sicht, Experte erkundet nur mit dem, was er gesehen hat |
 | P2 | crossing lernt nur cnn (0.77) | offen | Aufgabe oder Experte prüfen |
 | P2 | Maze-Experte ist schwach | offen | |
 | P2 | Geteilte Gewichte: warum hilft das Teilen im Gitter, obwohl die Gradienten der Positionen orthogonal sind? | offen | Daten in grad_summary.csv |
@@ -65,6 +65,6 @@ Status: offen · läuft · erledigt.
 
 | Prio | Thema | Status | Notiz |
 |---|---|---|---|
-| P1 | Zweiter PC (16 Kerne, 32 GB) als Rechenknecht | offen | Kein Zugang von hier (Ping und alle Ports zu). Idee: Worker auf dem zweiten PC holt Aufträge per git pull und pusht die Ergebnisse |
+| P1 | Zweiter PC (16 Kerne, 32 GB) als Rechenknecht | erledigt | netresearch.worker + netresearch.jobs, Austausch über OneDrive (WORKER.md) |
 | P2 | GPU-Test (stundenweise gemietet) für die rechenintensiven Modelle | offen | Messung (scripts/profile_run.py): Gitter (_s, _iw) und ViT sind rechengebunden und brauchen ~60 % der Benchmark-Zeit |
 | P3 | Viele Netze gleichzeitig auf der GPU (vmap), für ES-Populationen | offen | |

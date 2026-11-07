@@ -9,6 +9,13 @@ shared=False : individual weights per position
 Optional scratchpad (models/scratchpad.py): n_mem values per module (read as input, written with
 m <- mult*m + add) and one global scratchpad of n_global values that every module reads and all modules
 write together (their raw write proposals are averaged), so its size does not grow with the grid.
+
+Key/value scratchpad (slots > 0, KVMemory): every module owns a small table of `slots` rows x n values.
+A global key network looks at the encoded input and chooses per write head WHICH row is written (soft
+key = strength * softmax) and per read head which row is read (query = softmax); every module reads the
+addressed rows of its own table and writes WHAT goes there (its local part of the value) with the same
+mult/add rule, applied only at the addressed row. So content (the key seen in the input) addresses memory,
+and the value stays distributed over the modules ("global key, local value").
 """
 import math
 
@@ -106,6 +113,42 @@ class MemoryReader(nn.Module):
         return torch.einsum("bkhp,bpn->bkhn", w, ctx).reshape(B, K, -1)
 
 
+class KVMemory(nn.Module):
+    """Content-addressed scratchpad: per module a table A [slots, n]; `heads` write and read heads.
+
+    keys(e)        : e = flattened encoder output -> write keys kw [B,H,a] (= sigmoid strength * softmax)
+                     and read queries qr [B,H,a] (softmax), shared by all modules of the grid
+    read(A, qr)    : A [B,K,a,n] -> [B,K,H*n]      (row mix A^T q per head)
+    write(A,kw,raw): raw [B,K,2*H*n] = [mult | add] -> new A; per head h with key k:
+                     A <- A + k (x) ((sigmoid(mult) - 1) * A^T k + tanh(add))
+                     for a one-hot key this is exactly row <- sigmoid(mult)*row + tanh(add), other rows kept
+    """
+
+    def __init__(self, enc_dim, n, slots, heads):
+        super().__init__()
+        self.n, self.a, self.h = n, slots, heads
+        self.key = nn.Linear(enc_dim, heads * (2 * slots + 1))
+
+    def keys(self, e):
+        z = self.key(e).view(e.shape[0], self.h, 2 * self.a + 1)
+        kw = torch.sigmoid(z[..., :1]) * z[..., 1:self.a + 1].softmax(-1)
+        return kw, z[..., self.a + 1:].softmax(-1)
+
+    def read(self, A, qr):
+        B, K = A.shape[:2]
+        return torch.einsum("bkan,bha->bkhn", A, qr).reshape(B, K, -1)
+
+    def write(self, A, kw, raw):
+        B, K = A.shape[:2]
+        mult, add = raw.reshape(B, K, 2, self.h, self.n).unbind(2)
+        for h in range(self.h):
+            k = kw[:, h]                                             # B,a
+            old = torch.einsum("bkan,ba->bkn", A, k)
+            upd = (torch.sigmoid(mult[:, :, h]) - 1) * old + torch.tanh(add[:, :, h])
+            A = A + k[:, None, :, None] * upd[:, :, None]
+        return A
+
+
 class StripEncoder(nn.Module):
     """16x16 image -> C column strips -> n_rows virtual input rows of d-vectors per column."""
 
@@ -129,24 +172,28 @@ class LayerGrid(Model):
     row (previous tick); output d-vector. Row -1 is the strip encoder. Head reads the last row."""
     stateful = True
 
-    def __init__(self, width=16, shared=False, R=4, C=8, n_mem=0, n_global=0, read=""):
+    def __init__(self, width=16, shared=False, R=4, C=8, n_mem=0, n_global=0, read="", slots=0, heads=1):
         super().__init__()
+        assert not (slots and read), "key/value scratchpad and neighbour/address reading are separate variants"
         self.R, self.C, self.d = R, C, width
-        self.n, self.g = n_mem, n_global
+        self.n, self.g, self.slots = n_mem, n_global, slots
+        self.nl = nl = n_mem * heads if slots else n_mem             # own-memory values read / written
         h = 2 * width
         self.enc = StripEncoder(C, width, 1)
+        self.kv = KVMemory(C * width, n_mem, slots, heads) if slots else None
         self.reader = MemoryReader(read, "layer", R, C, C, n_mem, 5 * width, shared)
         self.register_buffer("cols", torch.arange(C), persistent=False)
-        self.fc1 = CellLinear(R, C, 5 * width + n_mem + n_global + self.reader.extra, h, shared)
-        self.fc2 = CellLinear(R, C, h, width + 2 * (n_mem + n_global), shared, zero=True)
-        init_write_bias(self.fc2, width, n_mem, n_global)
+        self.fc1 = CellLinear(R, C, 5 * width + nl + n_global + self.reader.extra, h, shared)
+        self.fc2 = CellLinear(R, C, h, width + 2 * (nl + n_global), shared, zero=True)
+        init_write_bias(self.fc2, width, nl, n_global)
         self.ln = nn.LayerNorm(C * width)
         self.head = nn.Linear(C * width, N_OUT)
 
     def init_state(self, batch, device="cpu"):
         st = (torch.zeros(batch, self.R, self.C, self.d, device=device),)
         if self.n or self.g:
-            st += (torch.zeros(batch, self.R, self.C, self.n, device=device),
+            cell = (self.slots, self.n) if self.slots else (self.n,)
+            st += (torch.zeros(batch, self.R, self.C, *cell, device=device),
                    torch.zeros(batch, self.g, device=device))
         return st
 
@@ -157,7 +204,10 @@ class LayerGrid(Model):
             M, G = state[1], state[2]
             Gx = G[:, None].expand(-1, self.C, -1)
             ctx = self.reader.prepare(M)
-        above = self.enc(x)[:, 0]                                    # B,C,d
+        e = self.enc(x)
+        if mem and self.kv:
+            kw, qr = self.kv.keys(e.flatten(1))
+        above = e[:, 0]                                              # B,C,d
         rows, new_m, graw = [], [], []
         for r in range(self.R):
             pa = F.pad(above, (0, 0, 1, 1))                          # pad columns
@@ -165,14 +215,14 @@ class LayerGrid(Model):
             inp = torch.cat([pa[:, :-2], pa[:, 1:-1], pa[:, 2:], lat[:, :-2], lat[:, 2:]], -1)  # LP,P,RP,L,R
             inp = F.layer_norm(inp, inp.shape[-1:])
             if mem:
-                parts = [inp, M[:, r], Gx]
+                parts = [inp, self.kv.read(M[:, r], qr) if self.kv else M[:, r], Gx]
                 if self.reader.extra:
                     parts.append(self.reader.read(ctx, r, self.cols, inp))
                 inp = torch.cat(parts, -1)
             o = self.fc2(F.gelu(self.fc1(inp, r)), r)
             if mem:
-                o, wl, wg = split_writes(o, self.d, self.n)
-                new_m.append(write_memory(M[:, r], wl))
+                o, wl, wg = split_writes(o, self.d, self.nl)
+                new_m.append(self.kv.write(M[:, r], kw, wl) if self.kv else write_memory(M[:, r], wl))
                 graw.append(wg)
             out = above + o                                          # vertical residual from P
             rows.append(out)
@@ -198,18 +248,22 @@ class HierGrid(Model):
     """
     stateful = True
 
-    def __init__(self, width=12, shared=False, R=6, C=8, ticks=1, zero_init=False, n_mem=0, n_global=0, read=""):
+    def __init__(self, width=12, shared=False, R=6, C=8, ticks=1, zero_init=False, n_mem=0, n_global=0, read="",
+                 slots=0, heads=1):
         super().__init__()
         assert C % 2 == 0
+        assert not (slots and read), "key/value scratchpad and neighbour/address reading are separate variants"
         self.R, self.C, self.d, self.ticks = R, C, width, ticks
-        self.n, self.g = n_mem, n_global
+        self.n, self.g, self.slots = n_mem, n_global, slots
+        self.nl = nl = n_mem * heads if slots else n_mem
         self.K = C // 2
         h = 2 * width
         self.enc = StripEncoder(C, width, 2)
+        self.kv = KVMemory(2 * C * width, n_mem, slots, heads) if slots else None
         self.reader = MemoryReader(read, "hier", R, C, self.K, n_mem, 4 * width, shared)
-        self.fc1 = CellLinear(R, self.K, 4 * width + n_mem + n_global + self.reader.extra, h, shared)
-        self.fc2 = CellLinear(R, self.K, h, 4 * width + 2 * (n_mem + n_global), shared, zero=zero_init)
-        init_write_bias(self.fc2, 4 * width, n_mem, n_global)
+        self.fc1 = CellLinear(R, self.K, 4 * width + nl + n_global + self.reader.extra, h, shared)
+        self.fc2 = CellLinear(R, self.K, h, 4 * width + 2 * (nl + n_global), shared, zero=zero_init)
+        init_write_bias(self.fc2, 4 * width, nl, n_global)
         self.ln = nn.LayerNorm(C * width)
         self.head = nn.Linear(C * width, N_OUT)
         for r in range(R):
@@ -219,11 +273,12 @@ class HierGrid(Model):
         # ORP outputs of every row from the previous tick, dense over padded columns
         st = (torch.zeros(batch, self.R, self.C + 2, self.d, device=device),)
         if self.n or self.g:
-            st += (torch.zeros(batch, self.R, self.C, self.n, device=device),   # dense, unused positions = 0
+            cell = (self.slots, self.n) if self.slots else (self.n,)
+            st += (torch.zeros(batch, self.R, self.C, *cell, device=device),    # dense, unused positions = 0
                    torch.zeros(batch, self.g, device=device))
         return st
 
-    def _tick(self, virt, prev_orp, M=None, G=None):
+    def _tick(self, virt, prev_orp, M=None, G=None, keys=None):
         B = virt.shape[0]
         # dense padded rows: index c+1 holds column c; slot dim = 4 outputs
         vrows = [F.pad(virt[:, i], (0, 0, 1, 1))[:, :, None].expand(-1, -1, 4, -1) for i in range(2)]
@@ -249,15 +304,16 @@ class HierGrid(Model):
             inp = torch.cat([ils, ilp, ip, irp], -1)                 # B,K,4d  (ILS, ILP, IP, IRP)
             inp = F.layer_norm(inp, inp.shape[-1:])
             if mem:
-                own = M[:, r, cols]                                  # B,K,n
-                parts = [inp, own, Gx]
+                own = M[:, r, cols]                                  # B,K,n  (kv: B,K,a,n)
+                parts = [inp, self.kv.read(own, keys[1]) if self.kv else own, Gx]
                 if self.reader.extra:
                     parts.append(self.reader.read(ctx, r, cols, inp))
                 inp = torch.cat(parts, -1)
             out = self.fc2(F.gelu(self.fc1(inp, r)), r)
             if mem:
-                out, wl, wg = split_writes(out, 4 * self.d, self.n)
-                new_m.append(torch.zeros_like(M[:, r]).index_copy(1, cols, write_memory(own, wl)))
+                out, wl, wg = split_writes(out, 4 * self.d, self.nl)
+                w = self.kv.write(own, keys[0], wl) if self.kv else write_memory(own, wl)
+                new_m.append(torch.zeros_like(M[:, r]).index_copy(1, cols, w))
                 graw.append(wg)
             out = out.reshape(B, self.K, 4, self.d)
             out = out + torch.stack([torch.zeros_like(ip), ip, torch.zeros_like(ip), torch.zeros_like(ip)], 2)
@@ -275,7 +331,8 @@ class HierGrid(Model):
         virt = self.enc(x)                                           # B,2,C,d
         orp = state[0]
         M, G = (state[1], state[2]) if len(state) > 1 else (None, None)
+        keys = self.kv.keys(virt.flatten(1)) if self.kv and M is not None else None
         for _ in range(self.ticks):
-            bottom, orp, M, G = self._tick(virt, orp, M, G)
+            bottom, orp, M, G = self._tick(virt, orp, M, G, keys)
         st = (orp,) if M is None else (orp, M, G)
         return self.head(self.ln(bottom.flatten(1))), st

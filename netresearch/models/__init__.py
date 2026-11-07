@@ -60,6 +60,13 @@ for _grid, _cls in (("layer", LayerGrid), ("hier", HierGrid)):
             _name = f"{_grid}_{_sh}_sp4{_suf}"
             MODELS[_name] = (partial(_cls, shared=_sh == "s", n_mem=4, read=_read), (4, 256), 1)
             SCRATCH_ORDER.append(_name)
+    # key/value scratchpad (content addressing): "_kv" = 16 rows x 4 values per cell, 1 write/read head;
+    # "_kv4" = 4 heads (4 rows written and read per step)
+    for _sh in ("s", "i"):
+        for _h, _suf in ((1, "kv"), (4, "kv4")):
+            _name = f"{_grid}_{_sh}_{_suf}"
+            MODELS[_name] = (partial(_cls, shared=_sh == "s", n_mem=4, slots=16, heads=_h), (4, 256), 1)
+            SCRATCH_ORDER.append(_name)
 
 MODEL_ORDER = ["mlp", "cnn", "cvnn", "vit", "gru", "attnmem",
                "bus_add_s", "bus_add_i", "bus_mul_s", "bus_mul_i", "bus_gate_s", "bus_gate_i",
