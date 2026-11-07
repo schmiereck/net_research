@@ -6,6 +6,7 @@ from .games.maze import Maze
 from .games.paddle import Paddle, PaddleMem
 from .games.racer import Racer
 from .images import Digits, Shapes
+from .memory import CrossMem, Delay, Recall
 from .patterns import BitSeq, Count, Cycle, CycleMem, NumSeq
 from .text import CharNext
 
@@ -30,6 +31,9 @@ TASKS = {
     "shapes": Shapes,
     "digits": Digits,
     "charnext": CharNext,
+    "recall": Recall,
+    "delay": Delay,
+    "crossmem": CrossMem,
     "paddle": _game_task("paddle", Paddle, "paddle duel vs CPU, first to 5 points"),
     "paddle_mem": _game_task("paddle_mem", PaddleMem, "paddle duel without ball trail (needs memory)", True),
     "bricks": _game_task("bricks", Bricks, "clear 64 bricks, 3 lives"),

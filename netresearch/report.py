@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
-GROUP_ORDER = ["patterns", "image", "text", "game"]
+GROUP_ORDER = ["patterns", "memory", "image", "text", "game"]
 # sequential single-hue ramp (light -> dark blue)
 RAMP = ["#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#256abf", "#184f95", "#0d366b"]
 
