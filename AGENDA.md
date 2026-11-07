@@ -38,7 +38,7 @@ Status: offen · läuft · erledigt.
 | Prio | Thema | Status | Notiz |
 |---|---|---|---|
 | P1 | Mehrere Seeds (mindestens 3) für die Haupttabelle | erledigt | Rangfolge stabil, Streuung des Gesamtwerts ±0.01–0.02 |
-| P1 | **Grid-World** (Idee 2026-11-07, Entscheidung: Variante A, nach der Inhaltsadressierung): voll sichtbar (Start, Ziel, Hindernisse, Fallgruben); größere Welt mit Scrollen (Spieler in der Mitte bzw. Kamera mit Totzone); Option Objekte auf Zielfelder schieben | geplant | Entwurf im Chat; Gedächtnis-Variante: Ziel anfangs außer Sicht, Experte erkundet nur mit dem, was er gesehen hat |
+| P1 | **Grid-World** (Idee 2026-11-07, Variante A) | gebaut, Lauf offen | `grid` (16×16 voll sichtbar, Start/Ziel/Wände/Gruben), `grid_follow` (32×32, Sicht auf den Spieler zentriert), `grid_scroll` (Kamera mit Totzone), `push` (Kiste aufs Ziel schieben, exakter Experte per Rückwärtssuche). Erkundender Experte kennt nur, was er gesehen hat. Trainingsabschnitte 32 statt 16 Schritte. Offen: push mit 2 Kisten, push in der Scroll-Welt |
 | P2 | crossing lernt nur cnn (0.77) | offen | Aufgabe oder Experte prüfen |
 | P2 | Maze-Experte ist schwach | offen | |
 | P2 | Geteilte Gewichte: warum hilft das Teilen im Gitter, obwohl die Gradienten der Positionen orthogonal sind? | offen | Daten in grad_summary.csv |

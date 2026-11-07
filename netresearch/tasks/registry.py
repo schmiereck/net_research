@@ -2,6 +2,7 @@ from ..spec import TaskSpec
 from .base import ControlTask
 from .games.bricks import Bricks, BricksMem
 from .games.crossing import Crossing
+from .games.gridworld import GridFollow, GridScroll, GridWorld, Push
 from .games.maze import Maze
 from .games.paddle import Paddle, PaddleMem
 from .games.racer import Racer
@@ -11,12 +12,12 @@ from .patterns import BitSeq, Count, Cycle, CycleMem, NumSeq
 from .text import CharNext
 
 
-def _game_task(name, cls, desc, memory=False):
+def _game_task(name, cls, desc, memory=False, seq_len=16):
     class _T(ControlTask):
         game_cls = cls
 
         def __init__(self):
-            self.spec = TaskSpec(name, "game", "control", "class", 8, seq_len=16,
+            self.spec = TaskSpec(name, "game", "control", "class", 8, seq_len=seq_len,
                                  valid_actions=list(cls.actions), needs_memory=memory, description=desc)
     _T.__name__ = cls.__name__ + "Task"
     return _T
@@ -41,6 +42,12 @@ TASKS = {
     "crossing": _game_task("crossing", Crossing, "cross 10 traffic lanes, +1 per crossing"),
     "racer": _game_task("racer", Racer, "dodge obstacles, +1 per step survived"),
     "maze": _game_task("maze", Maze, "collect pellets, avoid 2 chasers"),
+    "grid": _game_task("grid", GridWorld, "grid world 16x16, fully visible: reach the goal, avoid pits"),
+    "grid_follow": _game_task("grid_follow", GridFollow, "grid world 32x32, view centred on the player, "
+                              "goal out of sight; expert explores with what it has seen", True, seq_len=32),
+    "grid_scroll": _game_task("grid_scroll", GridScroll, "like grid_follow, camera with dead zone", True,
+                              seq_len=32),
+    "push": _game_task("push", Push, "push a box onto the target (16x16, fully visible)"),
 }
 
 _cache = {}
