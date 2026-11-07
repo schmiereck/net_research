@@ -16,6 +16,12 @@ key = strength * softmax) and per read head which row is read (query = softmax);
 addressed rows of its own table and writes WHAT goes there (its local part of the value) with the same
 mult/add rule, applied only at the addressed row. So content (the key seen in the input) addresses memory,
 and the value stays distributed over the modules ("global key, local value").
+Finding: this softmax row choice collapses (all keys end up on one row), see AGENDA.md.
+
+Allocating key/value scratchpad (alloc=True, AllocMemory): rows are not chosen by the key; a write goes to
+the least-used row (usage count, like a free list) with a learned write strength, and the row also stores
+a global key vector. Reading compares a query vector with the stored keys (dot-product attention over the
+used rows). The values are still distributed over the modules and written with the mult/add rule.
 """
 import math
 
@@ -129,10 +135,16 @@ class KVMemory(nn.Module):
         self.n, self.a, self.h = n, slots, heads
         self.key = nn.Linear(enc_dim, heads * (2 * slots + 1))
 
-    def keys(self, e):
+    n_state = 0                                                      # extra global state tensors
+
+    def init_extra(self, batch, device):
+        return ()
+
+    def address(self, e, extra):
+        """-> write keys kw [B,H,a], read weights qr [B,H,a], new extra state."""
         z = self.key(e).view(e.shape[0], self.h, 2 * self.a + 1)
         kw = torch.sigmoid(z[..., :1]) * z[..., 1:self.a + 1].softmax(-1)
-        return kw, z[..., self.a + 1:].softmax(-1)
+        return kw, z[..., self.a + 1:].softmax(-1), ()
 
     def read(self, A, qr):
         B, K = A.shape[:2]
@@ -147,6 +159,36 @@ class KVMemory(nn.Module):
             upd = (torch.sigmoid(mult[:, :, h]) - 1) * old + torch.tanh(add[:, :, h])
             A = A + k[:, None, :, None] * upd[:, :, None]
         return A
+
+
+class AllocMemory(KVMemory):
+    """Rows are allocated, not chosen: write head h writes to the h-th least-used row with strength beta_h and
+    stores its key vector there; read head h attends over the used rows by query . key (+ log usage, so empty
+    rows are ignored and weakly written rows count less). Extra state: keys Km [B,a,dk], usage U [B,a]."""
+    n_state = 2
+
+    def __init__(self, enc_dim, n, slots, heads, dk=16):
+        nn.Module.__init__(self)
+        self.n, self.a, self.h, self.dk = n, slots, heads, dk
+        self.key = nn.Linear(enc_dim, heads * (1 + 2 * dk))
+        self.register_buffer("tie", torch.arange(slots) * 1e-4, persistent=False)   # ties -> lowest row
+
+    def init_extra(self, batch, device):
+        return (torch.zeros(batch, self.a, self.dk, device=device), torch.zeros(batch, self.a, device=device))
+
+    def address(self, e, extra):
+        Km, U = extra
+        z = self.key(e).view(e.shape[0], self.h, 1 + 2 * self.dk)
+        beta = torch.sigmoid(z[..., :1])                             # B,H,1
+        kappa, q = z[..., 1:1 + self.dk], z[..., 1 + self.dk:]
+        s = torch.einsum("bhd,bad->bha", q, Km) / math.sqrt(self.dk) + torch.log(U + 1e-6)[:, None]
+        qr = s.softmax(-1) * (U.sum(-1) > 1e-3).float()[:, None, None]    # nothing stored -> read zeros
+        free = (U + self.tie).topk(self.h, -1, largest=False).indices      # B,H least-used rows
+        kw = beta * F.one_hot(free, self.a).float()                  # B,H,a
+        w = kw.sum(1)                                                # B,a (rows of different heads differ)
+        Km = Km * (1 - w)[..., None] + torch.einsum("bha,bhd->bad", kw, kappa)
+        U = U * (1 - w) + w
+        return kw, qr, (Km, U)
 
 
 class StripEncoder(nn.Module):
@@ -172,7 +214,8 @@ class LayerGrid(Model):
     row (previous tick); output d-vector. Row -1 is the strip encoder. Head reads the last row."""
     stateful = True
 
-    def __init__(self, width=16, shared=False, R=4, C=8, n_mem=0, n_global=0, read="", slots=0, heads=1):
+    def __init__(self, width=16, shared=False, R=4, C=8, n_mem=0, n_global=0, read="", slots=0, heads=1,
+                 alloc=False):
         super().__init__()
         assert not (slots and read), "key/value scratchpad and neighbour/address reading are separate variants"
         self.R, self.C, self.d = R, C, width
@@ -180,7 +223,7 @@ class LayerGrid(Model):
         self.nl = nl = n_mem * heads if slots else n_mem             # own-memory values read / written
         h = 2 * width
         self.enc = StripEncoder(C, width, 1)
-        self.kv = KVMemory(C * width, n_mem, slots, heads) if slots else None
+        self.kv = (AllocMemory if alloc else KVMemory)(C * width, n_mem, slots, heads) if slots else None
         self.reader = MemoryReader(read, "layer", R, C, C, n_mem, 5 * width, shared)
         self.register_buffer("cols", torch.arange(C), persistent=False)
         self.fc1 = CellLinear(R, C, 5 * width + nl + n_global + self.reader.extra, h, shared)
@@ -195,6 +238,8 @@ class LayerGrid(Model):
             cell = (self.slots, self.n) if self.slots else (self.n,)
             st += (torch.zeros(batch, self.R, self.C, *cell, device=device),
                    torch.zeros(batch, self.g, device=device))
+            if self.kv:
+                st += self.kv.init_extra(batch, device)
         return st
 
     def forward(self, x, state):
@@ -206,7 +251,7 @@ class LayerGrid(Model):
             ctx = self.reader.prepare(M)
         e = self.enc(x)
         if mem and self.kv:
-            kw, qr = self.kv.keys(e.flatten(1))
+            kw, qr, ext = self.kv.address(e.flatten(1), state[3:])
         above = e[:, 0]                                              # B,C,d
         rows, new_m, graw = [], [], []
         for r in range(self.R):
@@ -230,6 +275,8 @@ class LayerGrid(Model):
         st = (torch.stack(rows, 1),)
         if mem:
             st += (torch.stack(new_m, 1), global_write(G, graw) if self.g else G)
+            if self.kv:
+                st += ext
         return self.head(self.ln(above.flatten(1))), st
 
 
@@ -249,7 +296,7 @@ class HierGrid(Model):
     stateful = True
 
     def __init__(self, width=12, shared=False, R=6, C=8, ticks=1, zero_init=False, n_mem=0, n_global=0, read="",
-                 slots=0, heads=1):
+                 slots=0, heads=1, alloc=False):
         super().__init__()
         assert C % 2 == 0
         assert not (slots and read), "key/value scratchpad and neighbour/address reading are separate variants"
@@ -259,7 +306,7 @@ class HierGrid(Model):
         self.K = C // 2
         h = 2 * width
         self.enc = StripEncoder(C, width, 2)
-        self.kv = KVMemory(2 * C * width, n_mem, slots, heads) if slots else None
+        self.kv = (AllocMemory if alloc else KVMemory)(2 * C * width, n_mem, slots, heads) if slots else None
         self.reader = MemoryReader(read, "hier", R, C, self.K, n_mem, 4 * width, shared)
         self.fc1 = CellLinear(R, self.K, 4 * width + nl + n_global + self.reader.extra, h, shared)
         self.fc2 = CellLinear(R, self.K, h, 4 * width + 2 * (nl + n_global), shared, zero=zero_init)
@@ -276,6 +323,8 @@ class HierGrid(Model):
             cell = (self.slots, self.n) if self.slots else (self.n,)
             st += (torch.zeros(batch, self.R, self.C, *cell, device=device),    # dense, unused positions = 0
                    torch.zeros(batch, self.g, device=device))
+            if self.kv:
+                st += self.kv.init_extra(batch, device)
         return st
 
     def _tick(self, virt, prev_orp, M=None, G=None, keys=None):
@@ -331,8 +380,10 @@ class HierGrid(Model):
         virt = self.enc(x)                                           # B,2,C,d
         orp = state[0]
         M, G = (state[1], state[2]) if len(state) > 1 else (None, None)
-        keys = self.kv.keys(virt.flatten(1)) if self.kv and M is not None else None
+        keys, ext = None, ()
+        if self.kv and M is not None:
+            *keys, ext = self.kv.address(virt.flatten(1), state[3:])
         for _ in range(self.ticks):
             bottom, orp, M, G = self._tick(virt, orp, M, G, keys)
-        st = (orp,) if M is None else (orp, M, G)
+        st = (orp,) if M is None else (orp, M, G, *ext)
         return self.head(self.ln(bottom.flatten(1))), st

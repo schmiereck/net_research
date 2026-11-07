@@ -67,6 +67,13 @@ for _grid, _cls in (("layer", LayerGrid), ("hier", HierGrid)):
             _name = f"{_grid}_{_sh}_{_suf}"
             MODELS[_name] = (partial(_cls, shared=_sh == "s", n_mem=4, slots=16, heads=_h), (4, 256), 1)
             SCRATCH_ORDER.append(_name)
+    # allocating key/value scratchpad: write to the least-used row, read by key similarity ("_am", "_am4")
+    for _sh in ("s", "i"):
+        for _h, _suf in ((1, "am"), (4, "am4")):
+            _name = f"{_grid}_{_sh}_{_suf}"
+            MODELS[_name] = (partial(_cls, shared=_sh == "s", n_mem=4, slots=16, heads=_h, alloc=True),
+                             (4, 256), 1)
+            SCRATCH_ORDER.append(_name)
 
 MODEL_ORDER = ["mlp", "cnn", "cvnn", "vit", "gru", "attnmem",
                "bus_add_s", "bus_add_i", "bus_mul_s", "bus_mul_i", "bus_gate_s", "bus_gate_i",
