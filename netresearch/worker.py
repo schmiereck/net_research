@@ -50,11 +50,26 @@ def read_json(p):
     return json.loads(Path(p).read_text(encoding="utf-8"))
 
 
+def retry(fn, *args, tries=10, wait=3.0):
+    """OneDrive briefly locks files while it syncs them (PermissionError / WinError 5): try again a few times."""
+    for i in range(tries):
+        try:
+            return fn(*args)
+        except PermissionError:
+            if i == tries - 1:
+                raise
+            time.sleep(wait)
+
+
+def replace(src, dst):
+    retry(os.replace, src, dst)
+
+
 def write_json(p, obj):
     p = Path(p)
     tmp = p.with_suffix(".tmp")
-    tmp.write_text(json.dumps(obj, indent=1), encoding="utf-8")
-    os.replace(tmp, p)
+    retry(tmp.write_text, json.dumps(obj, indent=1), "utf-8")
+    replace(tmp, p)
 
 
 def git(*args, check=True):
@@ -109,8 +124,11 @@ class Worker:
         self.beat_file = self.share / "workers" / f"{HOST}.json"
 
     def beat(self, state, job=None, line=""):
-        write_json(self.beat_file, {"host": HOST, "time": now(), "state": state, "job": job,
-                                    "workers": self.workers, "last": line})
+        try:
+            write_json(self.beat_file, {"host": HOST, "time": now(), "state": state, "job": job,
+                                        "workers": self.workers, "last": line})
+        except OSError as e:                               # a missed heartbeat must not stop the worker
+            log(f"heartbeat failed ({e}), retrying later")
 
     def stop_requested(self):
         w = self.share / "workers"
@@ -125,7 +143,7 @@ class Worker:
                 continue
             if job.get("host") == HOST:
                 log(f"requeue interrupted job {job['id']}")
-                os.replace(p, self.share / "jobs" / "queue" / p.name)
+                replace(p, self.share / "jobs" / "queue" / p.name)
 
     def claim(self):
         for p in sorted((self.share / "jobs" / "queue").glob("*.json")):
@@ -143,7 +161,7 @@ class Worker:
     def finish(self, job, path, ok, **info):
         job.update(finished=now(), **info)
         write_json(path, job)
-        os.replace(path, self.share / "jobs" / ("done" if ok else "failed") / path.name)
+        replace(path, self.share / "jobs" / ("done" if ok else "failed") / path.name)
 
     def run_job(self, job, path):
         jid = job["id"]
@@ -177,16 +195,22 @@ class Worker:
             try:
                 while proc.poll() is None:
                     time.sleep(self.poll)
-                    mirror(local, remote)
+                    try:
+                        mirror(local, remote)
+                    except OSError as e:
+                        log(f"mirror failed ({e}), retrying later")
                     self.beat("running", jid, last_line(logf))
-            except KeyboardInterrupt:
-                log("interrupted: stopping bench, job goes back to the queue")
-                proc.terminate()
+            except BaseException as e:                         # Ctrl+C or an unexpected error:
+                log(f"stopping bench ({e!r}), job goes back to the queue")
+                proc.terminate()                               # never leave bench running orphaned
                 proc.wait()
-                mirror(local, remote)
-                job.pop("host", None)
-                write_json(path, job)
-                os.replace(path, self.share / "jobs" / "queue" / path.name)
+                try:
+                    mirror(local, remote)
+                    job.pop("host", None)
+                    write_json(path, job)
+                    replace(path, self.share / "jobs" / "queue" / path.name)
+                except OSError as e2:                          # requeue_own() fixes it at the next start
+                    log(f"requeue failed ({e2})")
                 raise
         mirror(local, remote)
         rc = proc.returncode
