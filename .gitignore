@@ -8,3 +8,5 @@ data/digits.npz
 results/**/*.log
 # trained model weights (regenerate with netresearch.bench)
 results/checkpoints/
+# local copies of remote worker jobs (mirrored to the share)
+results/remote/

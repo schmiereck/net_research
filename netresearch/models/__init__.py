@@ -47,6 +47,13 @@ for _n in (4, 16, 64):
 MODELS["bus_add_s_spg"] = (partial(BusScratch, shared=True, n_mem=16, n_global=4), (8, 512), 1)
 MODELS["bus_add_i_sp16"] = (partial(BusScratch, shared=False, n_mem=16), (8, 512), 1)
 SCRATCH_ORDER += ["bus_add_s_spg", "bus_add_i_sp16"]
+# grids: "_sp<n>" = n values per cell, "g<k>" = one global scratchpad of k values that all cells read and
+# write together (averaged proposals), so its input size does not grow with the grid
+for _grid, _cls in (("layer", LayerGrid), ("hier", HierGrid)):
+    for _sh, _n, _k in (("s", 4, 0), ("s", 16, 0), ("s", 4, 16), ("i", 4, 0)):
+        _name = f"{_grid}_{_sh}_sp{_n}" + (f"g{_k}" if _k else "")
+        MODELS[_name] = (partial(_cls, shared=_sh == "s", n_mem=_n, n_global=_k), (4, 256), 1)
+        SCRATCH_ORDER.append(_name)
 
 MODEL_ORDER = ["mlp", "cnn", "cvnn", "vit", "gru", "attnmem",
                "bus_add_s", "bus_add_i", "bus_mul_s", "bus_mul_i", "bus_gate_s", "bus_gate_i",

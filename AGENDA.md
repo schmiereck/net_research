@@ -55,3 +55,11 @@ Status: offen · läuft · erledigt.
 * Weltmodell: latente Vorhersage oder eigener Ausgabebereich für den nächsten Frame?
 * Erster Anpassungsfall: „einen neuen Zyklus merken“?
 * Wie viel Gedächtnis (Werte pro Modul, global) ist bei 100k Parametern und CPU-Budget sinnvoll?
+
+## Infrastruktur
+
+| Prio | Thema | Status | Notiz |
+|---|---|---|---|
+| P1 | Zweiter PC (16 Kerne, 32 GB) als Rechenknecht | offen | Kein Zugang von hier (Ping und alle Ports zu). Idee: Worker auf dem zweiten PC holt Aufträge per git pull und pusht die Ergebnisse |
+| P2 | GPU-Test (stundenweise gemietet) für die rechenintensiven Modelle | offen | Messung (scripts/profile_run.py): Gitter (_s, _iw) und ViT sind rechengebunden und brauchen ~60 % der Benchmark-Zeit |
+| P3 | Viele Netze gleichzeitig auf der GPU (vmap), für ES-Populationen | offen | |

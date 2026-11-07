@@ -5,6 +5,10 @@ from the bottom row(s). Lateral / upward connections use the previous tick's val
 
 shared=True  : one module (same weights) at every grid position
 shared=False : individual weights per position
+
+Optional scratchpad (models/scratchpad.py): n_mem values per module (read as input, written with
+m <- mult*m + add) and one global scratchpad of n_global values that every module reads and all modules
+write together (their raw write proposals are averaged), so its size does not grow with the grid.
 """
 import math
 
@@ -14,6 +18,7 @@ import torch.nn.functional as F
 
 from ..spec import N_OUT
 from .basic import Model
+from .scratchpad import MULT_BIAS, write_memory
 
 
 class CellLinear(nn.Module):
@@ -31,6 +36,26 @@ class CellLinear(nn.Module):
         if self.shared:
             return x @ self.w + self.b
         return torch.einsum("bki,kio->bko", x, self.w[r]) + self.b[r]
+
+
+def init_write_bias(lin, d_out, n_mem, n_global):
+    """The outputs after d_out are scratchpad writes [mult|add] (local n_mem, then global n_global):
+    mult bias -> keep, small weights."""
+    with torch.no_grad():
+        for start, n in ((d_out, n_mem), (d_out + 2 * n_mem, n_global)):
+            if n:
+                lin.b[..., start:start + n] = MULT_BIAS
+                lin.w[..., start:start + 2 * n] *= 0.1
+
+
+def split_writes(o, d_out, n_mem):
+    """o [B,K,d_out + 2n + 2g] -> main output, local write raw [B,K,2n], global write raw [B,K,2g]."""
+    return o[..., :d_out], o[..., d_out:d_out + 2 * n_mem], o[..., d_out + 2 * n_mem:]
+
+
+def global_write(G, raws):
+    """Every module proposes a write for the global scratchpad; the raw proposals are averaged."""
+    return write_memory(G, torch.cat(raws, 1).mean(1))
 
 
 class StripEncoder(nn.Module):
@@ -56,33 +81,52 @@ class LayerGrid(Model):
     row (previous tick); output d-vector. Row -1 is the strip encoder. Head reads the last row."""
     stateful = True
 
-    def __init__(self, width=16, shared=False, R=4, C=8):
+    def __init__(self, width=16, shared=False, R=4, C=8, n_mem=0, n_global=0):
         super().__init__()
         self.R, self.C, self.d = R, C, width
+        self.n, self.g = n_mem, n_global
         h = 2 * width
         self.enc = StripEncoder(C, width, 1)
-        self.fc1 = CellLinear(R, C, 5 * width, h, shared)
-        self.fc2 = CellLinear(R, C, h, width, shared, zero=True)
+        self.fc1 = CellLinear(R, C, 5 * width + n_mem + n_global, h, shared)
+        self.fc2 = CellLinear(R, C, h, width + 2 * (n_mem + n_global), shared, zero=True)
+        init_write_bias(self.fc2, width, n_mem, n_global)
         self.ln = nn.LayerNorm(C * width)
         self.head = nn.Linear(C * width, N_OUT)
 
     def init_state(self, batch, device="cpu"):
-        return (torch.zeros(batch, self.R, self.C, self.d, device=device),)
+        st = (torch.zeros(batch, self.R, self.C, self.d, device=device),)
+        if self.n or self.g:
+            st += (torch.zeros(batch, self.R, self.C, self.n, device=device),
+                   torch.zeros(batch, self.g, device=device))
+        return st
 
     def forward(self, x, state):
         prev = state[0]
+        mem = len(state) > 1
+        if mem:
+            M, G = state[1], state[2]
+            Gx = G[:, None].expand(-1, self.C, -1)
         above = self.enc(x)[:, 0]                                    # B,C,d
-        rows = []
+        rows, new_m, graw = [], [], []
         for r in range(self.R):
             pa = F.pad(above, (0, 0, 1, 1))                          # pad columns
             lat = F.pad(prev[:, r], (0, 0, 1, 1))
             inp = torch.cat([pa[:, :-2], pa[:, 1:-1], pa[:, 2:], lat[:, :-2], lat[:, 2:]], -1)  # LP,P,RP,L,R
-            hdn = F.gelu(self.fc1(F.layer_norm(inp, inp.shape[-1:]), r))
-            out = above + self.fc2(hdn, r)                           # vertical residual from P
+            inp = F.layer_norm(inp, inp.shape[-1:])
+            if mem:
+                inp = torch.cat([inp, M[:, r], Gx], -1)
+            o = self.fc2(F.gelu(self.fc1(inp, r)), r)
+            if mem:
+                o, wl, wg = split_writes(o, self.d, self.n)
+                new_m.append(write_memory(M[:, r], wl))
+                graw.append(wg)
+            out = above + o                                          # vertical residual from P
             rows.append(out)
             above = out
-        new = torch.stack(rows, 1)
-        return self.head(self.ln(above.flatten(1))), (new,)
+        st = (torch.stack(rows, 1),)
+        if mem:
+            st += (torch.stack(new_m, 1), global_write(G, graw) if self.g else G)
+        return self.head(self.ln(above.flatten(1))), st
 
 
 # output slot order of a hierarchical module
@@ -100,15 +144,17 @@ class HierGrid(Model):
     """
     stateful = True
 
-    def __init__(self, width=12, shared=False, R=6, C=8, ticks=1, zero_init=False):
+    def __init__(self, width=12, shared=False, R=6, C=8, ticks=1, zero_init=False, n_mem=0, n_global=0):
         super().__init__()
         assert C % 2 == 0
         self.R, self.C, self.d, self.ticks = R, C, width, ticks
+        self.n, self.g = n_mem, n_global
         self.K = C // 2
         h = 2 * width
         self.enc = StripEncoder(C, width, 2)
-        self.fc1 = CellLinear(R, self.K, 4 * width, h, shared)
-        self.fc2 = CellLinear(R, self.K, h, 4 * width, shared, zero=zero_init)
+        self.fc1 = CellLinear(R, self.K, 4 * width + n_mem + n_global, h, shared)
+        self.fc2 = CellLinear(R, self.K, h, 4 * width + 2 * (n_mem + n_global), shared, zero=zero_init)
+        init_write_bias(self.fc2, 4 * width, n_mem, n_global)
         self.ln = nn.LayerNorm(C * width)
         self.head = nn.Linear(C * width, N_OUT)
         for r in range(R):
@@ -116,13 +162,21 @@ class HierGrid(Model):
 
     def init_state(self, batch, device="cpu"):
         # ORP outputs of every row from the previous tick, dense over padded columns
-        return (torch.zeros(batch, self.R, self.C + 2, self.d, device=device),)
+        st = (torch.zeros(batch, self.R, self.C + 2, self.d, device=device),)
+        if self.n or self.g:
+            st += (torch.zeros(batch, self.R, self.K, self.n, device=device),
+                   torch.zeros(batch, self.g, device=device))
+        return st
 
-    def _tick(self, virt, prev_orp):
+    def _tick(self, virt, prev_orp, M=None, G=None):
         B = virt.shape[0]
         # dense padded rows: index c+1 holds column c; slot dim = 4 outputs
         vrows = [F.pad(virt[:, i], (0, 0, 1, 1))[:, :, None].expand(-1, -1, 4, -1) for i in range(2)]
         rows = []                                                    # computed rows, dense [B, C+2, 4, d]
+        mem = M is not None
+        new_m, graw = [], []
+        if mem:
+            Gx = G[:, None].expand(-1, self.K, -1)
 
         def row(i):
             return vrows[i + 2] if i < 0 else rows[i]
@@ -137,19 +191,31 @@ class HierGrid(Model):
             else:
                 ils = torch.zeros_like(ip)
             inp = torch.cat([ils, ilp, ip, irp], -1)                 # B,K,4d  (ILS, ILP, IP, IRP)
-            hdn = F.gelu(self.fc1(F.layer_norm(inp, inp.shape[-1:]), r))
-            out = self.fc2(hdn, r).reshape(B, self.K, 4, self.d)
+            inp = F.layer_norm(inp, inp.shape[-1:])
+            if mem:
+                inp = torch.cat([inp, M[:, r], Gx], -1)
+            out = self.fc2(F.gelu(self.fc1(inp, r)), r)
+            if mem:
+                out, wl, wg = split_writes(out, 4 * self.d, self.n)
+                new_m.append(write_memory(M[:, r], wl))
+                graw.append(wg)
+            out = out.reshape(B, self.K, 4, self.d)
             out = out + torch.stack([torch.zeros_like(ip), ip, torch.zeros_like(ip), torch.zeros_like(ip)], 2)
             dense = torch.zeros(B, self.C + 2, 4, self.d, device=out.device, dtype=out.dtype)
             dense = dense.index_copy(1, cols + 1, out)
             rows.append(dense)
         orp = torch.stack([rw[:, :, ORP] for rw in rows], 1)         # B,R,C+2,d
         bottom = rows[-1][:, 1:-1, OS] + rows[-2][:, 1:-1, OS]       # one module per column
-        return bottom, orp
+        if mem:
+            M = torch.stack(new_m, 1)
+            G = global_write(G, graw) if self.g else G
+        return bottom, orp, M, G
 
     def forward(self, x, state):
         virt = self.enc(x)                                           # B,2,C,d
         orp = state[0]
+        M, G = (state[1], state[2]) if len(state) > 1 else (None, None)
         for _ in range(self.ticks):
-            bottom, orp = self._tick(virt, orp)
-        return self.head(self.ln(bottom.flatten(1))), (orp,)
+            bottom, orp, M, G = self._tick(virt, orp, M, G)
+        st = (orp,) if M is None else (orp, M, G)
+        return self.head(self.ln(bottom.flatten(1))), st

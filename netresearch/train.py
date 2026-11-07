@@ -6,6 +6,7 @@ Both are wrapped in "learners" so that one training loop serves single-task and 
 """
 import json
 import math
+import os
 import time
 from collections import deque
 from pathlib import Path
@@ -318,7 +319,7 @@ def train_loop(model, learners, updates, lr, log_every, on_eval=None, eval_every
 
 
 # ------------------------------------------------------------------------------------------------- run
-CKPT_DIR = ROOT / "results" / "checkpoints"
+CKPT_DIR = Path(os.environ.get("NETRESEARCH_CKPT_DIR", ROOT / "results" / "checkpoints"))   # worker: own dir
 
 
 def checkpoint_path(model_name, task_name, seed):
