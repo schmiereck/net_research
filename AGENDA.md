@@ -16,6 +16,8 @@ Status: offen · läuft · erledigt.
 | P1 | Scratchpad: geteilt vs. individuell (bus_add_i_sp16 0.96 vs. bus_add_s_sp16 0.47 auf cycle_mem) | offen | Gegenteil des Gitter-Befunds; mit Seeds prüfen |
 | P1 | Scratchpad auf allen 15 Aufgaben und im Multi-Task-Lauf | offen | Schadet der Speicher bei Aufgaben ohne Gedächtnisbedarf? |
 | P1 | Scratchpad für Layer- und Hierarchie-Gitter | erster Test erledigt | Globaler Teil = gemeinsamer Speicher, Schreibvorschläge gemittelt. cycle_mem: hier_s 0.78 → 0.99, hier_i 0.07 → 0.95, layer_i 0.89 → 0.99, lernt viel schneller. Spiele: kaum Änderung (Decke). 1 Seed |
+| P1 | Fremde Scratchpads lesen statt gemittelt global schreiben: 8 Nachbarn (`_sp4n`) oder per gelernter Adresse, 4 Abfragen (`_sp4a`) | erster Test: unentschieden | Die drei Gedächtnis-Aufgaben unterscheiden die Varianten nicht (cycle_mem schon mit eigenem Speicher ~0.99). Adresse kostet +40–70 % Zeit. Braucht schwerere Gedächtnis-Aufgaben |
+| P1 | Schwerere Gedächtnis-Aufgaben: assoziativer Abruf (Schlüssel→Wert), lange Verzögerung, Information wechselt die Bildregion | offen | Nötig, um Gedächtnis-Architekturen überhaupt unterscheiden zu können |
 | P2 | Rekurrenter Bus (Zustand von Takt zu Takt) | offen | Zusatz-Modell; die Modelle ohne Gedächtnis bleiben im Feld |
 | P2 | Hierarchie-Gitter mit mehreren Ticks pro Frame | offen | Zusatz-Modell |
 | P2 | Warum vergisst hier_s im Multi-Task-Lauf sein Gedächtnis (cycle_mem 0.78 → 0.01)? | offen | |
