@@ -1,0 +1,6 @@
+6 jobs (0 already done), 3 workers
+[1/6  20.5min] layer_s_am  recall     s0 score=1.000 t=1218.6s
+[2/6  21.6min] hier_s_am   recall     s0 score=1.000 t=1284.1s
+[3/6  30.6min] layer_s_am4 recall     s0 score=1.000 t=1821.9s
+[4/6  72.7min] layer_s_am  delay      s0 score=1.000 t=3113.6s
+[5/6  75.7min] hier_s_am   delay      s0 score=1.000 t=3233.2s
