@@ -26,8 +26,9 @@ PASS = 0.75
 # name -> (description, prerequisite stage, tasks)
 STAGES = {
     "A1": ("ohne Gedächtnis: Grundlagen", None, ["shapes", "digits", "paddle", "bricks"]),
-    "A2": ("ohne Gedächtnis: Steuern", "A1", ["cycle", "numseq", "racer", "maze", "crossing", "grid_easy", "push_easy"]),
-    "A3": ("ohne Gedächtnis: Planen (schwer)", "A2", ["grid", "push"]),
+    "A2": ("ohne Gedächtnis: Steuern", "A1", ["cycle", "numseq", "racer", "maze", "crossing", "grid_small_ego",
+                                       "grid_easy", "push_easy"]),
+    "A3": ("ohne Gedächtnis: Planen (schwer)", "A2", ["grid_small", "grid", "push"]),
     "M1": ("Gedächtnis: Halten", "A1", ["cycle_mem", "paddle_mem", "bricks_mem", "delay"]),
     "M2": ("Gedächtnis: Binden, Erkunden", "M1", ["recall", "crossmem", "grid_follow_easy", "grid_scroll_easy"]),
     "M3": ("Gedächtnis: Erkunden (schwer)", "M2", ["grid_follow", "grid_scroll"]),
