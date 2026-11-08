@@ -3,7 +3,8 @@
     python -m netresearch.worker --share "C:/Users/<user>/OneDrive/Dokumente/#Projekte/NetResearch" --workers 14
 
 Loop: take the oldest job from <share>/jobs/queue, check out the job's git commit (fetched from origin; the
-repo is public, so no credentials are needed), run `netresearch.bench` with the job's arguments and copy
+repo is public, so no credentials are needed), run `netresearch.bench` (or `netresearch.sieve run` for
+sieve jobs) with the job's arguments and copy
 results, log and checkpoints to <share>/results/<job id>/. Jobs are submitted with `netresearch.jobs`.
 
 Share layout:
@@ -183,7 +184,7 @@ class Worker:
         if not out.exists() and (remote / "runs.jsonl").exists():
             shutil.copy2(remote / "runs.jsonl", out)        # resume a job started earlier
         logf = local / "bench.log"
-        args = [sys.executable, "-m", "netresearch.bench", *job["args"],
+        args = [sys.executable, "-m", job.get("module", "netresearch.bench"), *job["args"],
                 "--workers", str(job.get("workers") or self.workers), "--out", str(out)]
         env = dict(os.environ, NETRESEARCH_CKPT_DIR=str(local / "checkpoints"), PYTHONUNBUFFERED="1")
         log(f"job {jid} at {commit}: {' '.join(job['args'])}")

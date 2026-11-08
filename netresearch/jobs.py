@@ -1,6 +1,7 @@
 """Submit benchmark jobs to remote workers (netresearch.worker) via the shared folder, check status, fetch results.
 
     python -m netresearch.jobs submit seeds12 -- --models all --tasks all --seeds 1 2
+    python -m netresearch.jobs submit --sieve newarch -- --models layer_s_xy --seeds 0 1 2   # benchmark sieve
     python -m netresearch.jobs status
     python -m netresearch.jobs fetch <job id> --into results/runs.jsonl [--checkpoints]
     python -m netresearch.jobs cancel <job id>          # only while still queued
@@ -9,6 +10,7 @@
 A job runs the commit that is checked out here when submitting; it must be pushed to origin
 (the worker fetches it from GitHub). Everything after "--" is passed to netresearch.bench
 (without --out / --workers: the worker sets them; a job can fix the process count with --workers here).
+With --sieve the worker runs "netresearch.sieve run" instead: stage by stage, only what the sieve unlocks.
 """
 import argparse
 import json
@@ -26,7 +28,7 @@ def git(*args):
     return subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True).stdout.strip()
 
 
-def submit(share, name, bench_args, workers, allow_dirty):
+def submit(share, name, bench_args, workers, allow_dirty, sieve=False):
     if any(a in ("--out", "--workers") for a in bench_args):
         raise SystemExit("--out / --workers are set by the worker (use 'submit --workers N' for a fixed count)")
     commit = git("rev-parse", "HEAD")
@@ -37,7 +39,10 @@ def submit(share, name, bench_args, workers, allow_dirty):
     if "origin/" not in git("branch", "-r", "--contains", commit):
         raise SystemExit(f"commit {commit[:7]} is not pushed to origin yet: git push first.")
     jid = datetime.now().strftime("%Y%m%d-%H%M%S") + "-" + re.sub(r"[^A-Za-z0-9_-]", "_", name)
+    if sieve:
+        bench_args = ["run", *bench_args]
     job = {"id": jid, "name": name, "commit": commit, "args": bench_args, "workers": workers,
+           "module": "netresearch.sieve" if sieve else "netresearch.bench",
            "created": datetime.now().isoformat(timespec="seconds")}
     write_json(share / "jobs" / "queue" / f"{jid}.json", job)
     digits = ROOT / "data" / "digits.npz"
@@ -55,9 +60,11 @@ def progress(share, jid):
     total = re.findall(r"^(\d+) jobs \(", text, re.M)
     done = re.findall(r"^\[(\d+)/(\d+) +([\d.]+)min\]", text, re.M)
     errors = text.count("ERROR ")
+    stage = re.findall(r"^== Stufe (\w+)", text, re.M)
+    pre = f"stage {stage[-1]}: " if stage else ""
     if done:
         k, n, m = done[-1]
-        return f"{k}/{n} runs, {float(m):.0f} min" + (f", {errors} errors" if errors else "")
+        return pre + f"{k}/{n} runs, {float(m):.0f} min" + (f", {errors} errors" if errors else "")
     return f"0/{total[-1]} runs" if total else "starting"
 
 
@@ -134,6 +141,7 @@ def main():
     s.add_argument("name")
     s.add_argument("--workers", type=int, default=None)
     s.add_argument("--allow-dirty", action="store_true")
+    s.add_argument("--sieve", action="store_true", help="run the benchmark sieve (args: --models ... --seeds ...)")
     s.add_argument("bench_args", nargs=argparse.REMAINDER)
     sub.add_parser("status")
     f = sub.add_parser("fetch")
@@ -150,7 +158,7 @@ def main():
         (share / d).mkdir(parents=True, exist_ok=True)
     if a.cmd == "submit":
         args = a.bench_args[1:] if a.bench_args[:1] == ["--"] else a.bench_args
-        submit(share, a.name, args, a.workers, a.allow_dirty)
+        submit(share, a.name, args, a.workers, a.allow_dirty, a.sieve)
     elif a.cmd == "status":
         status(share)
     elif a.cmd == "fetch":
