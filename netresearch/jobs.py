@@ -4,6 +4,7 @@
     python -m netresearch.jobs status
     python -m netresearch.jobs fetch <job id> --into results/runs.jsonl [--checkpoints]
     python -m netresearch.jobs cancel <job id>          # only while still queued
+    python -m netresearch.jobs retry <job id>           # failed job -> back into the queue
 
 A job runs the commit that is checked out here when submitting; it must be pushed to origin
 (the worker fetches it from GitHub). Everything after "--" is passed to netresearch.bench
@@ -113,6 +114,18 @@ def cancel(share, jid):
     print(f"removed {jid}")
 
 
+def retry(share, jid):
+    p = share / "jobs" / "failed" / f"{jid}.json"
+    if not p.exists():
+        raise SystemExit(f"{jid} is not in jobs/failed")
+    job = json.loads(p.read_text(encoding="utf-8"))
+    for k in ("host", "started", "finished", "error", "exit_code", "commit_run", "minutes"):
+        job.pop(k, None)
+    (share / "jobs" / "queue" / p.name).write_text(json.dumps(job, indent=1), encoding="utf-8")
+    os.remove(p)
+    print(f"requeued {jid}")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--share", default=DEFAULT_SHARE)
@@ -129,6 +142,8 @@ def main():
     f.add_argument("--checkpoints", action="store_true")
     c = sub.add_parser("cancel")
     c.add_argument("job")
+    r = sub.add_parser("retry")
+    r.add_argument("job")
     a = ap.parse_args()
     share = Path(a.share)
     for d in DIRS:
@@ -140,6 +155,8 @@ def main():
         status(share)
     elif a.cmd == "fetch":
         fetch(share, a.job, a.into, a.checkpoints)
+    elif a.cmd == "retry":
+        retry(share, a.job)
     else:
         cancel(share, a.job)
 
