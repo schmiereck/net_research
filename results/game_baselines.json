@@ -26,5 +26,29 @@
  "maze": {
   "random": -0.8125,
   "expert": 36.71875
+ },
+ "grid_easy": {
+  "random": -0.5,
+  "expert": 1.0
+ },
+ "push_easy": {
+  "random": 0.03125,
+  "expert": 1.0
+ },
+ "grid_follow_easy": {
+  "random": -0.84375,
+  "expert": 1.0
+ },
+ "grid_scroll_easy": {
+  "random": -0.84375,
+  "expert": 1.0
+ },
+ "grid_small": {
+  "random": -0.28125,
+  "expert": 1.0
+ },
+ "grid_small_ego": {
+  "random": -0.28125,
+  "expert": 1.0
  }
 }
