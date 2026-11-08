@@ -2,7 +2,7 @@
 
     python -m netresearch.sieve_plot [--models ...] [--out results/sieve]      # writes .png and .svg
 
-Top: the stage tree (A1 -> A2 -> A3 without memory, A1 -> M1 -> M2 -> M3 memory) with how many architectures
+Top: the stage tree (A1 -> A2 -> A3 -> A4 without memory, A1 -> M1 -> ... -> M4 memory) with how many architectures
 reached / passed each stage. Below, one ranked bar chart per path. Progress = number of stages passed + mean
 score of the first stage not passed (so 2.6 = two stages passed, 0.6 on the third). The solid part of a bar
 is the passed stages, the light part the partial score of the stage where the architecture stopped.
@@ -17,7 +17,7 @@ from matplotlib.patches import FancyBboxPatch  # noqa: E402
 
 from .sieve import PASS, ROOT, STAGES, evaluate, load_results  # noqa: E402
 
-PATHS = {"A": ["A1", "A2", "A3"], "M": ["A1", "M1", "M2", "M3"]}
+PATHS = {"A": ["A1", "A2", "A3", "A4"], "M": ["A1", "M1", "M2", "M3", "M4"]}
 TITLE = {"A": "Pfad A: ohne Gedächtnis", "M": "Pfad M: Gedächtnis"}
 COL = {"A": "#2a78d6", "M": "#eb6834"}                  # categorical slots 1, 2 (reference palette)
 LIGHT = {"A": "#b4cff0", "M": "#f6c4ae"}
@@ -50,18 +50,18 @@ def wrap(words, width=38):
 
 
 def draw_tree(ax, evs):
-    ax.set_xlim(0, 4)
+    ax.set_xlim(0, 5)
     ax.set_ylim(0, 2)
     ax.axis("off")
-    pos = {"A1": (0.5, 1.0), "A2": (1.5, 1.55), "A3": (2.5, 1.55), "M1": (1.5, 0.45), "M2": (2.5, 0.45),
-           "M3": (3.5, 0.45)}
+    pos = {"A1": (0.5, 1.0), "A2": (1.5, 1.55), "A3": (2.5, 1.55), "A4": (3.5, 1.55),
+           "M1": (1.5, 0.45), "M2": (2.5, 0.45), "M3": (3.5, 0.45), "M4": (4.5, 0.45)}
     w, h = 0.84, 0.8
     for s, (x, y) in pos.items():
         admitted = sum(ev[s][0] != "locked" for ev in evs.values())
         ok = sum(ev[s][0] == "pass" for ev in evs.values())
         open_ = sum(ev[s][0] == "missing" for ev in evs.values())
         path = "M" if s.startswith("M") else "A"
-        hard = s in ("A3", "M3")
+        hard = s in ("A4", "M4")
         ax.add_patch(FancyBboxPatch((x - w / 2, y - h / 2), w, h, boxstyle="round,pad=0,rounding_size=0.06",
                                     fc=SURFACE, ec=COL[path] if s != "A1" else INK2, lw=2.2 if hard else 1.2))
         desc = STAGES[s][0].split(": ")[1]
@@ -72,11 +72,11 @@ def draw_tree(ax, evs):
                 color=INK)
         if open_:
             ax.text(x, y - 0.3, f"{open_} noch ohne Ergebnis", ha="center", va="center", fontsize=6.5, color=MUTED)
-    for a, b in (("A1", "A2"), ("A2", "A3"), ("A1", "M1"), ("M1", "M2"), ("M2", "M3")):
+    for a, b in (("A1", "A2"), ("A2", "A3"), ("A3", "A4"), ("A1", "M1"), ("M1", "M2"), ("M2", "M3"), ("M3", "M4")):
         (x0, y0), (x1, y1) = pos[a], pos[b]
         ax.annotate("", xy=(x1 - w / 2, y1), xytext=(x0 + w / 2, y0),
                     arrowprops=dict(arrowstyle="-|>", color=MUTED, lw=1.2, shrinkA=2, shrinkB=2))
-    ax.text(3.5, 1.55, f"bestanden: jede Aufgabe\nder Stufe ≥ {PASS}\n(Mittel über die Seeds)", ha="center",
+    ax.text(4.5, 1.55, f"bestanden: jede Aufgabe\nder Stufe ≥ {PASS}\n(Mittel über die Seeds)", ha="center",
             va="center", fontsize=7.5, color=INK2)
 
 
@@ -117,7 +117,7 @@ def plot(models, out):
     evs = evaluate(models, res)
     evs = {m: ev for m, ev in evs.items() if ev["A1"][0] != "missing"}
     n = len(evs)
-    fig = plt.figure(figsize=(11, 3.2 + 0.2 * n), facecolor=SURFACE)
+    fig = plt.figure(figsize=(13, 3.4 + 0.2 * n), facecolor=SURFACE)
     gs = fig.add_gridspec(2, 2, height_ratios=[2.6, 0.2 * n + 0.6], hspace=0.25, wspace=0.55)
     draw_tree(fig.add_subplot(gs[0, :]), evs)
     for j, path in enumerate("AM"):

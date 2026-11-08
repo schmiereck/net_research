@@ -1,10 +1,10 @@
 """Benchmark sieve: stages of increasing difficulty that an architecture has to pass to reach the hard tests.
 
 Two paths, because memory is a separate ability:
-    A  without memory: perception, steering, planning           A1 -> A2 -> A3
-    M  memory (needs A1: an architecture must first see and act)       A1 -> M1 -> M2 -> M3
+    A  without memory: perception, steering, planning           A1 -> A2 -> A3 -> A4
+    M  memory (needs A1: an architecture must first see and act)       A1 -> M1 -> M2 -> M3 -> M4
 A stage is passed when every task of the stage reaches PASS (mean over the seeds that exist). The last stage of
-each path holds the hard goal tasks (A3: path planning, push; M3: exploring in large worlds).
+each path holds the hard goal tasks (A4: path planning, push; M4: exploring in large worlds).
 
     python -m netresearch.sieve status [--models ...]      # table: per model and stage pass / fail / missing
     python -m netresearch.sieve next   [--models ...]      # bench commands for the stages that are due
@@ -26,12 +26,13 @@ PASS = 0.75
 # name -> (description, prerequisite stage, tasks)
 STAGES = {
     "A1": ("ohne Gedächtnis: Grundlagen", None, ["shapes", "digits", "paddle", "bricks"]),
-    "A2": ("ohne Gedächtnis: Steuern", "A1", ["cycle", "numseq", "racer", "maze", "crossing", "grid_small_ego",
-                                       "grid_easy", "push_easy"]),
-    "A3": ("ohne Gedächtnis: Planen (schwer)", "A2", ["grid_small", "grid", "push"]),
+    "A2": ("ohne Gedächtnis: Steuern", "A1", ["cycle", "numseq", "grid_small_ego"]),
+    "A3": ("ohne Gedächtnis: Ausweichen, Planen", "A2", ["maze", "push_easy", "racer", "crossing", "grid_small"]),
+    "A4": ("ohne Gedächtnis: Planen (schwer)", "A3", ["grid_easy", "grid", "push"]),
     "M1": ("Gedächtnis: Halten", "A1", ["cycle_mem", "paddle_mem", "bricks_mem", "delay"]),
-    "M2": ("Gedächtnis: Binden, Erkunden", "M1", ["recall", "crossmem", "grid_follow_easy", "grid_scroll_easy"]),
-    "M3": ("Gedächtnis: Erkunden (schwer)", "M2", ["grid_follow", "grid_scroll"]),
+    "M2": ("Gedächtnis: Binden", "M1", ["recall", "grid_follow_easy"]),
+    "M3": ("Gedächtnis: Verknüpfen", "M2", ["crossmem", "grid_scroll_easy"]),
+    "M4": ("Gedächtnis: Erkunden (schwer)", "M3", ["grid_follow", "grid_scroll"]),
 }
 
 
