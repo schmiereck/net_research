@@ -22,6 +22,9 @@ Allocating key/value scratchpad (alloc=True, AllocMemory): rows are not chosen b
 the least-used row (usage count, like a free list) with a learned write strength, and the row also stores
 a global key vector. Reading compares a query vector with the stored keys (dot-product attention over the
 used rows). The values are still distributed over the modules and written with the mult/add rule.
+
+Recency variant (alloc="lru", RecencyMemory): AllocMemory's usage saturates, so after all rows are used it
+always overwrites row 0; here writes go to the least recently written row, and beta is applied once.
 """
 import math
 
@@ -191,6 +194,50 @@ class AllocMemory(KVMemory):
         return kw, qr, (Km, U)
 
 
+
+class RecencyMemory(AllocMemory):
+    """AllocMemory with two fixes (found in review): (1) writes go to the least RECENTLY written row (recency
+    R <- gamma*R + w), so after all rows are used the oldest is overwritten (AllocMemory's usage saturates and
+    then always overwrites row 0); (2) the strength beta is applied once: row <- row + beta*((m-1)*row + add),
+    i.e. beta interpolates between keeping the row and the full write (AllocMemory applies beta twice to the
+    old value). Extra state: keys Km [B,a,dk], usage U [B,a] (read prior), recency R [B,a]."""
+    n_state = 3
+
+    def __init__(self, enc_dim, n, slots, heads, dk=16, gamma=0.9):
+        super().__init__(enc_dim, n, slots, heads, dk)
+        self.gamma = gamma
+
+    def init_extra(self, batch, device):
+        return super().init_extra(batch, device) + (torch.zeros(batch, self.a, device=device),)
+
+    def address(self, e, extra):
+        Km, U, R = extra
+        z = self.key(e).view(e.shape[0], self.h, 1 + 2 * self.dk)
+        beta = torch.sigmoid(z[..., :1])
+        kappa, q = z[..., 1:1 + self.dk], z[..., 1 + self.dk:]
+        s = torch.einsum("bhd,bad->bha", q, Km) / math.sqrt(self.dk) + torch.log(U + 1e-6)[:, None]
+        qr = s.softmax(-1) * (U.sum(-1) > 1e-3).float()[:, None, None]
+        free = (R + self.tie).topk(self.h, -1, largest=False).indices      # least recently written rows
+        kw = beta * F.one_hot(free, self.a).float()
+        w = kw.sum(1)
+        Km = Km * (1 - w)[..., None] + torch.einsum("bha,bhd->bad", kw, kappa)
+        U = U * (1 - w) + w
+        R = self.gamma * R + (w > 0).float()                         # recency counts the write, not beta
+        return kw, qr, (Km, U, R)
+
+    def write(self, A, kw, raw):
+        B, K = A.shape[:2]
+        mult, add = raw.reshape(B, K, 2, self.h, self.n).unbind(2)
+        for h in range(self.h):
+            k = kw[:, h]                                             # beta * one-hot
+            old = torch.einsum("bkan,ba->bkn", A, (k > 0).float())    # the row itself, not beta * row
+            upd = (torch.sigmoid(mult[:, :, h]) - 1) * old + torch.tanh(add[:, :, h])
+            A = A + k[:, None, :, None] * upd[:, :, None]
+        return A
+
+KV_MEMORY = {False: KVMemory, True: AllocMemory, "lru": RecencyMemory}     # alloc= -> class
+
+
 class StripEncoder(nn.Module):
     """16x16 image -> C column strips -> n_rows virtual input rows of d-vectors per column."""
 
@@ -223,7 +270,7 @@ class LayerGrid(Model):
         self.nl = nl = n_mem * heads if slots else n_mem             # own-memory values read / written
         h = 2 * width
         self.enc = StripEncoder(C, width, 1)
-        self.kv = (AllocMemory if alloc else KVMemory)(C * width, n_mem, slots, heads) if slots else None
+        self.kv = KV_MEMORY[alloc](C * width, n_mem, slots, heads) if slots else None
         self.reader = MemoryReader(read, "layer", R, C, C, n_mem, 5 * width, shared)
         self.register_buffer("cols", torch.arange(C), persistent=False)
         self.fc1 = CellLinear(R, C, 5 * width + nl + n_global + self.reader.extra, h, shared)
@@ -306,7 +353,7 @@ class HierGrid(Model):
         self.K = C // 2
         h = 2 * width
         self.enc = StripEncoder(C, width, 2)
-        self.kv = (AllocMemory if alloc else KVMemory)(2 * C * width, n_mem, slots, heads) if slots else None
+        self.kv = KV_MEMORY[alloc](2 * C * width, n_mem, slots, heads) if slots else None
         self.reader = MemoryReader(read, "hier", R, C, self.K, n_mem, 4 * width, shared)
         self.fc1 = CellLinear(R, self.K, 4 * width + nl + n_global + self.reader.extra, h, shared)
         self.fc2 = CellLinear(R, self.K, h, 4 * width + 2 * (nl + n_global), shared, zero=zero_init)
