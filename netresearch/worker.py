@@ -76,7 +76,7 @@ def git(*args, check=True):
     r = subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True)
     if check and r.returncode:
         raise RuntimeError(f"git {' '.join(args)}: {r.stderr.strip()}")
-    return r.stdout.strip()
+    return r.stdout.rstrip()          # keep leading blanks: "git status --porcelain" columns
 
 
 def checkout(commit):
