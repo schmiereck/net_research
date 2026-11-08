@@ -54,8 +54,11 @@ Status: offen · läuft · erledigt.
 | Prio | Thema | Status | Notiz |
 |---|---|---|---|
 | P2 | Erster Test der Wiedererkennungs-Signale R: sagen sie vorher, was schnell lernbar ist? | offen | Mit vorhandenen Checkpoints, Abschnitt 4b |
-| P2 | Anpassungs-Benchmark (Phase A) | offen | |
-| P3 | Trainer-Netz per ES, schnelle/langsame Gewichte (Phasen B–F) | offen | |
+| P1 | Anpassungs-Benchmark (Phase A) | als Nächstes | Startnetze = Sieb-Checkpoints; misst k-shot-Anpassung und Erhalt |
+| P2 | Port-Interface (Telemetrie / Modulation / Freeze) und feste Regeln T1, T2 (Phase B) | offen | Teacher-Actor-Konzept, PLAN_TRAINER 4c |
+| P2 | T3 Freeze & Route als Lehrplan-Test über die Sieb-Stufen (Phase C) | offen | braucht individuelle Module oder Fähigkeiten-Bibliothek |
+| P3 | Gelernter Teacher per ES (Phasen D–F) | offen | |
+| P3 | T4 State-Critic: Langeweile, Lernfortschritt, Gefahr, Muster (Phase G) | offen | setzt RL-Schleife voraus |
 | P3 | Weight-Editing durch ein LLM | offen | |
 
 ## Offene Grundsatzfragen

@@ -1,7 +1,8 @@
 # Plan: Trainer-Netz und World-Model – schnelles Lernen ohne Backprop
 
-Entwurf vom 2026-11-06. Baut auf der Benchmark-Plattform auf (PLAN.md) und auf den Ergebnissen von Phase 3
-(Weight-Sharing, Multi-Task).
+Entwurf vom 2026-11-06, ergänzt am 2026-11-08 um das Konzept „Modulare Teacher-Actor-Architekturen“
+(erarbeitet mit Gemini, Abschnitt 4c). Baut auf der Benchmark-Plattform auf (PLAN.md), auf den Ergebnissen
+von Phase 3 (Weight-Sharing, Multi-Task) und auf dem Benchmark-Sieb (netresearch/sieve.py).
 
 ## 1. Ziel
 
@@ -144,6 +145,69 @@ Die Evolution (ES) optimiert nur, *wie* S und R zu Lernstärke, Richtung und Kon
   vom Rest dabei verloren geht.
 - Korrelieren hohes R und schnelles, schonendes Lernen, dann taugt R als Steuersignal für den Trainer.
 
+## 4c. Teacher-Actor-Konzept: einheitliches Port-Interface und vier Teacher-Kandidaten
+
+Ergänzung vom 2026-11-08, aus einer Diskussion mit Gemini. Der „Teacher“ entspricht hier dem Trainer T.
+
+### Einheitliches Port-Interface je Modul
+
+Damit verschiedene Teacher ohne Umbau der Module gegeneinander getestet werden können, bekommt jedes Modul
+zwei standardisierte Zusatz-Ports:
+
+- **Telemetrie s_m (Modul → Teacher):** ein kompakter Status über die letzten t Takte, etwa mittlere
+  Aktivierung, Varianz oder Entropie und ein lokaler Vorhersagefehler. Hier gehören auch S und R aus 4b hin.
+- **Modulation c_m (Teacher → Modul):** ein Skalar oder kurzer Vektor, plus ein Freeze-Flag.
+
+Das Interface ist der erste Baustein, den wir implementieren: Danach sind die Phasen B bis E nur noch
+verschiedene Teacher an denselben Ports.
+
+### Vier Kandidaten
+
+| Kandidat | Eingriff des Teachers | Signal je Modul | Entspricht im Plan |
+|---|---|---|---|
+| **T1** lokale 3-Faktor-Plastizität | Skalar m ∈ [−1, 1] auf eine lokale Eligibility-Trace E (abklingend, x_i·y_j): ΔW = η·m·E | 1 Wert | Phase B, 4b (Drei-Faktor-Regel) |
+| **T2** Low-Rank Fast-Weights | Vektoren u, v: W_eff = W_base + u vᵀ | 2N Werte | W_fast, Phase B |
+| **T3** Freeze & Route | Freeze-Flag für gemeisterte Module, danach nur noch Bus-Gates zwischen eingefrorenen Modulen plus ein freies Kombinationsmodul | Gate-Vektor | **neu** |
+| **T4** semantischer State-Critic | intrinsischer Leitvektor, der T1–T3 antreibt: Langeweile (perfekt vorhersagbar), Freude (Lernfortschritt), Gefahr (Verlust möglicher Folgezustände, Empowerment), Muster-Bonus (wiederholbare Aktionsfolgen) | Reward-Vektor | 4b, erweitert um Gefahr und Muster-Bonus |
+
+Der Teacher bleibt klein und geteilt, bewertet seinen Eingriff nach kurzen Fenstern (t = 5…20 Schritte) und
+wird per ES trainiert (wie Abschnitt 3).
+
+### Bewusst ausgeschlossen
+
+- **Volle Hypernetze**, die alle N×N Gewichte eines Moduls erzeugen: quadratische Kosten, langsame Konvergenz.
+- **Naive Neugier**, die jede Unvorhersagbarkeit belohnt (Noisy-TV-Problem). Belohnt wird nur Lernfortschritt.
+- **Tiefe Backprop-Ketten durch den Teacher** über viele Zeitschritte: Das verschiebt den Flaschenhals nur eine
+  Ebene nach oben.
+
+### Einordnung und Korrekturen (Abgleich mit unseren Messungen)
+
+1. **Der Teacher löst nicht die Grid-World.** Das Konzept begründet sich mit schlecht skalierendem Backprop.
+   Unsere Daten zeigen andere Ursachen:
+   - Die Grid-Aufgaben scheitern am Bezugsrahmen: Mit zentriertem Bild erreichen alle Modelle 0.80–0.99,
+     mit demselben Training (Frame-Test, results/frame.jsonl).
+   - Das Gedächtnis scheitert an der Architektur: `delay` schaffen nur Modelle mit Scratchpad.
+
+   Ziel des Teachers bleibt daher, wie in Abschnitt 1: **schnelles Nachlernen ohne Vergessen**.
+2. **„Modul“ heißt bei uns Position, nicht Fähigkeit.** In layer und hier ist ein Modul eine Gitterposition.
+   Bei geteilten Gewichten (`_s`) gibt es nur ein einziges Modul; ein Freeze friert dort alles ein.
+   - T3 braucht deshalb individuelle Module (`_i`) oder eine eigene Fähigkeiten-Bibliothek am Bus.
+   - Das ist eine offene Architekturentscheidung (Abschnitt 9).
+3. **T4 braucht Reinforcement Learning.** Wir trainieren durch Imitation eines Experten (DAgger). Erkunden
+   ohne Schritt-Rewards setzt eine RL-Schleife voraus (AGENDA P3). T4 kommt daher zuletzt.
+4. **Messgröße:** „Wall-Clock bis 90 % gegen Backprop, von null an“ würde ein lokales Verfahren sehr
+   wahrscheinlich verlieren. Gemessen wird wie in Abschnitt 5: k-shot-Anpassung und Erhalt.
+
+### T3 als Lehrplan-Test über das Sieb
+
+Die Sieb-Stufen sind ein fertiger Lehrplan (A1 → A2 → A3, A1 → M1 → M2 → M3). Testablauf:
+
+1. Auf den Aufgaben einer Stufe trainieren, bis sie bestanden ist.
+2. Gemeisterte Module einfrieren.
+3. Die nächste Stufe lernen, wobei nur Gates und ein freies Kombinationsmodul trainiert werden.
+4. Messen: Lerngeschwindigkeit der neuen Stufe und Erhalt der alten, gegen (a) von null an,
+   (b) Feintuning ohne Freeze und (c) Multi-Task über beide Stufen.
+
 ## 5. Messprotokoll: was heißt „schnell und gut“?
 
 Wir brauchen einen **Adaptions-Benchmark**. Er unterscheidet sich vom bisherigen Benchmark: Das Netz kennt die
@@ -190,36 +254,44 @@ Damit „Lösung teilweise erkennen“ überhaupt möglich ist, muss das Basisne
 
 ## 7. Phasen
 
-**Phase A – Adaptions-Benchmark (Grundlage, ca. 1–2 Tage Arbeit)**
+Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
+
+**Phase A – Adaptions-Benchmark (Grundlage)**
 - Aufgabenfamilien mit Meta-Train- und Meta-Test-Varianten bauen (Tabelle in Abschnitt 5).
 - Ein Protokoll für k-shot-Anpassung und Vergessen schreiben, mit einem eigenen Report.
-- Baselines: Adam-Feintuning und In-Context (GRU/attnmem).
+- Startnetze sind die Checkpoints aus dem Sieb (results/checkpoints).
+- Baselines: Adam-Feintuning und In-Context (GRU/attnmem, Gedächtnis-Gitter).
 
-**Phase B – Schnelle Gewichte mit fester Regel (ohne Trainer)**
-- W_slow + W_fast in layer_s und hier_s einbauen.
-- Hebb-Regel, durch den Fehler gesteuert: ΔW = η · (Fehler-Rückprojektion) · präᵀ, mit Feedback Alignment.
+**Phase B – Port-Interface und feste Regeln (T1, T2 ohne gelernten Teacher)**
+- Telemetrie- und Modulations-Ports (4c) in layer_s einbauen; W_slow + W_fast.
+- T2: Low-Rank-Update u vᵀ; T1: Eligibility-Trace mit fehlergesteuertem Skalar (Feedback Alignment).
+- Erster Fall: „einen neuen Zyklus merken“. Vergleich mit Adam-Feintuning.
 - Die Frage dabei: Bringt eine schnelle Gewichtsschicht allein schon k-shot-Fähigkeit? Das ist die
-  Untergrenze für den Trainer.
+  Untergrenze für den Teacher.
 
-**Phase C – Gelernte lokale Regel (der Trainer, Stufe 1)**
-- Ein kleiner Trainer T, geteilt an allen Positionen, mit Eingängen prä, post, Fehler und Gewichtsprojektion.
+**Phase C – T3 Freeze & Route als Lehrplan-Test**
+- Über die Sieb-Stufen (4c), mit individuellen Modulen oder einer Fähigkeiten-Bibliothek am Bus.
+
+**Phase D – Gelernter Teacher (Stufe 1)**
+- Ein kleiner Teacher, geteilt an allen Positionen, liest die Telemetrie und schreibt die Modulation.
 - Meta-Training per ES über viele Aufgaben-Episoden aus dem Meta-Train-Teil, mit dem Meta-Gradient als
-  Vergleich.
-- Messen auf dem Meta-Test-Teil.
+  Vergleich. Messen auf dem Meta-Test-Teil.
 
-**Phase D – Trainer liest Gewichte (Stufe 2)**
-- Der Trainer bekommt zusätzlich eine Zusammenfassung des Moduls selbst (Weight-Space-Encoder,
-  permutationsinvariant) und einen eigenen Zustand über die Lernhistorie.
+**Phase E – Teacher liest Gewichte (Stufe 2)**
+- Zusätzlich eine Zusammenfassung des Moduls selbst (Weight-Space-Encoder, permutationsinvariant) und ein
+  eigener Zustand über die Lernhistorie.
 - Er entscheidet über das *Wo*: welche Positionen, welche Unterräume.
 - Die Frage dabei: Hilft das „Verstehen“ der Gewichte gegenüber der rein lokalen Regel?
 
-**Phase E – Konsolidierung und Schutz der Generalisierung**
+**Phase F – Konsolidierung und Schutz der Generalisierung**
 - W_fast → W_slow in Ruhephasen, mit gelernter Bremse oder Replay.
 - Langzeittest: 20 neue Varianten nacheinander lernen und dabei das Vergessen und die Generalisierung
   verfolgen.
 
-**Phase F – World-Model mit Vorhersage des nächsten Bildes und Transfer auf eine ganz neue Aufgabe**
-(leave-one-out).
+**Phase G – T4 State-Critic und World-Model**
+- Setzt eine RL-Schleife voraus.
+- Erkunden ohne Schritt-Rewards (Grid-World), Vorhersage des nächsten Bildes, Transfer auf eine ganz neue
+  Aufgabe (leave-one-out).
 
 ## 8. Rechenaufwand und Risiken
 
@@ -246,3 +318,4 @@ Damit „Lösung teilweise erkennen“ überhaupt möglich ist, muss das Basisne
 4. Mit welchem Adaptionsfall anfangen? Mein Vorschlag ist **„einen neuen Zyklus merken“** (cycle_mem mit
    einem festen, ungesehenen Muster). Er ist klein, schnell, gut messbar und entspricht genau deinem
    Beispiel.
+5. T3: individuelle Module (`_i`, im Sieb schwächer) oder eine eigene Fähigkeiten-Bibliothek am Bus?
