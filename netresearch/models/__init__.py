@@ -17,6 +17,7 @@ def _bus(mode, shared, width, sub=False):
 MODELS = {
     "mlp": (MLP, (8, 1024), 1),
     "cnn": (CNN, (4, 256), 2),
+    "cnn_coord": (partial(CNN, coord=True), (4, 256), 2),
     "cvnn": (CVNN, (4, 512), 1),
     "vit": (ViT, (8, 256), 4),
     "gru": (GRUNet, (8, 512), 1),

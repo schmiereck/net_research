@@ -3,7 +3,7 @@ from .base import ControlTask
 from .games.bricks import Bricks, BricksMem
 from .games.crossing import Crossing
 from .games.gridworld import (GridFollow, GridFollowEasy, GridScroll, GridScrollEasy, GridWorld,
-                              GridWorldEasy, Push, PushEasy)
+                              GridWorldEasy, GridSmall, GridSmallEgo, Push, PushEasy)
 from .games.maze import Maze
 from .games.paddle import Paddle, PaddleMem
 from .games.racer import Racer
@@ -49,6 +49,8 @@ TASKS = {
     "grid_scroll": _game_task("grid_scroll", GridScroll, "like grid_follow, camera with dead zone", True,
                               seq_len=32),
     "push": _game_task("push", Push, "push a box onto the target (16x16, fully visible)"),
+    "grid_small": _game_task("grid_small", GridSmall, "grid world 8x8, fixed view (player moves in the image)"),
+    "grid_small_ego": _game_task("grid_small_ego", GridSmallEgo, "grid world 8x8, view centred on the player"),
     "grid_easy": _game_task("grid_easy", GridWorldEasy, "grid world 16x16, few walls"),
     "grid_follow_easy": _game_task("grid_follow_easy", GridFollowEasy, "grid_follow with few walls", True,
                                    seq_len=32),

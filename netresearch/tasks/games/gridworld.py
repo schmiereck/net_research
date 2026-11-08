@@ -298,3 +298,22 @@ class PushEasy(Push):
     """Open room (no inner walls), the solution takes 3-12 steps."""
     max_steps = 50
     wall_p, min_dist, max_dist = 0.0, 3, 12
+
+
+# ------------------------------------------------------------------ frame test: same world, two views
+class GridSmall(GridWorld):
+    """8x8 world, fully visible at a fixed place in the image (allocentric: the player moves in the image;
+    outside the world = wall)."""
+    max_steps = 30
+    size, wall_p, n_pits, min_dist = 8, 0.2, 2, 5
+
+    def view_origin(self):
+        return -4, -4
+
+
+class GridSmallEgo(GridSmall):
+    """The same 8x8 worlds, but the 16x16 view is centred on the player (egocentric). The whole world is
+    still always visible, so both variants carry the same information; only the reference frame differs."""
+
+    def view_origin(self):
+        return self.x - 8, self.y - 8

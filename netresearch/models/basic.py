@@ -29,16 +29,24 @@ class MLP(Model):
 
 
 class CNN(Model):
-    def __init__(self, width=32):
+    """coord=True: two extra input channels with the pixel x / y coordinate in [-1, 1] (CoordConv)."""
+
+    def __init__(self, width=32, coord=False):
         super().__init__()
         c1, c2 = width // 2, width
+        self.coord = coord
+        if coord:
+            ys, xs = torch.meshgrid(torch.linspace(-1, 1, 16), torch.linspace(-1, 1, 16), indexing="ij")
+            self.register_buffer("xy", torch.stack([xs, ys])[None], persistent=False)
         self.net = nn.Sequential(
-            nn.Conv2d(3, c1, 3, padding=1), nn.GELU(),
+            nn.Conv2d(5 if coord else 3, c1, 3, padding=1), nn.GELU(),
             nn.Conv2d(c1, c2, 3, padding=1, stride=2), nn.GELU(),       # 8x8
             nn.Conv2d(c2, c2, 3, padding=1, stride=2), nn.GELU(),       # 4x4
             nn.Flatten(), nn.Linear(c2 * 16, 2 * width), nn.GELU(), nn.Linear(2 * width, N_OUT))
 
     def forward(self, x, state=()):
+        if self.coord:
+            x = torch.cat([x, self.xy.expand(x.shape[0], -1, -1, -1)], 1)
         return self.net(x), state
 
 
