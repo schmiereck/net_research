@@ -65,7 +65,7 @@ def progress(share, jid):
     if done:
         k, n, m = done[-1]
         return pre + f"{k}/{n} runs, {float(m):.0f} min" + (f", {errors} errors" if errors else "")
-    return f"0/{total[-1]} runs" if total else "starting"
+    return pre + (f"0/{total[-1]} runs" if total else "starting")
 
 
 def status(share):
