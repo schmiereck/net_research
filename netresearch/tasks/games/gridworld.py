@@ -13,6 +13,11 @@ push         16x16, fully visible: push one box onto the target (sokoban rules: 
              Expert: exact distance-to-solution table from a backward search (pull moves) over all
              (player, box) states, computed once per episode.
 
+Every world exists in a hard and an easy ("_easy") variant: the easy ones have few walls (5 % instead of
+20 %), so the way is mostly free and a local "step towards the goal" rule already works often; there the
+grid tests steering and the scrolling worlds test memory. The hard ones need real path planning (a local
+rule reaches the goal in only 16 % of the hard 16x16 worlds). push_easy: open room, box close to the target.
+
 Colours: wall blue, pit red, goal / target green, player yellow, box magenta (white on the target).
 Rewards: goal / box on target +1 (done), pit -1 (done); score is normalised between random and expert.
 """
@@ -194,7 +199,7 @@ class Push(Game):
     """Push one box onto the target. Expert: exact distances over (player, box) states (backward search)."""
     max_steps = 80
     actions = [NOOP, UP, DOWN, LEFT, RIGHT]
-    wall_p, min_dist = 0.1, 8
+    wall_p, min_dist, max_dist = 0.1, 8, 10 ** 6
 
     def reset(self):
         while True:
@@ -204,7 +209,7 @@ class Push(Game):
             ty, tx = cells[self.rng.integers(len(cells))]
             self.free, self.target = free, (int(tx), int(ty))
             self._solve()
-            ok = np.argwhere(self.dist >= self.min_dist)
+            ok = np.argwhere((self.dist >= self.min_dist) & (self.dist <= self.max_dist))
             if len(ok):
                 p, b = ok[self.rng.integers(len(ok))]
                 self.x, self.y = int(p % 16), int(p // 16)
@@ -274,3 +279,22 @@ class Push(Game):
             if d >= 0 and (best_d is None or d < best_d):
                 best, best_d = a, d
         return best
+
+
+# ------------------------------------------------------------------------------------------- easy variants
+class GridWorldEasy(GridWorld):
+    wall_p, n_pits, min_dist = 0.05, 6, 6
+
+
+class GridFollowEasy(GridFollow):
+    wall_p = 0.05
+
+
+class GridScrollEasy(GridScroll):
+    wall_p = 0.05
+
+
+class PushEasy(Push):
+    """Open room (no inner walls), the solution takes 3-12 steps."""
+    max_steps = 50
+    wall_p, min_dist, max_dist = 0.0, 3, 12

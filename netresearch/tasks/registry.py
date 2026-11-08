@@ -2,7 +2,8 @@ from ..spec import TaskSpec
 from .base import ControlTask
 from .games.bricks import Bricks, BricksMem
 from .games.crossing import Crossing
-from .games.gridworld import GridFollow, GridScroll, GridWorld, Push
+from .games.gridworld import (GridFollow, GridFollowEasy, GridScroll, GridScrollEasy, GridWorld,
+                              GridWorldEasy, Push, PushEasy)
 from .games.maze import Maze
 from .games.paddle import Paddle, PaddleMem
 from .games.racer import Racer
@@ -48,6 +49,12 @@ TASKS = {
     "grid_scroll": _game_task("grid_scroll", GridScroll, "like grid_follow, camera with dead zone", True,
                               seq_len=32),
     "push": _game_task("push", Push, "push a box onto the target (16x16, fully visible)"),
+    "grid_easy": _game_task("grid_easy", GridWorldEasy, "grid world 16x16, few walls"),
+    "grid_follow_easy": _game_task("grid_follow_easy", GridFollowEasy, "grid_follow with few walls", True,
+                                   seq_len=32),
+    "grid_scroll_easy": _game_task("grid_scroll_easy", GridScrollEasy, "grid_scroll with few walls", True,
+                                   seq_len=32),
+    "push_easy": _game_task("push_easy", PushEasy, "push a box onto a near target in an open room"),
 }
 
 _cache = {}
