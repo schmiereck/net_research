@@ -38,7 +38,7 @@ def progress(ev, path):
     return passed, passed, None, None, None, "done"
 
 
-def wrap(words, width=34):
+def wrap(words, width=38):
     lines, cur = [], ""
     for w in words:
         if cur and len(cur) + len(w) + 2 > width:
