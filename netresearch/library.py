@@ -66,6 +66,7 @@ import json
 import math
 import multiprocessing as mp
 import os
+import re
 import time
 import traceback
 from pathlib import Path
@@ -81,8 +82,15 @@ from .slots import LVL, Y
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "results" / "library.jsonl"
 TASKS = {"xm0F": lambda w: w[:, 3] ^ 0x0F, "xmA5": lambda w: w[:, 3] ^ 0xA5, "plus1": lambda w: (w[:, 3] + 1) % 256,
-         "minus1": lambda w: (w[:, 3] - 1) % 256, "prev": lambda w: w[:, 2], "prev2": lambda w: w[:, 1]}
+         "minus1": lambda w: (w[:, 3] - 1) % 256, "prev": lambda w: w[:, 2], "prev2": lambda w: w[:, 1],
+         # suite "twelve" adds (appended: the data seeds of the first six stay unchanged)
+         "xm33": lambda w: w[:, 3] ^ 0x33, "xmFF": lambda w: w[:, 3] ^ 0xFF, "plus2": lambda w: (w[:, 3] + 2) % 256,
+         "minus2": lambda w: (w[:, 3] - 2) % 256, "prev3": lambda w: w[:, 0],
+         "diff": lambda w: (w[:, 2] - w[:, 1]) % 256}           # step of the sequence (an inner computation)
 ORDERS = [["xm0F", "prev", "plus1", "xmA5", "prev2", "minus1"], ["prev", "plus1", "xm0F", "minus1", "xmA5", "prev2"]]
+ORDERS12 = [["xm0F", "prev", "plus1", "xm33", "prev2", "minus2", "xmA5", "diff", "plus2", "xmFF", "prev3", "minus1"],
+            ["prev", "plus2", "xm33", "minus1", "prev3", "xmA5", "plus1", "diff", "xmFF", "prev2", "minus2", "xm0F"]]
+DRIFT, N_DRIFT, N_AFTER = "plus1>plus2", 100, 50
 FIRST, SECOND, N_BASE = 100, 40, 30
 Y_PICK = 2 * Y
 PICK_A, PICK_M, PICK_H = 0.05, 0.15, 4 * Y                 # pickm: slow accuracy EMA, lead margin, horizon
@@ -91,12 +99,36 @@ RHO = 0.5
 Z_CONS = 1.0                                               # flag n: consistency slack in binomial sd
 DIAG = bool(os.environ.get("NETRESEARCH_LIB_DIAG"))         # log the explain criteria of the active set
 RULES = ["delta_head", "dfa", "pick", "pickm"]
-MODES = ["k2", "k3", "k6", "oracle", "k3c", "k6c", "k3cf", "k6cf", "k3cfn", "k6cfn"]   # + k3p / k6p (probe)
+MODES = ["k2", "k3", "k6", "oracle", "k3c", "k6c", "k3cf", "k6cf", "k3cfn", "k6cfn"]   # + k3p / k6p (probe), any kN...
 
 
 def phases(order):
     return [("base", N_BASE)] + [(t, FIRST) for t in order] + [("base", N_BASE)] + \
         [(t, SECOND) for t in reversed(order)]
+
+
+def drift_plan(order):
+    """order ends with plus1; plus1 turns into plus2 gradually (share of plus2 examples 0 -> 1 over N_DRIFT
+    batches), plus2 stays N_AFTER batches; after the base break plus2, the others and finally plus1 return."""
+    return ([("base", N_BASE)] + [(t, FIRST) for t in order] + [(DRIFT, N_DRIFT), ("plus2", N_AFTER),
+            ("base", N_BASE), ("plus2", SECOND)] + [(t, SECOND) for t in order[:-1][::-1]] + [("plus1", SECOND)])
+
+
+SUITES = {"six": {"tasks": list(ORDERS[0]), "orders": ORDERS, "plan": phases},
+          "twelve": {"tasks": list(ORDERS12[0]), "orders": ORDERS12, "plan": phases},
+          "drift": {"tasks": ["xm0F", "prev", "plus1", "plus2"],
+                    "orders": [["xm0F", "prev", "plus1"], ["prev", "xm0F", "plus1"]], "plan": drift_plan}}
+
+
+def drift_data(a, b, seed, variant, n_batches):
+    """Batches whose examples follow task b with probability (i + 0.5) / n_batches in batch i, else task a."""
+    rng = np.random.default_rng(31337 + 101 * seed + variant)
+    n = n_batches * B
+    w = _numseq_words(n, rng, "train")
+    da, db = _batch(w, np.full(n, 3), TASKS[a](w)), _batch(w, np.full(n, 3), TASKS[b](w))
+    use_b = torch.from_numpy(rng.random(n) < (np.arange(n) // B + 0.5) / n_batches)
+    da["target"] = torch.where(use_b[None, :, None], db["target"], da["target"])
+    return da
 
 
 def task_data(name, seed, variant, n):
@@ -198,20 +230,31 @@ class Slot:
                             f.zero_()
 
 
-def stream(model_name, seed, variant, rule, mode):
+def stream(model_name, seed, variant, rule, mode, suite="six"):
     from .tasks import make_task
     from .train import to_t
-    order = ORDERS[variant % 2]
+    S = SUITES[suite]
+    order = S["orders"][variant % 2]
+    plan = S["plan"](order)
     model = start_net(model_name, "numseq", seed)
     torch.manual_seed(seed + variant)
     task = make_task("numseq")
-    data = {t: task_data(t, seed, variant, (FIRST + SECOND) * B) for t in order}
-    used = {t: 0 for t in order}
+    if suite == "six":                                          # as before (same data streams)
+        data = {t: task_data(t, seed, variant, (FIRST + SECOND) * B) for t in order}
+    else:
+        need = {}
+        for p, n in plan:
+            if p != "base":
+                need[p] = need.get(p, 0) + n
+        data = {t: drift_data("plus1", "plus2", seed, variant, n) if t == DRIFT else task_data(t, seed, variant, n * B)
+                for t, n in need.items()}
+    used = {t: 0 for t in data}
     rng = np.random.default_rng(seed * 100 + variant + 7)
     arng = np.random.default_rng(seed * 100 + variant + 99)       # anchors: own stream, base batches unchanged
-    flags = mode[2:] if mode.startswith("k") else ""
+    mk = re.fullmatch(r"k(\d+)([a-z]*)", mode)
+    flags = mk.group(2) if mk else ""
     probe, consist, fast, noisy = "p" in flags, "c" in flags, "f" in flags, "n" in flags
-    cap = int(mode[1]) if mode.startswith("k") else 6         # library capacity (mature sets)
+    cap = int(mk.group(1)) if mk else len(S["tasks"])          # library capacity (mature sets); oracle: a slot per task
     K = cap + (mode != "oracle")                                # + 1 working buffer
     slots = [Slot(model, rule, seed * 100 + variant + 1000 * i) for i in range(K)]
 
@@ -242,9 +285,9 @@ def stream(model_name, seed, variant, rule, mode):
     gen = [0] * (K + 1)                                         # allocation counter per slot (identity)
     active, n_upd, in_use, last_use, n_alloc, n_fast = 0, [0] * (K + 1), [False] * (K + 1), [0] * (K + 1), 0, 0
     log, choices, alive, t, diag = [], [], [], 0, []
-    for phase, n in phases(order):
+    for phase, n in plan:
         alive.append([j * 1000 + gen[j] for j in range(1, K + 1) if in_use[j]])   # slot identities at phase start
-        for _ in range(n):
+        for k_ph in range(n):
             t += 1
             if phase == "base":
                 b, spec = base_batch(), task.spec
@@ -253,7 +296,8 @@ def stream(model_name, seed, variant, rule, mode):
                 b, spec = {k: v[:, i * B:(i + 1) * B] for k, v in data[phase].items()}, SPEC
                 used[phase] += 1
             if mode == "oracle":
-                active = 0 if phase == "base" else order.index(phase) + 1
+                cur = phase if phase != DRIFT else ("plus1" if (k_ph + 0.5) / n < 0.5 else "plus2")
+                active = 0 if phase == "base" else S["tasks"].index(cur) + 1
                 if active and not in_use[active]:
                     in_use[active], gen[active] = True, 1
             with torch.no_grad():
@@ -362,19 +406,20 @@ def stream(model_name, seed, variant, rule, mode):
                     active = j
                 else:
                     active = top
-    return log, {"thr": round(thr, 4), "n_alloc": n_alloc, "n_fast": n_fast, "order": order, "choices": choices,
+    return log, {"thr": round(thr, 4), "n_alloc": n_alloc, "n_fast": n_fast, "order": order, "plan": plan,
+                 "choices": choices,
                  "alive": alive, **({"diag": diag} if DIAG else {})}
 
 
-def phase_stats(log, order, alive):
+def phase_stats(log, plan, alive):
     mapping, i = {}, 0
-    for p, n in phases(order):                                  # slot identity at the end of the first visit
+    for p, n in plan:                                  # slot identity at the end of the first visit
         if p != "base" and p not in mapping:
             tail = [x[2] for x in log[i + n - 20:i + n]]
             mapping[p] = max(set(tail), key=tail.count)
         i += n
     out, i, seen = [], 0, set()
-    for k, (p, n) in enumerate(phases(order)):
+    for k, (p, n) in enumerate(plan):
         seg = log[i:i + n]
         second = p in seen and p != "base"
         seen.add(p)
@@ -391,17 +436,17 @@ def phase_stats(log, order, alive):
 
 
 def _job(a):
-    model_name, seed, rule, mode, variants = a
+    model_name, seed, rule, mode, variants, suite = a
+    key = {"model": model_name, "seed": seed, "rule": rule, "mode": mode, "suite": suite}
     try:
         t0 = time.time()
         runs = []
         for v in variants:
-            log, info = stream(model_name, seed, v, rule, mode)
-            runs.append({"variant": v, "phases": phase_stats(log, info["order"], info["alive"]), "log": log, **info})
-        return {"model": model_name, "seed": seed, "rule": rule, "mode": mode, "runs": runs,
-                "time": round(time.time() - t0, 1)}
+            log, info = stream(model_name, seed, v, rule, mode, suite)
+            runs.append({"variant": v, "phases": phase_stats(log, info["plan"], info["alive"]), "log": log, **info})
+        return {**key, "runs": runs, "time": round(time.time() - t0, 1)}
     except Exception:  # noqa: BLE001
-        return {"model": model_name, "seed": seed, "rule": rule, "mode": mode, "error": traceback.format_exc()}
+        return {**key, "error": traceback.format_exc()}
 
 
 def _init_worker():
@@ -415,8 +460,8 @@ def execute(jobs, workers, out):
         for ln in out.read_text().splitlines():
             r = json.loads(ln)
             if "error" not in r:
-                done.add((r["model"], r["seed"], r["rule"], r["mode"]))
-    jobs = [j for j in jobs if tuple(j[:4]) not in done]
+                done.add((r["model"], r["seed"], r["rule"], r["mode"], r.get("suite", "six")))
+    jobs = [j for j in jobs if (*j[:4], j[5]) not in done]
     print(f"{len(jobs)} jobs, {workers} workers", flush=True)
     t0 = time.time()
     with mp.get_context("spawn").Pool(workers, initializer=_init_worker) as pool, out.open("a") as f:
@@ -430,15 +475,15 @@ def execute(jobs, workers, out):
                 msg = (f"2nd acc {np.mean([p['acc'] for p in sec]):.2f} hit {np.mean([p['hit'] for p in sec]):.2f}"
                        f" alloc {np.mean([x['n_alloc'] for x in r['runs']]):.1f} t={r['time']}s")
             print(f"[{i}/{len(jobs)} {(time.time() - t0) / 60:5.1f}min] {r['model']:11s} s{r['seed']} "
-                  f"{r['rule']:10s} {r['mode']:6s} {msg}", flush=True)
+                  f"{r['rule']:10s} {r['mode']:6s} {r['suite']:6s} {msg}", flush=True)
 
 
-def summary(path):
+def summary(path, suite="six"):
     import pandas as pd
     rows, ch = [], []
     for ln in Path(path).read_text().splitlines():
         r = json.loads(ln)
-        if "error" in r:
+        if "error" in r or r.get("suite", "six") != suite:
             continue
         for x in r["runs"]:
             for p in x["phases"]:
@@ -468,12 +513,15 @@ def main():
     ap.add_argument("--workers", type=int, default=6)
     ap.add_argument("--out", default=str(OUT))
     ap.add_argument("--file", default=str(OUT))
+    ap.add_argument("--suites", nargs="+", default=["six"], choices=list(SUITES))
     a = ap.parse_args()
     if a.cmd == "summary":
-        summary(a.file)
+        for su in a.suites:
+            print(f"== suite {su}")
+            summary(a.file, su)
     else:
-        execute([(m, s, r, mo, [0, 1]) for s in a.seeds for r in a.rules for m in a.models for mo in a.modes],
-                a.workers, a.out)
+        execute([(m, s, r, mo, [0, 1], su) for su in a.suites for s in a.seeds for r in a.rules for m in a.models
+                 for mo in a.modes], a.workers, a.out)
 
 
 if __name__ == "__main__":

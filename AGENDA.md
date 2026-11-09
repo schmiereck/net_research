@@ -70,6 +70,8 @@ Status: offen · läuft · erledigt.
 | P2 | Gemischte Regel: delta_head + dfa gemeinsam, gewichtet | offen | DFA-Schrittweite für plus1 abstimmen (bricht bei η = 3 ein) |
 | P3 | Zyklus-Trennung kanonisch (minimale Periode) | offen, bekannt | (0,2) und (0,2,0,2) liegen getrennt; selten, betrifft auch die Basisaufgabe cycle; Änderung bricht Vergleichbarkeit |
 | P2 | T3 Freeze & Route als Lehrplan-Test über die Sieb-Stufen (Phase C) | offen | braucht individuelle Module oder Fähigkeiten-Bibliothek |
+| P2 | Lehrplan ohne Freeze: dasselbe Netz die Leiter hoch (leicht → schwer, z. B. grid_small_ego → grid_follow_easy → grid_follow) gegen Training direkt auf der schweren Stufe | offen (Idee 2026-11-09) | Gemeinsame Schnittstelle (16×16×3 rein, 64 Ausgaben in festen Bereichen) erlaubt ein Netz über alle Aufgaben; Messgröße: Updates bis Ziel-Score und Endniveau; Vergessen der leichten Stufen mitmessen. Vorstufe zu T3 |
+| P2 | Netzgröße und Modulzahl: verschieden große Netze (z. B. 25k / 100k / 400k Parameter) und verschiedene Zahl von Modulen vergleichen | offen (Idee 2026-11-09) | Bisher alles auf ~100k skaliert; trennen: mehr Module bei gleicher Größe gegen größere Module. Auf Aufgaben im messbaren Bereich (grid_follow, push_easy, cycle_mem) |
 | P3 | Gelernter Teacher per ES (Phasen D–F) | offen | |
 | P3 | T4 State-Critic: Langeweile, Lernfortschritt, Gefahr, Muster (Phase G) | offen | setzt RL-Schleife voraus |
 | P3 | Weight-Editing durch ein LLM | offen | |
