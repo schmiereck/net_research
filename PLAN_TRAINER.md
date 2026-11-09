@@ -315,6 +315,44 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
   - **Folgerung für den Teacher:** Ein Teacher muss vor allem entscheiden, wann und wo eine Änderung gelten
     soll (Kontext-Gate), nicht in erster Linie, wie sie gelernt wird. Den Lernschritt kann eine lokale
     Delta-Regel am Ausgang übernehmen.
+  - **Vorbehalte** (Codex-Review):
+    - Bei fixcycle lagen 2 von 12 Episoden je Modell und Regel schon im Schrittweiten-Sweep.
+    - Der skalare 3. Faktor (np3) machte bei gleichem η 8-mal kleinere Schritte als die Delta-Regel. Selbst der
+      größte Sweep-Wert entspricht nur etwa η = 0.4 der Delta-Regel; „lernt nichts“ gilt nur für diesen Bereich.
+    - DFA nutzt eine Rückkopplungsmatrix je Spalte, für alle Zeilen gemeinsam.
+- **Gelernte Kontext-Gates, 2026-11-09** (results/fastgate.jsonl):
+  - Aufbau: dieselbe Delta-Regel am Kopf; die Änderung wirkt mit g(x) ∈ [0, 1].
+  - Getestet mit layer_s, hier_s und layer_s_sp4, 3 Seeds; fixcycle sowie double, trib und countbig mit
+    k = 8 / 64 / 512.
+  - Keines der beiden gelernten Gates speichert Einzelbeispiele, die Basisaufgabe geht nur als Statistik ein
+    (Mittelwert und Kovarianz der Kopf-Eingaben):
+    - `novel`: Abstand zur Basisverteilung.
+    - `lda`: Diskriminante zwischen Basis-Statistik und den k neuen Eingaben.
+
+  | Fall | Vergessen 200 ohne Gate | mit `lda` | mit `novel` | Gate auf neuen Test-Eingaben (lda / novel / kNN) |
+  |---|---|---|---|---|
+  | fixcycle | 0.81–0.90 | 0.00–0.01 | 0.02–0.06 | 0.98 / 0.51–1.00 / 1.00 (Test = Training) |
+  | double | 0.50–0.98 | 0.00–0.14 | 0.04–0.21 | 0.07–0.68 / 0.50–0.73 / 0.00 |
+  | trib | 0.58–0.98 | 0.00–0.19 | 0.02–0.35 | 0.06–0.64 / 0.49–0.79 / 0.00 |
+  | countbig | 0.21–0.39 | 0.00–0.06 | 0.03–0.11 | 0.09–0.72 / 0.40–0.50 / 0.00 |
+
+  - **Das „Wann“ ist mit einfachen gelernten Gates lösbar.** Das Vergessen sinkt in allen Fällen auf nahe 0.
+    - Bei fixcycle bleibt die Lerngeschwindigkeit dabei unverändert (lda).
+    - Das novel-Gate ist bei layer_s auf fixcycle zu vorsichtig (Gate 0.5–0.6): Das neue Wissen ist nach
+      200 Updates erst zu 0.90 erreicht statt 1.00.
+  - **Die gelernten Gates generalisieren auf unbekannte Eingaben derselben neuen Aufgabe, das kNN-Gate nicht**
+    (Gate 0.00 auf den Testfolgen).
+    - Überraschend: Auch double und trib, die dieselbe Eingabeform wie numseq haben, werden erkannt. Die
+      Kopf-Eingaben der neuen Folgen liegen also außerhalb der Basisverteilung.
+    - lda braucht dafür viele Beispiele (k = 8: Gate 0.06–0.14; k = 512: 0.6–0.7); novel ist von k unabhängig.
+  - **Das „Wie“ bleibt offen.** double und trib lernt keine Methode, die nur den Kopf ändert (≤ 0.04). Auch
+    Adam auf dem ganzen Netz erreicht nur 0.35–0.37 (double, k = 512).
+    - Bei countbig verschlechtert die ungegatete Delta-Regel den Ausgangswert (k = 8, layer_s: 0.16 → 0.10). Mit Gate bleibt er
+      erhalten.
+  - Nächste Fragen:
+    - Schnelle Gewichte im Inneren (fc1 / fc2), gegatet, mit einer Regel, die tiefer als der Kopf lernt.
+    - Ein Fall mittlerer Schwierigkeit, den Adam in 200 Updates lernt, der aber Generalisierung braucht
+      (zwischen fixcycle und den Rechenregeln).
 
 **Phase C – T3 Freeze & Route als Lehrplan-Test**
 - Über die Sieb-Stufen (4c), mit individuellen Modulen oder einer Fähigkeiten-Bibliothek am Bus.
