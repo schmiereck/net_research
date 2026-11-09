@@ -752,6 +752,51 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
     - Gefunden und behoben: Das Diagnose-Log zeigte den Abstand ohne Rauschzuschlag; es loggt jetzt auch
       das tatsächlich angewendete Testergebnis.
 
+- **Bibliothek unter härteren Bedingungen, Stufe 1, 2026-11-09** (library.py, Suiten twelve / drift,
+  results/library.jsonl mit Feld suite; alle Läufe auf dem Worker-PC):
+  - **Suite twelve:** 12 Aufgaben, die bisherigen sechs plus xm33, xmFF, plus2, minus2, prev3 und diff
+    (Schrittweite der Folge, eine innere Rechnung). Ablauf wie bisher: jede Aufgabe 100 Batches, Pause,
+    alle in umgekehrter Reihenfolge je 40.
+  - **Suite drift:** xm0F, prev, plus1 je 100 Batches.
+    - Dann geht plus1 über 100 Batches schrittweise in plus2 über: Der Anteil der plus2-Beispiele steigt im
+      Batch i auf (i + 0.5) / 100.
+    - Danach plus2 50 Batches, Pause. Zweiter Besuch: plus2, die anderen und zuletzt plus1.
+    - Das Orakel nimmt im Übergang je Batch die Mehrheitsaufgabe.
+  - Ergebnis (zweiter Besuch, 3 Seeds × 3 Modelle × 2 Reihenfolgen):
+
+  | Suite | Regel | Bibliothek | 2. Besuch | erste 10 | Anlagen | Orakel |
+  |---|---|---|---|---|---|---|
+  | twelve | delta_head | 6 Plätze | 0.47 | 0.32 | 14.9 | 0.65 |
+  | twelve | delta_head | 12 Plätze | 0.61 | 0.55 | 11.6 | 0.65 |
+  | twelve | pickm | 6 Plätze | 0.48 | 0.31 | 16.3 | 0.72 |
+  | twelve | pickm | 12 Plätze | **0.67** | 0.60 | 11.9 | **0.72** |
+  | drift | delta_head | 6 Plätze | 0.60 | 0.47 | 4.4 | 0.68 |
+  | drift | pickm | 6 Plätze | **0.65** | 0.52 | 4.4 | **0.73** |
+
+  - **twelve mit 12 Plätzen:** Die Mechanismen tragen auch bei doppelt so vielen, enger verwandten
+    Aufgaben.
+    - Lücke zum Orakel 0.05 (pickm), Anlagen 11.9 für 12 Aufgaben.
+    - Nach Familie: XOR 0.89 (Orakel 0.92), ±1 / ±2 0.54 (0.59), Kopieren 0.77 (0.82).
+    - diff lernt niemand (≤ 0.17): eine Sprosse über dem Leiter-Ende für 100 Batches.
+  - **twelve mit 6 Plätzen:** Treffer 0.53, es bleiben also wie geplant etwa 6 von 12 Aufgaben erhalten.
+    Die Lücke (0.48 gegen 0.72) ist Kapazität, kein Fehler der Auswahl.
+  - **Drift, der eigentliche Befund:** Der plus1-Satz folgt dem Übergang und wird dabei zu plus2.
+    - Im Übergang ist die Bibliothek sogar etwas besser als das Orakel (0.37 gegen 0.34; am Ende 0.49 gegen
+      0.45), weil sie sich laufend anpasst.
+    - plus2 bekommt aber nie einen eigenen Satz (4.4 Anlagen für 4 Aufgaben). Als plus1 zurückkommt, ist es
+      verloren: 0.34 gegen 0.61 beim Orakel, obwohl der Satz formal noch lebt (Treffer 1.00).
+    - Die anderen Aufgaben sind nicht betroffen (0.86 gegen 0.89).
+    - Ein schleichender Wechsel überschreibt also eine Fähigkeit, ohne dass einer der Tests (Fehlervergleich,
+      Konsistenz) anschlägt. Das gleitende Niveau des Satzes wandert mit.
+  - Vorbehalt: Die Worker-Basisnetze weichen leicht von denen des Haupt-PCs ab (Gewichte bis 0.02,
+    Basis-Genauigkeit gleich auf ~3 Stellen). Die Suiten twelve / drift liefen komplett auf dem Worker und
+    sind in sich vergleichbar.
+  - Nächster Schritt: **Abspalten bei Drift.**
+    - Ein Satz merkt sich sein bestes Niveau und einen Schnappschuss davon.
+    - Fällt sein laufendes Niveau deutlich darunter, obwohl er weiter erklärt und lernt, wird der
+      Schnappschuss als eigener Satz eingefroren, und das Lernen geht in einer Kopie weiter.
+    - Messlatte: plus1 beim Wiederkommen (0.34 → Orakel 0.61), ohne Verlust im Übergang.
+
 **Phase C – T3 Freeze & Route als Lehrplan-Test**
 - Über die Sieb-Stufen (4c), mit individuellen Modulen oder einer Fähigkeiten-Bibliothek am Bus.
 
