@@ -261,6 +261,23 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
 - Ein Protokoll für k-shot-Anpassung und Vergessen schreiben, mit einem eigenen Report.
 - Startnetze sind die Checkpoints aus dem Sieb (results/checkpoints).
 - Baselines: Adam-Feintuning und In-Context (GRU/attnmem, Gedächtnis-Gitter).
+- **Erster Lauf, 2026-11-09** (netresearch/adapt.py, results/adapt.jsonl): 12 Modelle, 3 Seeds,
+  200 Updates. Die Methoden sind Adam (lr 1e-3), Adam mit lr 1e-4, Replay und ein Netz von null an.
+  - **fixcycle** (einen neuen Zyklus aus 6 Wörtern merken): Alle Methoden erreichen nach 200 Updates 1.00.
+    - Von null an geht es am schnellsten: Die Gitter-Modelle stehen nach 5 Updates bei 0.6–0.67, nach 20
+      bei 1.00. Das vortrainierte Netz liegt bei Adam nach 5 Updates bei 0.03 und nach 20 bei 0.5–0.86.
+    - Das Vortraining bremst also das Nachlernen, statt es zu beschleunigen.
+    - Vergessen mit Adam: Der Basis-Zyklus fällt bei layer_s um 0.90, bei mlp und gru um 0.50.
+    - Geteilte Gewichte vergessen am stärksten, weil jede Position dasselbe Modul ist.
+    - lr 1e-4 halbiert das Vergessen (0.4–0.5), ist aber viel langsamer.
+    - Replay hält es bei 0.07–0.14 bei voller Leistung. Replay braucht aber die alten Daten.
+  - **double / trib / countbig** (neue Rechenregel, k = 8 / 64 / 512 Beispiele): Keine Methode lernt die
+    Regel in 200 Updates.
+    - Die besten Werte: double 0.37 (layer_s_sp4, k = 512), countbig 0.26 (layer_s, Replay), trib 0.05.
+    - Auch das Netz von null an bleibt bei ≤ 0.15. Das ist das „unmögliche“ Ende der Leiter.
+    - Das Vergessen ist trotzdem voll: numseq fällt bei layer_s von 0.98 auf 0.02–0.15.
+  - Messlatte für den Teacher (Phase B ff.): fixcycle in ≤ 5 Updates mit < 0.1 Vergessen und ohne Replay.
+    Die Rechenregeln dienen als Gradmesser: Eine Methode, die sie schafft, lernt etwas, das Adam nicht schafft.
 
 **Phase B – Port-Interface und feste Regeln (T1, T2 ohne gelernten Teacher)**
 - Telemetrie- und Modulations-Ports (4c) in layer_s einbauen; W_slow + W_fast.

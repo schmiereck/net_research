@@ -54,7 +54,7 @@ Status: offen · läuft · erledigt.
 | Prio | Thema | Status | Notiz |
 |---|---|---|---|
 | P2 | Erster Test der Wiedererkennungs-Signale R: sagen sie vorher, was schnell lernbar ist? | offen | Mit vorhandenen Checkpoints, Abschnitt 4b |
-| P1 | Anpassungs-Benchmark (Phase A) | als Nächstes | Startnetze = Sieb-Checkpoints; misst k-shot-Anpassung und Erhalt |
+| P1 | Anpassungs-Benchmark (Phase A) | erledigt 2026-11-09 | fixcycle: von null an schneller als vortrainiert; Adam vergisst 0.5–0.9, Replay 0.1. Neue Rechenregeln lernt keine Methode (Leiter-Ende). Details PLAN_TRAINER Phase A |
 | P2 | Port-Interface (Telemetrie / Modulation / Freeze) und feste Regeln T1, T2 (Phase B) | offen | Teacher-Actor-Konzept, PLAN_TRAINER 4c |
 | P2 | T3 Freeze & Route als Lehrplan-Test über die Sieb-Stufen (Phase C) | offen | braucht individuelle Module oder Fähigkeiten-Bibliothek |
 | P3 | Gelernter Teacher per ES (Phasen D–F) | offen | |
