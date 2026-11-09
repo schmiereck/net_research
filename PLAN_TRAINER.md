@@ -523,12 +523,63 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
       - LRU zählte nur Lernschritte, nicht die Nutzung.
       - Bestätigt hat Codex: Die Sätze stören sich gegenseitig nicht (mit einer Einzelinstanz exakt gleich),
         es gibt kein Antwort-Leck, und erster und zweiter Besuch überschneiden sich nicht.
+  - Nächste Fragen: Bibliothek unter Druck (siehe unten); schnellere Wiedererkennung beim zweiten Besuch.
+- **Bibliothek unter Druck, 2026-11-09** (netresearch/library.py, results/library.jsonl):
+  - Sechs Aufgaben mit denselben Eingaben, in drei verwandten Paaren:
+    - xm0F / xmA5 (XOR-Maske);
+    - plus1 / minus1;
+    - prev / prev2 (letzte / vorletzte Zahl kopieren).
+  - Der Strom: jede Aufgabe einmal (100 Batches), dann der zweite Besuch in UMGEKEHRTER Reihenfolge (40).
+    Mit K Plätzen und LRU sind dann die letzten K Aufgaben noch gespeichert.
+  - Neu gegenüber slots.py:
+    - Ein Arbeitspuffer: K + 1 Sätze, davon höchstens K fertige (≥ 30 Updates). Verdrängt wird erst, wenn
+      ein neuer Satz reif ist.
+    - LRU zählt nur bestätigte Nutzung, also wenn aktiver Satz und Batch-Stimme übereinstimmen.
+    - Regel `pick`: Ein junger Satz trainiert delta_head und dfa parallel und behält nach 60 Updates den
+      genaueren.
+  - Alle drei Mechanismen kamen aus Smoke-Tests auf Seed 5:
+    - Ohne Puffer verdrängte ein kurzer Fehlalarm innerhalb von minus1 einen fertigen Satz.
+    - Mit LRU nach jeder Nutzung schützte eine Fehlauswahl (plus1 während minus1) den falschen Satz.
+    - Nach Verlust gewählt, siegte delta_head zu früh.
+  - Getestet mit layer_s, hier_s und layer_s_sp4, 3 Seeds × 2 Reihenfolgen, je 6 Aufgaben. Online-Genauigkeit
+    beim zweiten Besuch, Mittel über die Aufgaben:
+
+  | Regel | K = 2 | K = 3 | K = 6 | Orakel | erhalten (K = 2 / 3 / 6) |
+  |---|---|---|---|---|---|
+  | delta_head | 0.47 | 0.48 | 0.62 | 0.72 | 0.33 / 0.64 / 1.00 |
+  | dfa | 0.11 | 0.22 | 0.23 | 0.30 | (lernt nur prev / prev2) |
+  | pick | 0.51 | 0.53 | **0.68** | **0.79** | 0.33 / 0.64 / 1.00 |
+
+  - **Verdrängung verhält sich wie geplant.** Erhalten bleiben genau so viele Aufgaben, wie Plätze da sind
+    (K = 2: 2 von 6, K = 6: alle). Bei K = 3 sind es etwas mehr als 3, weil verwandte Aufgaben sich teilweise
+    einen Satz teilen (siehe unten). Verdrängte Aufgaben werden im zweiten Besuch neu gelernt.
+  - **Die Regelwahl je Satz (`pick`) lohnt sich, ist aber unzuverlässig.** Sie ist besser als jede feste
+    Regel (Orakel 0.79 gegen 0.72 für delta_head und 0.30 für dfa).
+    - Für die Ausgangs-Änderungen (XOR, ±1) wählt sie immer delta_head.
+    - Für die Kopier-Aufgaben wählt sie DFA nur in 44 % (prev) bzw. 72–83 % (prev2) der Fälle; DFA wäre
+      dort besser (Orakel: dfa 0.86 gegen delta_head 0.65 bei prev).
+  - **Neuer Befund: verwandte Aufgaben teilen sich einen Satz und überschreiben sich dann.** In 15 von 18
+    Läufen (K = 6) landet minus1 im Satz von plus1.
+    - Ursache: Der plus1-Satz kann seine Aufgabe nur halb (Genauigkeit 0.6). Er ist deshalb tolerant genug,
+      um auch minus1 zu „erklären“ (besser als das Basisnetz, nahe am eigenen, hohen Fehlerniveau), und lernt
+      minus1 dazu.
+    - Folge beim zweiten Besuch von plus1: Der Satz wird richtig gewählt (0.92), liefert aber nur 0.28
+      (Orakel 0.64).
+    - Bei XOR-Masken und Kopier-Aufgaben passiert das nicht; diese Sätze können ihre Aufgabe gut.
+    - Wann „ähnlich genug zum Teilen“ gilt, ist die zentrale offene Frage einer Fähigkeiten-Bibliothek.
+      Das Kompetenz-Kriterium allein entscheidet sie hier falsch, weil es an der Qualität des Satzes hängt.
+  - Kosten der Wiedererkennung: Die ersten 10 Batches des zweiten Besuchs liegen bei K = 6 / pick bei 0.55,
+    beim Orakel bei 0.78.
+  - Vorbehalte:
+    - Die Schwellen stammen aus slots.py, die drei neuen Mechanismen aus Smoke-Tests auf Seed 5 (nicht im
+      Lauf). Sie waren nötig, damit die Verdrängung überhaupt wie geplant wirkt.
+    - Codex-Review des Moduls: keine Fehler. Gezielte Checks bestanden: die Kandidaten trennen sauber,
+      der verworfene Kandidat bleibt wirkungslos, die Daten sind getrennt.
   - Nächste Fragen:
-    - Mehr Aufgaben als Plätze: Was wird verdrängt, und kann ein Satz zwei verwandte Aufgaben teilen?
-    - Je Satz die passende Regel (delta_head für Ausgangs-, DFA für innere Änderungen), gewählt per Modulation
-      oder als Mischung.
-    - Schnellere Wiedererkennung beim zweiten Besuch (die 2–3 Fehl-Batches): über die Eingabe kaum möglich
-      (gleiche Eingaben), höchstens über Vorhersage-Konfidenz.
+    - Teilen nur, wenn der Satz durch das neue Lernen nicht schlechter wird. Zum Beispiel ein Probe-Update
+      auf einer Kopie und eine Prüfung auf eigenen gespeicherten Beispielen oder Statistiken; sonst neu
+      anlegen.
+    - Regelwahl stabiler machen, etwa nach mehr Updates oder per gelerntem Prior („Kopier-Aufgaben → DFA“).
 
 **Phase C – T3 Freeze & Route als Lehrplan-Test**
 - Über die Sieb-Stufen (4c), mit individuellen Modulen oder einer Fähigkeiten-Bibliothek am Bus.
