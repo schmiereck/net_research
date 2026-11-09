@@ -463,10 +463,72 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
       Batch-weise Wechsel oder mehrere neue Aufgaben sind nicht getestet.
     - Codex-Review des Moduls: Zwei Fehler im ersten Lauf, beide behoben und neu gerechnet. DFA lief mit
       η = 1 statt 3, und die Umschalt-Verzögerung wurde auf gerundeten c-Werten gemessen.
+- **Mehrere Sätze schneller Gewichte, Auswahl per Fehlervergleich, 2026-11-09** (netresearch/slots.py,
+  results/slots.jsonl):
+  - Der Strom (Batches zu 16) läuft so: Basis 30, dann xormask, prev und plus1 mit je 150 Batches, Basis 30,
+    dann ein zweiter Besuch jeder Aufgabe mit je 40 Batches. Alle Aufgaben haben dieselben Eingaben.
+    Variante 1 ändert die Reihenfolge.
+  - Hypothesen je Batch:
+    - Basis.
+    - Satz i: er erklärt den Batch, wenn sein Fehler klar unter dem des Basisnetzes liegt UND nahe an seinem
+      eigenen gelernten Niveau (unter 2 × Niveau + Überraschungs-Schwelle).
+    - NEU: Das Basisnetz ist überrascht und kein Satz erklärt den Batch. Ein junger Satz (unter 30 Updates)
+      bekommt diese Stimmen und lernt weiter.
+    - Der gleitende Mittelwert der Stimmen wählt die aktive Hypothese. NEU legt einen Satz an (frei, sonst den
+      am längsten nicht benutzten, mit Reset). Es lernt nur der aktive Satz, und nur, wenn der Batch für ihn
+      stimmt.
+  - Modi:
+    - multi: bis zu 4 Sätze.
+    - single: 1 Satz, Reset bei jeder neuen Aufgabe.
+    - shared: 1 Satz für alles, ohne Reset.
+    - oracle: perfekte Zuordnung.
+  - Getestet mit layer_s, hier_s und layer_s_sp4, 3 Seeds × 2 Reihenfolgen. Online-Genauigkeit beim
+    ZWEITEN Besuch (Auswahl-Trefferquote in Klammern):
+
+  | Regel | Aufgabe | multi | single | shared | oracle |
+  |---|---|---|---|---|---|
+  | delta_head | xormask | **0.87** (0.94) | 0.54 | 0.65 | 0.93 |
+  | delta_head | prev | **0.70** (0.95) | 0.07 | 0.31 | 0.74 |
+  | delta_head | plus1 | **0.60** (0.95) | 0.30 | 0.27 | 0.64 |
+  | grad | prev | **0.95** (0.95) | 0.31 | 0.13 | 1.00 |
+  | grad | plus1 | **0.52** (0.95) | 0.18 | 0.00 | 0.57 |
+  | grad | xormask | 0.22 (0.68) | 0.01 | 0.01 | 0.32 |
+  | dfa | prev | **0.78** (0.90) | 0.07 | 0.25 | 0.95 |
+
+  - Die Basis nach den drei Aufgaben liegt in allen Fehlervergleichs-Modi bei 0.88, beim Orakel bei 0.95.
+    Der Unterschied sind die Umschalt-Batches; am Phasenende stehen alle Modi bei 0.96.
+  - **Eine Bibliothek aus schnellen Gewichten funktioniert mit dem Fehlervergleich fast auf
+    Orakel-Niveau.** Jede Aufgabe bekommt ihren Satz (3.2–3.4 Anlagen für 3 Aufgaben), beim zweiten Besuch
+    wird zu 90–95 % der richtige gewählt.
+    - Mit einem einzigen Satz sind frühere Aufgaben verloren (single), oder sie stören sich gegenseitig
+      (shared). Beim zweiten Besuch liegen beide weit unter multi, zum Beispiel prev mit grad: 0.31 / 0.13
+      gegen 0.95.
+    - Die Kosten stecken in den ersten Batches nach einem Wechsel. Beim zweiten Besuch von xormask mit
+      delta_head sind die ersten 10 Batches bei 0.71 statt 0.92.
+  - **Die Auswahl ist nur so gut wie das Gelernte.** Aufgaben, die ein Satz kaum gelernt hat, erkennt der
+    Fehlervergleich schlechter: xormask mit grad (Genauigkeit 0.25) wird nur zu 0.68 getroffen. Was eine
+    Regel gar nicht lernt (dfa auf xormask und plus1, 0.02), ist auch beim Orakel 0.02.
+  - **Das Kompetenz-Kriterium braucht eine absolute Untergrenze.** Nur relativ (unter 2 × Niveau) feuerte es
+    nahe Fehler 0 auf normale Ausreißer. delta_head legte dann 6.4 Sätze für 3 Aufgaben an, und durch die
+    Wiederverwendung ging prev verloren (zweiter Besuch 0.35, Treffer 0.47; results/slots_nofloor.jsonl).
+    Mit der Untergrenze sind es 3.4 Sätze.
+  - Vorbehalte:
+    - Die Schwellen (M, LVL, Y, ALPHA, Mittel + 3 sd) sind von Hand gesetzt. Die Untergrenze kam nach dem
+      ersten vollen Lauf dazu, auf denselben Seeds (nicht auf einem getrennten Abstimmungs-Seed).
+    - Nur blockweise Wechsel und nur 3 Aufgaben bei 4 Plätzen; Verdrängung bei vollem Speicher ist kaum
+      getestet.
+    - Codex-Review des Moduls, drei Fehler, alle vor dem gewerteten Lauf behoben:
+      - `sel` zählte eine nie gelernte Aufgabe (auf Basis abgebildet) als Treffer.
+      - Beim Wiederverwenden eines Satzes ging Masse im gleitenden Mittel verloren.
+      - LRU zählte nur Lernschritte, nicht die Nutzung.
+      - Bestätigt hat Codex: Die Sätze stören sich gegenseitig nicht (mit einer Einzelinstanz exakt gleich),
+        es gibt kein Antwort-Leck, und erster und zweiter Besuch überschneiden sich nicht.
   - Nächste Fragen:
-    - Mehrere Sätze schneller Gewichte, ausgewählt durch den Fehlervergleich (Vorstufe einer
-      Fähigkeiten-Bibliothek). Dazu ein Strom mit zwei oder drei neuen Aufgaben.
-    - Wirkungsort und Regel gemischt (delta_head + dfa zusammen), gewichtet durch eine Modulation.
+    - Mehr Aufgaben als Plätze: Was wird verdrängt, und kann ein Satz zwei verwandte Aufgaben teilen?
+    - Je Satz die passende Regel (delta_head für Ausgangs-, DFA für innere Änderungen), gewählt per Modulation
+      oder als Mischung.
+    - Schnellere Wiedererkennung beim zweiten Besuch (die 2–3 Fehl-Batches): über die Eingabe kaum möglich
+      (gleiche Eingaben), höchstens über Vorhersage-Konfidenz.
 
 **Phase C – T3 Freeze & Route als Lehrplan-Test**
 - Über die Sieb-Stufen (4c), mit individuellen Modulen oder einer Fähigkeiten-Bibliothek am Bus.
