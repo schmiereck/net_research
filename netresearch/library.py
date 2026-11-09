@@ -25,6 +25,22 @@ Rules per slot:
                 it predicts with the better one (running exact-match accuracy, then loss), and after Y updates
                 it keeps that one and drops the other (decided after Y_PICK updates). (By loss alone delta_head wins too early: it lowers
                 the BCE faster while dfa ends up more accurate on prev / prev2.) A first "rule choice by telemetry": output-level vs inner change.
+Share only without harm (modes k3p / k6p): every set keeps a small anchor memory (reservoir of A examples
+from the batches it learned from). Before a MATURE set is credited with a batch (its vote), a probe update on
+that batch is applied (PROBE_STEPS steps) and undone again; if it lowers the exact-match accuracy on the
+set's own anchors by more than H, the batch is not this set's task after all (the anchor loss ratio is logged
+too): it votes for the active young set (if any) or NEW, so a
+related but different task gets its own set instead of overwriting (plus1 / minus1 in the first run).
+    Measured on seeds 5 / 6 (not in the run), this does NOT separate: with PROBE_STEPS = 3 the anchor loss
+    ratio and the exact-match drop of a weakly learned set are as large for its OWN task (prev, plus1 with
+    delta_head: drop median 0.03-0.06, p90 0.16) as for the related foreign one (minus1 on the plus1 set:
+    median 0.00, p90 0.12). The noise of the learning rule hides the conflict.
+Consistent sharing (modes k3c / k6c): a mature set explains a batch only if its exact-match accuracy on the
+batch is at least RHO x its accuracy level (EMA on the batches it learned from; checked only if that level is
+>= 0.1). Exact match is sharp where the BCE loss is not: the plus1 set predicts +1 and is almost never exactly
+right on minus1, although most of the 8 output bits agree. No example memory needed.
+The probe restores F, the rule choice and its running scores; it is meant for the local rules of this module
+(delta_head, dfa, pick), whose updates have no optimizer state (grad / lora would keep Adam moments).
 Modes: K = 2, 3, 6 library places (+ 1 buffer); oracle (6 slots, slot = task, perfect context).
 Measured on the second visit: accuracy, first 10 batches, hit = the task's slot from the first round was still
 alive (not evicted) when it came back, sel = fraction of batches predicted with that slot.
@@ -52,8 +68,10 @@ TASKS = {"xm0F": lambda w: w[:, 3] ^ 0x0F, "xmA5": lambda w: w[:, 3] ^ 0xA5, "pl
 ORDERS = [["xm0F", "prev", "plus1", "xmA5", "prev2", "minus1"], ["prev", "plus1", "xm0F", "minus1", "xmA5", "prev2"]]
 FIRST, SECOND, N_BASE = 100, 40, 30
 Y_PICK = 2 * Y
+A, H, PROBE_STEPS = 32, 0.2, 3
+RHO = 0.5
 RULES = ["delta_head", "dfa", "pick"]
-MODES = ["k2", "k3", "k6", "oracle"]
+MODES = ["k2", "k3", "k6", "oracle", "k3c", "k6c"]   # + k3p / k6p (probe)
 
 
 def phases(order):
@@ -88,6 +106,33 @@ class Slot:
                     fw.opt = torch.optim.Adam(list(fw.F.values()), lr=fw.eta)
         self.choice = None if len(self.members) > 1 else 0
         self.ema = [None] * len(self.members)                    # running (accuracy, -loss) per candidate
+        self.anchors, self.n_seen = [], 0
+
+    def add_anchors(self, b, rng):
+        """Reservoir of A examples (obs, target, mask) of the batches this set learned from."""
+        for i in range(b["obs"].shape[1]):
+            ex = tuple(b[k][:, i:i + 1] for k in ("obs", "target", "mask"))
+            self.n_seen += 1
+            if len(self.anchors) < A:
+                self.anchors.append(ex)
+            else:
+                j = int(rng.integers(self.n_seen))
+                if j < A:
+                    self.anchors[j] = ex
+
+    def anchor_batch(self):
+        return {k: torch.cat([a[i] for a in self.anchors], dim=1) for i, k in enumerate(("obs", "target", "mask"))}
+
+    def snapshot(self):
+        return ([{n: f.clone() for n, f in fw.F.items()} for fw in self.members], self.choice,
+                list(self.ema))
+
+    def restore(self, snap):
+        Fs, self.choice, self.ema = snap
+        with torch.no_grad():
+            for fw, F0 in zip(self.members, Fs):
+                for n, f in fw.F.items():
+                    f.copy_(F0[n])
 
     def cur(self):
         if self.choice is not None:
@@ -133,7 +178,9 @@ def stream(model_name, seed, variant, rule, mode):
     data = {t: task_data(t, seed, variant, (FIRST + SECOND) * B) for t in order}
     used = {t: 0 for t in order}
     rng = np.random.default_rng(seed * 100 + variant + 7)
-    cap = {"k2": 2, "k3": 3}.get(mode, 6)                     # library capacity (mature sets)
+    arng = np.random.default_rng(seed * 100 + variant + 99)       # anchors: own stream, base batches unchanged
+    probe, consist = mode.endswith("p"), mode.endswith("c")
+    cap = {"k2": 2, "k3": 3, "k3p": 3, "k3c": 3}.get(mode, 6)                     # library capacity (mature sets)
     K = cap + (mode != "oracle")                                # + 1 working buffer
     slots = [Slot(model, rule, seed * 100 + variant + 1000 * i) for i in range(K)]
 
@@ -153,6 +200,7 @@ def stream(model_name, seed, variant, rule, mode):
     c = np.zeros(K + 2)
     c[0] = 1.0
     lvl = [None] * (K + 1)
+    aval = [None] * (K + 1)                                     # accuracy level per set
     gen = [0] * (K + 1)                                         # allocation counter per slot (identity)
     active, n_upd, in_use, last_use, n_alloc = 0, [0] * (K + 1), [False] * (K + 1), [0] * (K + 1), 0
     log, choices, alive, t = [], [], [], 0
@@ -175,13 +223,15 @@ def stream(model_name, seed, variant, rule, mode):
                 _, acc = _loss_acc(model, b, spec)                  # predict first
                 set_active(0)
                 l0, _ = _loss_acc(model, b, spec)
-                ls = {}
+                ls, accs = {}, {}
                 for i in range(1, K + 1):
                     if in_use[i]:
                         set_active(i)
-                        ls[i] = _loss_acc(model, b, spec)[0]
+                        ls[i], accs[i] = _loss_acc(model, b, spec)
             expl = {i: li for i, li in ls.items() if math.log(max(l0, 1e-6) / max(li, 1e-6)) > M
-                    and (lvl[i] is None or li < LVL * lvl[i] + thr)}
+                    and (lvl[i] is None or li < LVL * lvl[i] + thr)
+                    and not (consist and n_upd[i] >= Y and aval[i] is not None and aval[i] >= 0.1
+                             and accs[i] < RHO * aval[i])}
             if mode == "oracle":
                 vote = active
             elif expl:
@@ -190,17 +240,41 @@ def stream(model_name, seed, variant, rule, mode):
                 vote = active if (active and n_upd[active] < Y) else NEW
             else:
                 vote = 0
-            log.append([phase, round(acc, 4), active * 1000 + gen[active] if active else 0, vote])
+            ratio = None
+            if probe and 1 <= vote <= K and n_upd[vote] >= Y and len(slots[vote - 1].anchors) >= A // 2:                               # probe: would learning this batch hurt?
+                sl = slots[vote - 1]
+                ab = sl.anchor_batch()
+                set_active(vote)
+                with torch.no_grad():
+                    before, acc_b = _loss_acc(model, ab, SPEC)
+                snap = sl.snapshot()
+                set_active(0)
+                for _ in range(PROBE_STEPS):                        # same procedure as real learning; an
+                    sl.step(b, spec, 0 if sl.choice is None else Y_PICK)   # undecided pick trains both
+
+                set_active(vote)
+                with torch.no_grad():
+                    after, acc_a = _loss_acc(model, ab, SPEC)
+                sl.restore(snap)
+                ratio = (round(after / max(before, 1e-6), 3), round(acc_b - acc_a, 4))
+                if ratio[1] > H:
+                    vote = active if (active and n_upd[active] < Y) else NEW
+            log.append([phase, round(acc, 4), active * 1000 + gen[active] if active else 0, vote,
+                        ratio])
             if vote == active:
                 last_use[active] = t                                # LRU: confirmed use only
             if active and vote == active:
                 la = ls.get(active)
                 if la is not None:
                     lvl[active] = la if lvl[active] is None else 0.9 * lvl[active] + 0.1 * la
+                    aa = accs[active]
+                    aval[active] = aa if aval[active] is None else 0.9 * aval[active] + 0.1 * aa
                 set_active(0)
                 sl = slots[active - 1]
                 undecided = sl.choice is None
                 sl.step(b, spec, n_upd[active])
+                if probe:
+                    sl.add_anchors(b, arng)
                 if undecided and sl.choice is not None:
                     choices.append([phase, ["delta_head", "dfa"][sl.choice]])
                 n_upd[active] += 1
@@ -208,7 +282,7 @@ def stream(model_name, seed, variant, rule, mode):
                 if mode != "oracle" and n_upd[active] == Y and len(mature) > cap:     # consolidate: evict LRU
                     j = min((j for j in mature if j != active), key=lambda i: last_use[i])
                     slots[j - 1].reset()
-                    in_use[j], n_upd[j], lvl[j] = False, 0, None
+                    in_use[j], n_upd[j], lvl[j], aval[j] = False, 0, None, None
                     c[0] += c[j]
                     c[j] = 0.0
             if mode == "oracle":
@@ -223,7 +297,7 @@ def stream(model_name, seed, variant, rule, mode):
                     j = free[0] if free else (young[0] if young else min(range(1, K + 1), key=lambda i: last_use[i]))
                     if in_use[j]:
                         slots[j - 1].reset()
-                    n_upd[j], lvl[j] = 0, None
+                    n_upd[j], lvl[j], aval[j] = 0, None, None
                     in_use[j], last_use[j] = True, t
                     gen[j] += 1
                     c[j], c[NEW] = c[j] + c[NEW], 0.0

@@ -575,11 +575,63 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
       Lauf). Sie waren nötig, damit die Verdrängung überhaupt wie geplant wirkt.
     - Codex-Review des Moduls: keine Fehler. Gezielte Checks bestanden: die Kandidaten trennen sauber,
       der verworfene Kandidat bleibt wirkungslos, die Daten sind getrennt.
+- **Teilen nur ohne Schaden, 2026-11-09** (library.py, Modi k3c / k6c, results/library.jsonl):
+  - **Erster Ansatz, verworfen: Probe-Update mit Ankern.**
+    - Jeder Satz hält 32 eigene Beispiele als Anker. Ein Probe-Update (3 Schritte) auf dem neuen Batch
+      wird an den Ankern gemessen und wieder zurückgenommen.
+    - Das trennt nicht. Gemessen auf den Abstimmungs-Seeds 5 / 6 senkt bei einem schwach gelernten Satz
+      schon ein Update der EIGENEN Aufgabe die Anker-Genauigkeit so stark wie ein fremdes. Zum Beispiel
+      prev / plus1 mit delta_head: Median 0.03–0.06, p90 0.16. minus1 auf dem plus1-Satz: Median 0.00,
+      p90 0.12. Auch das Verhältnis der Anker-Fehler überlappt (BCE).
+    - Das Rauschen der Lernregel überdeckt den Konflikt. Mit H = 0.2 erzeugte die Probe 15 statt 7
+      Anlagen (Seed 5).
+    - Der Modus bleibt als k3p / k6p im Code, ist aber nicht im Lauf.
+  - **Zweiter Ansatz: Konsistenztest.** Ein fertiger Satz erklärt einen Batch nur, wenn seine exakte
+    Genauigkeit darauf mindestens halb so hoch ist wie auf seiner eigenen Aufgabe (gleitender Mittelwert
+    über die Batches, aus denen er gelernt hat; nur geprüft, wenn dieser Wert ≥ 0.1 ist).
+    - Die exakte Übereinstimmung ist scharf, wo der BCE-Fehler es nicht ist: Der plus1-Satz sagt +1 voraus
+      und trifft bei minus1 fast nie exakt, obwohl die meisten der 8 Bits stimmen.
+    - Er braucht keinen Beispielspeicher.
+    - Abgestimmt nur auf Seed 6; dort steigt der zweite Besuch von plus1 von 0.18 auf 0.60.
+  - Ergebnis auf den 3 Test-Seeds × 3 Modellen × 2 Reihenfolgen:
+
+  | Regel | Modus | 2. Besuch Mittel | plus1 | minus1 | plus1 / minus1 im selben Satz | Anlagen |
+  |---|---|---|---|---|---|---|
+  | delta_head | k6 | 0.62 | 0.29 | 0.56 | 15 / 18 | 6.0 |
+  | delta_head | **k6c** | **0.68** | **0.60** | 0.60 | **0 / 18** | 6.7 |
+  | delta_head | oracle | 0.72 | 0.64 | 0.63 | – | – |
+  | pick | k6 | 0.68 | 0.28 | 0.55 | 15 / 18 | 5.9 |
+  | pick | **k6c** | **0.72** | **0.60** | 0.60 | **0 / 18** | 7.2 |
+  | pick | oracle | 0.79 | 0.64 | 0.63 | – | – |
+
+  - **Der Konsistenztest verhindert das schädliche Teilen vollständig.** plus1 und minus1 landen in 0 statt
+    15 von 18 Läufen im selben Satz. plus1 beim zweiten Besuch: 0.60 statt 0.29, das Orakel liegt bei 0.64.
+    Die Lücke zum Orakel schrumpft im Mittel auf 0.04 (delta_head) bzw. 0.07 (pick).
+  - Kosten: etwas mehr Anlagen (6.7–7.2 statt 6 für 6 Aufgaben). Einzelne Fehlalarme landen jetzt im
+    Arbeitspuffer und kosten keine fertigen Sätze.
+  - Bei K = 3 bleiben nun genau 3 von 6 erhalten (Treffer 0.50 statt 0.64). Das frühere „mehr als K“ kam
+    vom Teilen, das die Aufgaben dann gegenseitig beschädigt hat. Im Mittel bleibt der zweite Besuch gleich
+    (0.49 gegen 0.48).
+  - **Lehre für das Kriterium „ähnlich genug zum Teilen“:** Ein Maß für die Wirkung des Lernens (Probe)
+    taugt bei verrauschten lokalen Regeln nicht. Ein Maß für die Vorhersagequalität auf dem neuen Batch,
+    relativ zum eigenen Niveau des Satzes und in der Metrik der Aufgabe (exakt), taugt.
+  - Offen bleibt: Geteilt wird jetzt praktisch nie; echtes Teilen bei wirklich gleicher Aufgabe (zweiter
+    Besuch) funktioniert über die normale Auswahl. Ob zwei verwandte, verträgliche Aufgaben sich einen Satz
+    sinnvoll teilen könnten, ist mit diesen Aufgaben nicht testbar, denn alle Paare widersprechen sich in
+    der Ausgabe.
+  - Codex-Review:
+    - Die Konsistenz-Modi sind fehlerfrei; die Buchführung des Genauigkeitsniveaus stimmt.
+    - Bei den Probe-Modi fand Codex vier Punkte, alle behoben:
+      - Doku und Code verwendeten verschiedene Kriterien.
+      - Die Probe entschied die Regelwahl von `pick` verfrüht.
+      - Snapshot und Restore sichern keinen Optimizer-Zustand; das ist jetzt dokumentiert, die
+        Bibliothek nutzt nur lokale Regeln ohne Optimizer.
+      - Anker wurden auch in Modi gesammelt, die sie nicht brauchen.
+    - Die alten Modi liefern nachweislich exakt die gespeicherten Ergebnisse (Vergleich der Logs).
   - Nächste Fragen:
-    - Teilen nur, wenn der Satz durch das neue Lernen nicht schlechter wird. Zum Beispiel ein Probe-Update
-      auf einer Kopie und eine Prüfung auf eigenen gespeicherten Beispielen oder Statistiken; sonst neu
-      anlegen.
-    - Regelwahl stabiler machen, etwa nach mehr Updates oder per gelerntem Prior („Kopier-Aufgaben → DFA“).
+    - Regelwahl stabiler machen (DFA bei prev nur in 53–56 % gewählt), etwa nach Genauigkeit über mehr
+      Updates oder mit einem gelernten Prior.
+    - Schnellere Wiedererkennung beim zweiten Besuch (die ersten 10 Batches: 0.59 gegen 0.78 beim Orakel).
 
 **Phase C – T3 Freeze & Route als Lehrplan-Test**
 - Über die Sieb-Stufen (4c), mit individuellen Modulen oder einer Fähigkeiten-Bibliothek am Bus.
