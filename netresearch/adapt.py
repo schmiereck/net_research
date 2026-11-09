@@ -155,6 +155,18 @@ CASES = {
     "plus1": ("numseq", lambda v, k: case_mid("plus1", v, k), KS, 2),
     "cycle2": ("cycle", lambda v, k: case_mid("cycle2", v, k), KS, 2),
 }
+def case_servo(device, variant, k):
+    """Servo calibration (tasks/servo.py): base inputs, the command of another device; unseen test situations."""
+    from .tasks.servo import servo_batch
+    from .train import to_t
+    rng = np.random.default_rng(zlib.crc32(device.encode()) + 7919 * variant)
+    return to_t(servo_batch(device, k, rng, "train")), to_t(servo_batch(device, N_TEST, rng, "test"))
+
+
+SERVO_CASES = ["flipx", "swap", "rot90", "strong", "weak", "offx"]
+for _d in SERVO_CASES:
+    CASES["servo_" + _d] = ("servo", lambda v, k, _d=_d: case_servo(_d, v, k), KS, 2)
+BASE_UPDATES = {"servo": 6000}                    # the grid nets need 4x the benchmark budget for servo
 PHASE_A = ["fixcycle", "double", "trib", "countbig"]          # "--cases all" of the phase A run
 
 
@@ -185,7 +197,7 @@ def start_net(model_name, base, seed):
         return load_checkpoint(model_name, base, seed, pinned)   # different weights: CPU rounding)
     m = load_checkpoint(model_name, base, seed)
     if m is None:                                 # not trained yet here (e.g. fresh worker): train and save
-        run(model_name, base, seed=seed)
+        run(model_name, base, seed=seed, updates=BASE_UPDATES.get(base, 1500))
         m = load_checkpoint(model_name, base, seed)
     return m
 

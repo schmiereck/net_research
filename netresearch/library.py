@@ -69,6 +69,7 @@ import os
 import re
 import time
 import traceback
+import zlib
 from pathlib import Path
 
 import numpy as np
@@ -90,6 +91,7 @@ TASKS = {"xm0F": lambda w: w[:, 3] ^ 0x0F, "xmA5": lambda w: w[:, 3] ^ 0xA5, "pl
 ORDERS = [["xm0F", "prev", "plus1", "xmA5", "prev2", "minus1"], ["prev", "plus1", "xm0F", "minus1", "xmA5", "prev2"]]
 ORDERS12 = [["xm0F", "prev", "plus1", "xm33", "prev2", "minus2", "xmA5", "diff", "plus2", "xmFF", "prev3", "minus1"],
             ["prev", "plus2", "xm33", "minus1", "prev3", "xmA5", "plus1", "diff", "xmFF", "prev2", "minus2", "xm0F"]]
+ORDERS_SERVO = [["flipx", "swap", "offx", "strong", "rot90", "weak"], ["swap", "offx", "flipx", "weak", "strong", "rot90"]]
 DRIFT, N_DRIFT, N_AFTER = "plus1>plus2", 100, 50
 FIRST, SECOND, N_BASE = 100, 40, 30
 Y_PICK = 2 * Y
@@ -119,7 +121,9 @@ def drift_plan(order):
 SUITES = {"six": {"tasks": list(ORDERS[0]), "orders": ORDERS, "plan": phases},
           "twelve": {"tasks": list(ORDERS12[0]), "orders": ORDERS12, "plan": phases},
           "drift": {"tasks": ["xm0F", "prev", "plus1", "plus2"],
-                    "orders": [["xm0F", "prev", "plus1"], ["prev", "xm0F", "plus1"]], "plan": drift_plan}}
+                    "orders": [["xm0F", "prev", "plus1"], ["prev", "xm0F", "plus1"]], "plan": drift_plan},
+          # stage 2: calibrations of a servo device (tasks/servo.py), base task = the ideal device
+          "servo": {"tasks": list(ORDERS_SERVO[0]), "orders": ORDERS_SERVO, "plan": phases, "base": "servo"}}
 
 
 def drift_data(a, b, seed, variant, n_batches):
@@ -134,6 +138,11 @@ def drift_data(a, b, seed, variant, n_batches):
 
 
 def task_data(name, seed, variant, n):
+    from .tasks.servo import DEVICES, servo_batch
+    if name in DEVICES:
+        from .train import to_t
+        rng = np.random.default_rng(zlib.crc32(name.encode()) + 101 * seed + variant)
+        return to_t(servo_batch(name, n, rng, "train"))
     rng = np.random.default_rng(7919 * (list(TASKS).index(name) + 1) + 101 * seed + variant)
     w = _numseq_words(n, rng, "train")
     return _batch(w, np.full(n, 3), TASKS[name](w))
@@ -248,9 +257,10 @@ def stream(model_name, seed, variant, rule, mode, suite="six"):
     S = SUITES[suite]
     order = S["orders"][variant % 2]
     plan = S["plan"](order)
-    model = start_net(model_name, "numseq", seed)
+    base = S.get("base", "numseq")
+    model = start_net(model_name, base, seed)
     torch.manual_seed(seed + variant)
-    task = make_task("numseq")
+    task = make_task(base)
     if suite == "six":                                          # as before (same data streams)
         data = {t: task_data(t, seed, variant, (FIRST + SECOND) * B) for t in order}
     else:
@@ -485,7 +495,7 @@ def _job(a):
     model_name, seed, rule, mode, variants, suite = a
     key = {"model": model_name, "seed": seed, "rule": rule, "mode": mode, "suite": suite}
     from .adapt import BASE_NETS
-    if (BASE_NETS / "numseq" / f"{model_name}_s{seed}.pt").exists():
+    if (BASE_NETS / SUITES[suite].get("base", "numseq") / f"{model_name}_s{seed}.pt").exists():
         key["nets"] = "pinned"                                   # same base nets on every PC
     try:
         t0 = time.time()
@@ -511,8 +521,9 @@ def execute(jobs, workers, out):
             if "error" not in r:
                 done.add((r["model"], r["seed"], r["rule"], r["mode"], r.get("suite", "six"), r.get("nets")))
     from .adapt import BASE_NETS
-    pinned = {(m, sd) for m, sd, *_ in jobs if (BASE_NETS / "numseq" / f"{m}_s{sd}.pt").exists()}
-    jobs = [j for j in jobs if (*j[:4], j[5], "pinned" if j[:2] in pinned else None) not in done]
+    def pin(j):
+        return (BASE_NETS / SUITES[j[5]].get("base", "numseq") / f"{j[0]}_s{j[1]}.pt").exists()
+    jobs = [j for j in jobs if (*j[:4], j[5], "pinned" if pin(j) else None) not in done]
     print(f"{len(jobs)} jobs, {workers} workers", flush=True)
     t0 = time.time()
     with mp.get_context("spawn").Pool(workers, initializer=_init_worker) as pool, out.open("a") as f:

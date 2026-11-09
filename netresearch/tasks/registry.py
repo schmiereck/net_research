@@ -10,6 +10,7 @@ from .games.racer import Racer
 from .images import Digits, Shapes
 from .memory import CrossMem, Delay, Recall
 from .patterns import BitSeq, Count, Cycle, CycleMem, NumSeq
+from .servo import Servo
 from .text import CharNext
 
 
@@ -30,6 +31,7 @@ TASKS = {
     "cycle_mem": CycleMem,
     "count": Count,
     "numseq": NumSeq,
+    "servo": Servo,
     "shapes": Shapes,
     "digits": Digits,
     "charnext": CharNext,
