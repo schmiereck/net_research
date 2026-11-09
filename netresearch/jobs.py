@@ -11,6 +11,8 @@ A job runs the commit that is checked out here when submitting; it must be pushe
 (the worker fetches it from GitHub). Everything after "--" is passed to netresearch.bench
 (without --out / --workers: the worker sets them; a job can fix the process count with --workers here).
 With --sieve the worker runs "netresearch.sieve run" instead: stage by stage, only what the sieve unlocks.
+With --module NAME it runs "netresearch.NAME run" (e.g. library, context): the module must accept --workers
+and --out and skip the jobs already in its output file.
 """
 import argparse
 import json
@@ -28,7 +30,7 @@ def git(*args):
     return subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True).stdout.strip()
 
 
-def submit(share, name, bench_args, workers, allow_dirty, sieve=False):
+def submit(share, name, bench_args, workers, allow_dirty, sieve=False, module=None):
     if any(a in ("--out", "--workers") for a in bench_args):
         raise SystemExit("--out / --workers are set by the worker (use 'submit --workers N' for a fixed count)")
     commit = git("rev-parse", "HEAD")
@@ -39,10 +41,10 @@ def submit(share, name, bench_args, workers, allow_dirty, sieve=False):
     if "origin/" not in git("branch", "-r", "--contains", commit):
         raise SystemExit(f"commit {commit[:7]} is not pushed to origin yet: git push first.")
     jid = datetime.now().strftime("%Y%m%d-%H%M%S") + "-" + re.sub(r"[^A-Za-z0-9_-]", "_", name)
-    if sieve:
+    if sieve or module:
         bench_args = ["run", *bench_args]
     job = {"id": jid, "name": name, "commit": commit, "args": bench_args, "workers": workers,
-           "module": "netresearch.sieve" if sieve else "netresearch.bench",
+           "module": f"netresearch.{module}" if module else "netresearch.sieve" if sieve else "netresearch.bench",
            "created": datetime.now().isoformat(timespec="seconds")}
     write_json(share / "jobs" / "queue" / f"{jid}.json", job)
     digits = ROOT / "data" / "digits.npz"
@@ -89,14 +91,16 @@ def status(share):
 
 
 def fetch(share, jid, into, checkpoints):
-    """Append the job's result lines that are not yet in `into` (key: model, task, seed, updates)."""
+    """Append the job's result lines that are not yet in `into` (key: model, task, seed, updates; for other
+    modules also rule, mode, case)."""
     src = share / "results" / jid / "runs.jsonl"
     if not src.exists():
         raise SystemExit(f"no results for {jid}")
     into = Path(into)
 
     def key(r):
-        return r["model"], r["task"], r["seed"], r.get("updates_per_task", r.get("updates"))
+        return (r["model"], r.get("task"), r["seed"], r.get("updates_per_task", r.get("updates")),
+                r.get("rule"), r.get("mode"), r.get("case"))
     have = set()
     if into.exists():
         have = {key(json.loads(ln)) for ln in into.read_text().splitlines() if ln.strip()}
@@ -142,6 +146,8 @@ def main():
     s.add_argument("--workers", type=int, default=None)
     s.add_argument("--allow-dirty", action="store_true")
     s.add_argument("--sieve", action="store_true", help="run the benchmark sieve (args: --models ... --seeds ...)")
+    s.add_argument("--module", default=None,
+                   help="run another experiment module with a 'run' command, --workers and --out, e.g. library")
     s.add_argument("bench_args", nargs=argparse.REMAINDER)
     sub.add_parser("status")
     f = sub.add_parser("fetch")
@@ -158,7 +164,7 @@ def main():
         (share / d).mkdir(parents=True, exist_ok=True)
     if a.cmd == "submit":
         args = a.bench_args[1:] if a.bench_args[:1] == ["--"] else a.bench_args
-        submit(share, a.name, args, a.workers, a.allow_dirty, a.sieve)
+        submit(share, a.name, args, a.workers, a.allow_dirty, a.sieve, a.module)
     elif a.cmd == "status":
         status(share)
     elif a.cmd == "fetch":
