@@ -472,6 +472,9 @@ def phase_stats(log, plan, alive):
 def _job(a):
     model_name, seed, rule, mode, variants, suite = a
     key = {"model": model_name, "seed": seed, "rule": rule, "mode": mode, "suite": suite}
+    from .adapt import BASE_NETS
+    if (BASE_NETS / "numseq" / f"{model_name}_s{seed}.pt").exists():
+        key["nets"] = "pinned"                                   # same base nets on every PC
     try:
         t0 = time.time()
         runs = []
@@ -494,8 +497,10 @@ def execute(jobs, workers, out):
         for ln in out.read_text().splitlines():
             r = json.loads(ln)
             if "error" not in r:
-                done.add((r["model"], r["seed"], r["rule"], r["mode"], r.get("suite", "six")))
-    jobs = [j for j in jobs if (*j[:4], j[5]) not in done]
+                done.add((r["model"], r["seed"], r["rule"], r["mode"], r.get("suite", "six"), r.get("nets")))
+    from .adapt import BASE_NETS
+    pinned = {(m, sd) for m, sd, *_ in jobs if (BASE_NETS / "numseq" / f"{m}_s{sd}.pt").exists()}
+    jobs = [j for j in jobs if (*j[:4], j[5], "pinned" if j[:2] in pinned else None) not in done]
     print(f"{len(jobs)} jobs, {workers} workers", flush=True)
     t0 = time.time()
     with mp.get_context("spawn").Pool(workers, initializer=_init_worker) as pool, out.open("a") as f:
