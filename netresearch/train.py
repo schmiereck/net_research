@@ -348,7 +348,7 @@ def load_checkpoint(model_name, task_name, seed=0, path=None):
     if not p.exists():
         return None
     ck = torch.load(p, map_location="cpu", weights_only=True)
-    model = MODELS[model_name][0](width=ck["width"])
+    model = MODELS[model_name.partition("@")[0]][0](width=ck["width"])
     model.load_state_dict(ck["state_dict"])
     model.width_used, model.score = ck["width"], ck["score"]
     return model.eval()

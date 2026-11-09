@@ -83,6 +83,13 @@ for _grid, _cls in (("layer", LayerGrid), ("hier", HierGrid)):
                              (4, 256), 1)
             SCRATCH_ORDER.append(_name)
 
+# number of modules: "_r<R>" rows (base 4), "_c<C>" columns (base 8; the strips are 16 / C pixels wide)
+SHAPE_ORDER = []
+for _sh in ("s", "i"):
+    for _suf, _kw in (("r2", {"R": 2}), ("r8", {"R": 8}), ("c4", {"C": 4}), ("c16", {"C": 16})):
+        MODELS[f"layer_{_sh}_{_suf}"] = (partial(LayerGrid, shared=_sh == "s", **_kw), (4, 256), 1)
+        SHAPE_ORDER.append(f"layer_{_sh}_{_suf}")
+
 MODEL_ORDER = ["mlp", "cnn", "cvnn", "vit", "gru", "attnmem",
                "bus_add_s", "bus_add_i", "bus_mul_s", "bus_mul_i", "bus_gate_s", "bus_gate_i",
                "bus_film_s", "bus_film_i", "subbus_i", "layer_s", "layer_i", "hier_s", "hier_i",
@@ -114,7 +121,16 @@ def matched_width(name, target_params=100_000):
     return w * mult
 
 
+def split_size(name):
+    """'layer_s@25k' -> ('layer_s', 25000): a size suffix sets the target parameter count (default 100k), so
+    differently sized nets are different model names everywhere (results, checkpoints)."""
+    base, _, size = name.partition("@")
+    return base, (int(float(size.rstrip("k")) * 1000) if size else None)
+
+
 def build_model(name, target_params=100_000, seed=0):
+    name, size = split_size(name)
+    target_params = size or target_params
     width = matched_width(WIDTH_FROM.get(name, name), target_params)
     torch.manual_seed(seed)
     model = MODELS[name][0](width=width)
