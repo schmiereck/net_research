@@ -285,6 +285,36 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
 - Erster Fall: „einen neuen Zyklus merken“. Vergleich mit Adam-Feintuning.
 - Die Frage dabei: Bringt eine schnelle Gewichtsschicht allein schon k-shot-Fähigkeit? Das ist die
   Untergrenze für den Teacher.
+- **Erster Lauf, 2026-11-09** (netresearch/fastweights.py, results/fastweights.jsonl):
+  - Aufbau: Die langsamen Gewichte bleiben eingefroren; schnelle Gewichte F liegen auf fc1, fc2 und Kopf.
+  - Getestet auf fixcycle mit layer_s, hier_s, layer_s_sp4 und layer_s_am4, 3 Seeds × 4 Zyklen.
+  - Die Schrittweiten sind vorher per Sweep gewählt (results/fastweights_sweep.jsonl).
+
+  | Regel | Signal | nach 5 Updates | nach 20 | vergessen nach 20 | vergessen nach 200 |
+  |---|---|---|---|---|---|
+  | Adam (alles) | Gradient | 0.00–0.03 | 0.50–0.86 | 0.64–0.92 | 0.73–0.91 |
+  | T2 lora (Rang 4, Adam) | Gradient | 0.01–0.06 | 0.06–0.31 | 0.87–0.97 | 0.87–0.97 |
+  | T1 delta_head (nur Kopf, lokal) | Fehler am Ausgang | 0.01–0.13 | 0.89–0.97 | 0.71–0.80 | 0.81–0.90 |
+  | T1 dfa (Feedback Alignment) | Fehler über feste Zufallsmatrix | 0.00–0.01 | 0.18–0.38 | 0.80–0.95 | 0.87–0.97 |
+  | T1 np3 (skalarer 3. Faktor) | eine Zahl je Beispiel | 0.00 | 0.00 | 0.07–0.62 | 0.41–0.82 |
+  | Kontrolle delta_gated | wie delta_head, wirkt nur bei ähnlicher Eingabe | 0.01–0.13 | 0.89–0.97 | 0.00 | 0.00 |
+
+  - **Keine feste Regel schafft k-shot.** Nach 5 Updates stehen alle bei höchstens 0.13. Das Netz von null an
+    lag in Phase A bei 0.6–0.67.
+  - **Die lokale Delta-Regel am Kopf ist schneller als Adam auf dem ganzen Netz.** Nach 20 Updates erreicht sie
+    0.89–0.97, Adam 0.50–0.86. Die gelernte Repräsentation reicht also für eine neue Ausleseschicht.
+  - **Wie die Änderung gelernt wird, entscheidet nicht über das Vergessen.**
+    - Low-Rank vergisst am meisten, weil seine wenigen Richtungen für alle Eingaben gelten.
+    - Der skalare 3. Faktor lernt in 200 Updates nichts.
+  - **Entscheidend ist, wo die Änderung wirkt.** Wenn dieselbe Kopf-Änderung nur bei Eingaben greift, die den
+    gelernten ähneln, verschwindet das Vergessen ganz (0.00), bei unveränderter Lerngeschwindigkeit.
+  - **Einschränkung:** Das Gate ist ein Speicher der Trainings-Eingaben, also ein episodisches Gedächtnis.
+    - Bei fixcycle sind Training und Test dieselben 6 Eingaben, Generalisierung wird hier nicht geprüft.
+    - Ein gelerntes Gate (Teacher, T3 Freeze & Route) müsste das „Wann“ aus dem Kontext ableiten, ohne die
+      Eingaben einzeln zu speichern.
+  - **Folgerung für den Teacher:** Ein Teacher muss vor allem entscheiden, wann und wo eine Änderung gelten
+    soll (Kontext-Gate), nicht in erster Linie, wie sie gelernt wird. Den Lernschritt kann eine lokale
+    Delta-Regel am Ausgang übernehmen.
 
 **Phase C – T3 Freeze & Route als Lehrplan-Test**
 - Über die Sieb-Stufen (4c), mit individuellen Modulen oder einer Fähigkeiten-Bibliothek am Bus.

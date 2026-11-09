@@ -55,7 +55,8 @@ Status: offen · läuft · erledigt.
 |---|---|---|---|
 | P2 | Erster Test der Wiedererkennungs-Signale R: sagen sie vorher, was schnell lernbar ist? | offen | Mit vorhandenen Checkpoints, Abschnitt 4b |
 | P1 | Anpassungs-Benchmark (Phase A) | erledigt 2026-11-09 | fixcycle: von null an schneller als vortrainiert; Adam vergisst 0.5–0.9, Replay 0.1. Neue Rechenregeln lernt keine Methode (Leiter-Ende). Details PLAN_TRAINER Phase A |
-| P2 | Port-Interface (Telemetrie / Modulation / Freeze) und feste Regeln T1, T2 (Phase B) | offen | Teacher-Actor-Konzept, PLAN_TRAINER 4c |
+| P2 | Feste Regeln T1, T2 auf schnellen Gewichten (Phase B, erster Teil) | erledigt 2026-11-09 | kein k-shot (≤ 0.13 nach 5 Updates); Delta-Regel am Kopf schneller als Adam; Vergessen hängt am Wirkungsbereich: mit Ähnlichkeits-Gate 0.00 (PLAN_TRAINER Phase B) |
+| P2 | Gelerntes Kontext-Gate für schnelle Gewichte statt Eingaben-Speicher; Port-Interface (Telemetrie / Modulation / Freeze) | als Nächstes | prüfen auf Rechenregel-Fällen (Generalisierung) |
 | P2 | T3 Freeze & Route als Lehrplan-Test über die Sieb-Stufen (Phase C) | offen | braucht individuelle Module oder Fähigkeiten-Bibliothek |
 | P3 | Gelernter Teacher per ES (Phasen D–F) | offen | |
 | P3 | T4 State-Critic: Langeweile, Lernfortschritt, Gefahr, Muster (Phase G) | offen | setzt RL-Schleife voraus |
