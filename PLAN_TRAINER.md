@@ -846,6 +846,67 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
     Gedächtnis für den eigenen besten Zustand. Abgespalten wird erst, wenn der Satz sich messbar
     verschlechtert, nicht schon, wenn er sich verändert.
 
+- **Bibliothek Stufe 2: Servo-Aufgabe, 2026-11-10** (tasks/servo.py, library.py Suite servo, results/library.jsonl,
+  results/servo_arch.jsonl, results/fastinner_servo.jsonl, results/servo_readout.jsonl):
+  - **Aufgabe:** Zeiger (grün) und Ziel (rot) als je ein Pixel im Bild; Ausgabe ist der Schritt (dx, dy), je
+    4 Bit mit Vorzeichen, in den 8 „bits“-Ausgängen. Ein Kommando, kein Regelkreis (erste, langsame Stufe).
+    - Basis-Aufgabe: ideales Gerät (Kommando = Abstand).
+    - Geräte als Kalibrierungen bei gleichen Eingaben: flipx (Motor gespiegelt), swap (Achsen vertauscht),
+      rot90, strong (doppelte Verstärkung, Kommando halbiert), weak (halbe Verstärkung, Kommando verdoppelt,
+      mit Anschlag), offx (Versatz +1). Verzögerung fehlt noch (braucht Gedächtnis, eigene Stufe).
+  - **Basis-Netze:** Mit 1500 Updates lernt die Aufgabe niemand (bestes: vit 0.31). Mit 6000 Updates (Seed 5):
+    vit 1.00, hier_s 1.00, layer_s 0.99, cnn_coord 0.99, cnn 0.97, mlp 0.23.
+    - vit erreicht 0.96 nach 2000 Updates, cnn nach 3000, die Gitter-Netze nach 4500.
+    - Basis-Netze (6000 Updates) liegen in data/base_nets/servo. hier_s Seed 2 ist schwächer (0.82).
+  - **Bibliothek, unverändert aus Stufe 1** (Test-Seeds 0–2, zweiter Besuch, 18 Läufe je Zeile):
+
+  | Regel | 3 Plätze | 6 Plätze | 6 Plätze + Abspalten | Orakel |
+  |---|---|---|---|---|
+  | delta_head | 0.41 | 0.63 | 0.63 | 0.65 |
+  | pickm | 0.41 | 0.63 | 0.63 | 0.65 |
+  | dfa | 0.01 | 0.01 | 0.01 | 0.02 |
+
+    - Wiedererkennen und Verwalten übertragen sich ohne Anpassung: Auswahl 0.97, 6.2 Allokationen für 6 Geräte,
+      erste 10 Batches beim Wiederkommen 0.57 (Orakel 0.63).
+    - Je Gerät (6 Plätze): swap 0.89, weak 0.89, strong 0.56, offx 0.50, rot90 0.49, flipx 0.47.
+    - pickm wählt immer delta_head. Zu Recht: dfa zerstört hier die Ausgabe (auch mit Orakel 0.02).
+  - **Die Grenze ist das Lernen, nicht das Verwalten** (fastweights inner, Seeds 5 / 6, 512 Beispiele,
+    200 Updates, ungesehene Testsituationen):
+
+  | Gerät | Adam (alles) | Gradient auf schnelle Gewichte | delta_head | dfa |
+  |---|---|---|---|---|
+  | swap | 0.12 | 0.16 | 0.93 | 0.01 |
+  | weak | 0.67 | 0.73 | 0.94 | 0.10 |
+  | strong | 0.62 | 0.65 | 0.61 | 0.02 |
+  | flipx | 0.56 | 0.63 | 0.51 | 0.01 |
+  | offx | 0.46 | 0.47 | 0.55 | 0.00 |
+  | rot90 | 0.12 | 0.17 | 0.50 | 0.01 |
+
+    - Die lokale Regel am Kopf ist in 200 Updates so gut wie oder besser als der Gradient durch das Netz.
+      Adam vergisst dabei die Basis-Aufgabe fast ganz (0.8–0.99), die schnellen Gewichte mit Kontext nicht.
+    - swap und weak sind Umordnungen der Ausgabe-Bits und gehen linear. Vorzeichen, Versatz und Halbieren
+      brauchen Überträge zwischen Bits.
+  - **Auslese-Test** (scripts/servo_readout.py, Seeds 5 / 6, Korrektur der 8 Logits aus dem Kopf-Eingang,
+    1600 Beispiele, ungesehene Testsituationen):
+
+  | Merkmale | Anpassung | flipx | offx | rot90 | strong | swap | weak |
+  |---|---|---|---|---|---|---|---|
+  | linear | voll (Adam, 300 Schritte) | 0.74 | 0.76 | 0.74 | 0.71 | 0.98 | 0.98 |
+  | linear + 4096 Zufallsmerkmale | voll | 0.93 | 0.94 | 0.94 | 0.90 | 0.98 | 0.98 |
+  | linear | online, 100 Batches | 0.22 | 0.49 | 0.37 | 0.42 | 0.75 | 0.63 |
+  | linear + 4096 Zufallsmerkmale | online | 0.10 | 0.32 | 0.22 | 0.17 | 0.46 | 0.34 |
+
+    - Zwei Grenzen: (1) Die lineare Auslese des Kopf-Eingangs trägt bei den Übertrags-Geräten höchstens
+      0.74; eine feste nichtlineare Erweiterung hebt das auf 0.93. (2) Die Online-Regel erreicht in 100
+      Batches keine der beiden Obergrenzen; mit den Zufallsmerkmalen wird sie sogar langsamer (Schrittweite
+      nicht abgestimmt, eigene Nachbildung der Regel, nicht die der Bibliothek).
+    - **Folgerung für den Teacher:** Das Schreibziel „linearer Kopf“ reicht für Umordnungen, nicht für
+      Rechnungen auf dem Ausgabe-Code. Kandidaten: nichtlinearer schneller Kopf (Erweiterung + lokale
+      Regel mit besserer Schrittweite), oder ein Ausgabe-Code, in dem Geräte-Unterschiede linear sind.
+  - **Architektur-Vergleich läuft** (Worker, Nacht 2026-11-10): Netzgröße 25k / 100k / 400k und Modulzahl
+    (layer mit 2 / 8 Zeilen, 4 / 16 Spalten) auf servo, numseq, count, push_easy, grid_follow, cycle_mem.
+    Größen als Modellname mit Suffix (`layer_s@25k`).
+
 **Phase C – T3 Freeze & Route als Lehrplan-Test**
 - Über die Sieb-Stufen (4c), mit individuellen Modulen oder einer Fähigkeiten-Bibliothek am Bus.
 
