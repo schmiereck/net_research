@@ -184,11 +184,21 @@ class Slot:
                 list(self.ema), list(self.slow))
 
     def restore(self, snap):
-        Fs, self.choice, self.ema, self.slow = snap
+        Fs, self.choice, ema, slow = snap
+        self.ema, self.slow = list(ema), list(slow)               # copies: the snapshot stays unchanged
         with torch.no_grad():
             for fw, F0 in zip(self.members, Fs):
                 for n, f in fw.F.items():
                     f.copy_(F0[n])
+
+    def copy_from(self, other):
+        """Become a copy of another slot, including what defines its learning rule (DFA feedback matrices and
+        their generator) and its anchors, so that the copy goes on learning exactly as the original would."""
+        self.restore(other.snapshot())
+        for fw, fo in zip(self.members, other.members):
+            fw.B = {k: v.clone() for k, v in fo.B.items()}
+            fw.gen.set_state(fo.gen.get_state())
+        self.anchors, self.n_seen = list(other.anchors), other.n_seen
 
     def cur(self):
         if self.choice is not None:
@@ -365,7 +375,7 @@ def stream(model_name, seed, variant, rule, mode, suite="six"):
                     lvl[active] = la if lvl[active] is None else 0.9 * lvl[active] + 0.1 * la
                     aa = accs[active]
                     aval[active] = aa if aval[active] is None else 0.9 * aval[active] + 0.1 * aa
-                if fork and n_upd[active] >= Y and aval[active] is not None:
+                if fork and cap >= 2 and n_upd[active] >= Y and aval[active] is not None:
                     pk = peak[active]
                     if pk is None or aval[active] > pk[0]:          # new best level: keep a snapshot of it
                         peak[active] = (aval[active], lvl[active], slots[active - 1].snapshot())
@@ -377,14 +387,16 @@ def stream(model_name, seed, variant, rule, mode, suite="six"):
                         young = [i for i in range(1, K + 1) if in_use[i] and n_upd[i] < Y]
                         k = free[0] if free else young[0]           # K = cap + 1: a non-mature place exists
                         j = active
-                        slots[k - 1].restore(slots[j - 1].snapshot())
+                        slots[k - 1].copy_from(slots[j - 1])
                         in_use[k], gen[k], last_use[k] = True, gen[k] + 1, t
                         n_upd[k], lvl[k], aval[k], peak[k] = n_upd[j], lvl[j], aval[j], None
                         slots[j - 1].restore(pk[2])
                         aval[j], lvl[j] = pk[0], pk[1]
-                        c[k], c[j] = c[j], 0.0
+                        c[k], c[j] = c[k] + c[j], 0.0           # (a displaced young start keeps no context)
+                        ls.pop(k, None)                         # measurements of k's previous occupant are void
+                        accs.pop(k, None)
                         forks.append([t, phase, j, k, round(pk[0], 3), round(aval[k], 3)])
-                        active = k
+                        active = vote = k                       # the context update credits the learning state
                         mature = [i for i in range(1, K + 1) if in_use[i] and n_upd[i] >= Y]
                         if len(mature) > cap:                       # consolidate: evict the LRU mature set
                             e = min((i for i in mature if i not in (j, k)), key=lambda i: last_use[i])
@@ -526,7 +538,8 @@ def summary(path, suite="six"):
             continue
         for x in r["runs"]:
             for p in x["phases"]:
-                rows.append({"rule": r["rule"], "mode": r["mode"], "task": p["phase"], "visit": p["visit"],
+                rows.append({"nets": r.get("nets", "own"), "rule": r["rule"], "mode": r["mode"], "task": p["phase"],
+                             "visit": p["visit"],
                              "acc": p["acc"], "first10": p["acc_first10"], "end": p["acc_last10"],
                              "sel": p["sel"], "hit": p["hit"], "alloc": x["n_alloc"],
                              "fast": x.get("n_fast", 0)})
@@ -534,9 +547,10 @@ def summary(path, suite="six"):
                 ch.append({"rule": r["rule"], "mode": r["mode"], "task": ph, "dfa": float(cc == "dfa")})
     d = pd.DataFrame(rows)
     with pd.option_context("display.max_rows", 500, "display.width", 250, "display.max_columns", 50):
-        print(d.groupby(["rule", "mode", "visit"]).mean(numeric_only=True).round(2).to_string())
+        print(d.groupby(["nets", "rule", "mode", "visit"]).mean(numeric_only=True).round(2).to_string())
         print()
-        print(d[d.visit == 2].pivot_table(index=["rule", "mode"], columns="task", values="acc").round(2).to_string())
+        print(d[d.visit == 2].pivot_table(index=["nets", "rule", "mode"], columns="task", values="acc").round(2)
+              .to_string())
         if ch:
             print("\npick: share of slots that chose dfa, by the task they were allocated for")
             print(pd.DataFrame(ch).pivot_table(index=["rule", "mode"], columns="task", values="dfa").round(2).to_string())
