@@ -59,6 +59,7 @@ import argparse
 import json
 import math
 import multiprocessing as mp
+import os
 import time
 import traceback
 from pathlib import Path
@@ -81,8 +82,10 @@ Y_PICK = 2 * Y
 PICK_A, PICK_M, PICK_H = 0.05, 0.15, 4 * Y                 # pickm: slow accuracy EMA, lead margin, horizon
 A, H, PROBE_STEPS = 32, 0.2, 3
 RHO = 0.5
+Z_CONS = 1.0                                               # flag n: consistency slack in binomial sd
+DIAG = bool(os.environ.get("NETRESEARCH_LIB_DIAG"))         # log the explain criteria of the active set
 RULES = ["delta_head", "dfa", "pick", "pickm"]
-MODES = ["k2", "k3", "k6", "oracle", "k3c", "k6c", "k3cf", "k6cf"]   # + k3p / k6p (probe)
+MODES = ["k2", "k3", "k6", "oracle", "k3c", "k6c", "k3cf", "k6cf", "k3cfn", "k6cfn"]   # + k3p / k6p (probe)
 
 
 def phases(order):
@@ -201,7 +204,7 @@ def stream(model_name, seed, variant, rule, mode):
     rng = np.random.default_rng(seed * 100 + variant + 7)
     arng = np.random.default_rng(seed * 100 + variant + 99)       # anchors: own stream, base batches unchanged
     flags = mode[2:] if mode.startswith("k") else ""
-    probe, consist, fast = "p" in flags, "c" in flags, "f" in flags
+    probe, consist, fast, noisy = "p" in flags, "c" in flags, "f" in flags, "n" in flags
     cap = int(mode[1]) if mode.startswith("k") else 6         # library capacity (mature sets)
     K = cap + (mode != "oracle")                                # + 1 working buffer
     slots = [Slot(model, rule, seed * 100 + variant + 1000 * i) for i in range(K)]
@@ -212,6 +215,13 @@ def stream(model_name, seed, variant, rule, mode):
 
     def base_batch():
         return to_t(task.sample(B, rng))
+    def inconsistent(i, acc_i, m):
+        """Exact match clearly below RHO x the set's own level (flag n: by more than one binomial sd)."""
+        if n_upd[i] < Y or aval[i] is None or aval[i] < 0.1:
+            return False
+        slack = Z_CONS * math.sqrt(aval[i] * (1 - aval[i]) / m) if noisy else 0.0
+        return acc_i < RHO * aval[i] - slack
+
     with torch.no_grad():
         set_active(0)
         cal = [_loss_acc(model, base_batch(), task.spec)[0] for _ in range(32)]
@@ -225,7 +235,7 @@ def stream(model_name, seed, variant, rule, mode):
     aval = [None] * (K + 1)                                     # accuracy level per set
     gen = [0] * (K + 1)                                         # allocation counter per slot (identity)
     active, n_upd, in_use, last_use, n_alloc, n_fast = 0, [0] * (K + 1), [False] * (K + 1), [0] * (K + 1), 0, 0
-    log, choices, alive, t = [], [], [], 0
+    log, choices, alive, t, diag = [], [], [], 0, []
     for phase, n in phases(order):
         alive.append([j * 1000 + gen[j] for j in range(1, K + 1) if in_use[j]])   # slot identities at phase start
         for _ in range(n):
@@ -243,6 +253,7 @@ def stream(model_name, seed, variant, rule, mode):
             with torch.no_grad():
                 set_active(active)
                 _, acc = _loss_acc(model, b, spec)                  # predict first
+                m_b = float(b["mask"].sum())                       # examples scored in this batch
                 set_active(0)
                 l0, _ = _loss_acc(model, b, spec)
                 ls, accs = {}, {}
@@ -252,8 +263,13 @@ def stream(model_name, seed, variant, rule, mode):
                         ls[i], accs[i] = _loss_acc(model, b, spec)
             expl = {i: li for i, li in ls.items() if math.log(max(l0, 1e-6) / max(li, 1e-6)) > M
                     and (lvl[i] is None or li < LVL * lvl[i] + thr)
-                    and not (consist and n_upd[i] >= Y and aval[i] is not None and aval[i] >= 0.1
-                             and accs[i] < RHO * aval[i])}
+                    and not (consist and inconsistent(i, accs[i], m_b))}
+            if DIAG and active and active in ls:                    # why does the active set (not) explain?
+                la = ls[active]
+                diag.append([t, phase, n_upd[active], round(math.log(max(l0, 1e-6) / max(la, 1e-6)), 3),
+                             None if lvl[active] is None else round(la / (LVL * lvl[active] + thr), 3),
+                             None if aval[active] is None else round(accs[active] - RHO * aval[active], 3),
+                             round(accs[active], 3), int(l0 > thr)])
             if mode == "oracle":
                 vote = active
             elif expl:
@@ -313,8 +329,7 @@ def stream(model_name, seed, variant, rule, mode):
                 if active == 0:                                     # does the current hypothesis fail clearly?
                     fails = l0 > thr
                 else:
-                    fails = (n_upd[active] >= Y and aval[active] is not None and aval[active] >= 0.1
-                             and accs[active] < RHO * aval[active])
+                    fails = inconsistent(active, accs[active], m_b)
                 if fails:                                           # ... and a stored one explains: switch now
                     c[:] = 0.0
                     c[vote] = 1.0
@@ -340,7 +355,7 @@ def stream(model_name, seed, variant, rule, mode):
                 else:
                     active = top
     return log, {"thr": round(thr, 4), "n_alloc": n_alloc, "n_fast": n_fast, "order": order, "choices": choices,
-                 "alive": alive}
+                 "alive": alive, **({"diag": diag} if DIAG else {})}
 
 
 def phase_stats(log, order, alive):
