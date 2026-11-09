@@ -175,8 +175,14 @@ def base_score(model, task):
     return round(evaluate_supervised(model, task, n_batches=2)["score"], 4)
 
 
+BASE_NETS = Path(__file__).resolve().parents[1] / "data" / "base_nets"   # pinned in git: same on every PC
+
+
 def start_net(model_name, base, seed):
     from .train import load_checkpoint, run
+    pinned = BASE_NETS / base / f"{model_name}_s{seed}.pt"
+    if pinned.exists():                           # base nets trained on the main PC (workers train slightly
+        return load_checkpoint(model_name, base, seed, pinned)   # different weights: CPU rounding)
     m = load_checkpoint(model_name, base, seed)
     if m is None:                                 # not trained yet here (e.g. fresh worker): train and save
         run(model_name, base, seed=seed)

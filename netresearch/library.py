@@ -97,6 +97,8 @@ PICK_A, PICK_M, PICK_H = 0.05, 0.15, 4 * Y                 # pickm: slow accurac
 A, H, PROBE_STEPS = 32, 0.2, 3
 RHO = 0.5
 Z_CONS = 1.0                                               # flag n: consistency slack in binomial sd
+DRIFT_FRAC, DRIFT_Z = 0.25, 3.0                            # flag d: fork if the level falls this far below its peak
+# (the larger of DRIFT_FRAC x peak and DRIFT_Z sd of the level EMA; that sd is 0.23 x the batch sd: EMA rate 0.1)
 DIAG = bool(os.environ.get("NETRESEARCH_LIB_DIAG"))         # log the explain criteria of the active set
 RULES = ["delta_head", "dfa", "pick", "pickm"]
 MODES = ["k2", "k3", "k6", "oracle", "k3c", "k6c", "k3cf", "k6cf", "k3cfn", "k6cfn"]   # + k3p / k6p (probe), any kN...
@@ -253,7 +255,7 @@ def stream(model_name, seed, variant, rule, mode, suite="six"):
     arng = np.random.default_rng(seed * 100 + variant + 99)       # anchors: own stream, base batches unchanged
     mk = re.fullmatch(r"k(\d+)([a-z]*)", mode)
     flags = mk.group(2) if mk else ""
-    probe, consist, fast, noisy = "p" in flags, "c" in flags, "f" in flags, "n" in flags
+    probe, consist, fast, noisy, fork = "p" in flags, "c" in flags, "f" in flags, "n" in flags, "d" in flags
     cap = int(mk.group(1)) if mk else len(S["tasks"])          # library capacity (mature sets); oracle: a slot per task
     K = cap + (mode != "oracle")                                # + 1 working buffer
     slots = [Slot(model, rule, seed * 100 + variant + 1000 * i) for i in range(K)]
@@ -282,8 +284,10 @@ def stream(model_name, seed, variant, rule, mode, suite="six"):
     c[0] = 1.0
     lvl = [None] * (K + 1)
     aval = [None] * (K + 1)                                     # accuracy level per set
+    peak = [None] * (K + 1)                                     # flag d: best level (and lvl, snapshot then)
     gen = [0] * (K + 1)                                         # allocation counter per slot (identity)
     active, n_upd, in_use, last_use, n_alloc, n_fast = 0, [0] * (K + 1), [False] * (K + 1), [0] * (K + 1), 0, 0
+    forks = []
     log, choices, alive, t, diag = [], [], [], 0, []
     for phase, n in plan:
         alive.append([j * 1000 + gen[j] for j in range(1, K + 1) if in_use[j]])   # slot identities at phase start
@@ -359,6 +363,33 @@ def stream(model_name, seed, variant, rule, mode, suite="six"):
                     lvl[active] = la if lvl[active] is None else 0.9 * lvl[active] + 0.1 * la
                     aa = accs[active]
                     aval[active] = aa if aval[active] is None else 0.9 * aval[active] + 0.1 * aa
+                if fork and n_upd[active] >= Y and aval[active] is not None:
+                    pk = peak[active]
+                    if pk is None or aval[active] > pk[0]:          # new best level: keep a snapshot of it
+                        peak[active] = (aval[active], lvl[active], slots[active - 1].snapshot())
+                    elif pk[0] >= 0.1 and aval[active] < pk[0] - max(DRIFT_FRAC * pk[0],
+                                                                     DRIFT_Z * 0.23 * math.sqrt(pk[0] * (1 - pk[0]) / m_b)):
+                        # drift: the set still explains and learns, but its level has fallen well below its best.
+                        # The drifting state moves on in another place; the old set goes back to its best state.
+                        free = [i for i in range(1, K + 1) if not in_use[i]]
+                        young = [i for i in range(1, K + 1) if in_use[i] and n_upd[i] < Y]
+                        k = free[0] if free else young[0]           # K = cap + 1: a non-mature place exists
+                        j = active
+                        slots[k - 1].restore(slots[j - 1].snapshot())
+                        in_use[k], gen[k], last_use[k] = True, gen[k] + 1, t
+                        n_upd[k], lvl[k], aval[k], peak[k] = n_upd[j], lvl[j], aval[j], None
+                        slots[j - 1].restore(pk[2])
+                        aval[j], lvl[j] = pk[0], pk[1]
+                        c[k], c[j] = c[j], 0.0
+                        forks.append([t, phase, j, k, round(pk[0], 3), round(aval[k], 3)])
+                        active = k
+                        mature = [i for i in range(1, K + 1) if in_use[i] and n_upd[i] >= Y]
+                        if len(mature) > cap:                       # consolidate: evict the LRU mature set
+                            e = min((i for i in mature if i not in (j, k)), key=lambda i: last_use[i])
+                            slots[e - 1].reset()
+                            in_use[e], n_upd[e], lvl[e], aval[e], peak[e] = False, 0, None, None, None
+                            c[0] += c[e]
+                            c[e] = 0.0
                 set_active(0)
                 sl = slots[active - 1]
                 undecided = sl.choice is None
@@ -372,7 +403,7 @@ def stream(model_name, seed, variant, rule, mode, suite="six"):
                 if mode != "oracle" and n_upd[active] == Y and len(mature) > cap:     # consolidate: evict LRU
                     j = min((j for j in mature if j != active), key=lambda i: last_use[i])
                     slots[j - 1].reset()
-                    in_use[j], n_upd[j], lvl[j], aval[j] = False, 0, None, None
+                    in_use[j], n_upd[j], lvl[j], aval[j], peak[j] = False, 0, None, None, None
                     c[0] += c[j]
                     c[j] = 0.0
             if mode == "oracle":
@@ -381,7 +412,7 @@ def stream(model_name, seed, variant, rule, mode, suite="six"):
                 if active == 0:                                     # does the current hypothesis fail clearly?
                     fails = l0 > thr
                 else:
-                    fails = inconsistent(active, accs[active], m_b)
+                    fails = active in accs and inconsistent(active, accs[active], m_b)   # (not measured: just forked)
                 if fails:                                           # ... and a stored one explains: switch now
                     c[:] = 0.0
                     c[vote] = 1.0
@@ -398,7 +429,7 @@ def stream(model_name, seed, variant, rule, mode, suite="six"):
                     j = free[0] if free else (young[0] if young else min(range(1, K + 1), key=lambda i: last_use[i]))
                     if in_use[j]:
                         slots[j - 1].reset()
-                    n_upd[j], lvl[j], aval[j] = 0, None, None
+                    n_upd[j], lvl[j], aval[j], peak[j] = 0, None, None, None
                     in_use[j], last_use[j] = True, t
                     gen[j] += 1
                     c[j], c[NEW] = c[j] + c[NEW], 0.0
@@ -406,7 +437,8 @@ def stream(model_name, seed, variant, rule, mode, suite="six"):
                     active = j
                 else:
                     active = top
-    return log, {"thr": round(thr, 4), "n_alloc": n_alloc, "n_fast": n_fast, "order": order, "plan": plan,
+    return log, {"thr": round(thr, 4), "n_alloc": n_alloc, "n_fast": n_fast, "n_fork": len(forks), "forks": forks,
+                 "order": order, "plan": plan,
                  "choices": choices,
                  "alive": alive, **({"diag": diag} if DIAG else {})}
 

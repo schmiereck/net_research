@@ -341,10 +341,10 @@ def save_checkpoint(model, model_name, task_name, seed, score):
     os.replace(tmp, p)
 
 
-def load_checkpoint(model_name, task_name, seed=0):
+def load_checkpoint(model_name, task_name, seed=0, path=None):
     """Rebuild a trained model from its checkpoint (None if it does not exist)."""
     from .models import MODELS
-    p = checkpoint_path(model_name, task_name, seed)
+    p = Path(path) if path is not None else checkpoint_path(model_name, task_name, seed)
     if not p.exists():
         return None
     ck = torch.load(p, map_location="cpu", weights_only=True)
