@@ -406,9 +406,66 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
     - Codex-Review: Die Zyklus-Trennung behandelt Perioden-Wiederholungen wie (0,2) und (0,2,0,2) als
       verschieden. Das betrifft auch die Basisaufgabe cycle und ist selten; es bleibt aus Gründen der
       Vergleichbarkeit so.
+- **Kontext aus Fehlervergleich statt Orakel, 2026-11-09** (netresearch/context.py, results/context.jsonl):
+  - Strom aus Batches zu 16 Beispielen, in Phasen: Basis 50 → neu 200 → Basis 50 → neu 50.
+    - Das Netz sagt jeden Batch erst voraus (Online-Genauigkeit) und sieht danach die Antworten.
+    - L0 = Fehler des eingefrorenen Netzes, L1 = Fehler mit schnellen Gewichten.
+    - r = die schnellen Gewichte sind klar besser (L1 < 0.67 L0); s = Überraschung, das Basisnetz ist
+      schlechter als auf der eigenen Aufgabe (über Mittel + 3 sd).
+    - Der Kontext c ist der gleitende Mittelwert von max(r, s). Er entscheidet hart, ob die schnellen Gewichte
+      beim nächsten Batch wirken (c > 0.5).
+  - Modi:
+    - err: lernt aus jedem Batch mit max(r, s) > 0.5.
+    - err_c: lernt nur, wenn zusätzlich der Kontext an ist.
+    - oracle: perfekter Kontext.
+    - always: kein Gate.
+  - Getestet mit layer_s, hier_s und layer_s_sp4, 3 Seeds × 2 Varianten, je Fall die besten Regeln aus dem
+    Inneren-Lauf. Online-Genauigkeit je Phase:
+
+  | Fall / Regel | Modus | Basis 1 | neu 2 (Ende) | Basis 3 | neu 4 |
+  |---|---|---|---|---|---|
+  | prev / dfa | always | 0.41 | 0.94 | 0.01 | 0.55 |
+  |  | err_c | 0.95 | 0.96 | 0.89 | 0.93 |
+  |  | oracle | 0.95 | 0.95 | 0.95 | 0.97 |
+  | prev / grad | always | 0.56 | 1.00 | 0.00 | 0.05 |
+  |  | err | 0.95 | 1.00 | 0.89 | 0.81 |
+  |  | err_c | 0.95 | 1.00 | 0.89 | 0.95 |
+  |  | oracle | 0.95 | 1.00 | 0.95 | 1.00 |
+  | xormask / delta_head | always | 0.94 | 0.94 | 0.75 | 0.78 |
+  |  | err_c | 0.95 | 0.94 | 0.89 | 0.90 |
+  |  | oracle | 0.95 | 0.94 | 0.95 | 0.94 |
+  | plus1 / delta_head | err_c | 0.95 | 0.61 | 0.89 | 0.63 |
+  |  | oracle | 0.95 | 0.61 | 0.95 | 0.65 |
+  | plus1 / grad | err_c | 0.95 | 0.55 | 0.89 | 0.54 |
+  |  | oracle | 0.95 | 0.58 | 0.95 | 0.59 |
+
+  - **Der Fehlervergleich ersetzt das Orakel fast verlustfrei.** Er kostet je Aufgabenwechsel 2–3
+    falsch gegatete Batches, im Mittel 2 beim Wechsel auf die neue Aufgabe und 3 zurück zur Basis.
+    - Beim zweiten Mal erkennen die schnellen Gewichte „ihre“ Aufgabe selbst (r), auch das in etwa 2 Batches.
+    - Danach liegen Basis und neue Aufgabe auf Orakel-Niveau.
+  - **Ohne Gate (always) zerstören DFA und grad die Basisaufgabe**, schon in der ersten Basis-Phase: Lernen
+    auf bereits Gekonntem senkt die Basis von 0.95 auf 0.41 (dfa) bzw. 0.56 (grad). Schnelle Gewichte müssen
+    also abgeschaltet sein, wenn sie nicht gebraucht werden; das betrifft auch ihr Lernen.
+    - Die Delta-Regel am Kopf ist robuster: Die Basis sinkt nach der Rückkehr nur auf 0.75 und erholt sich
+      in der Phase wieder auf 0.92.
+  - **Lernen nur bei eingeschaltetem Kontext (err_c) ist nötig.** Die Überraschung allein feuert auf etwa
+    2 von 50 Basis-Batches (schwere Batches, die Verlustverteilung hat einen langen Schwanz). In err trainiert
+    das die schnellen Gewichte auf Basisdaten und trägt mit Adam die neue Aufgabe ab (prev / grad, neu 4:
+    0.81 statt 0.95). Die Integration über mehrere Batches filtert solche Ausreißer.
+  - **Bezug zum Teacher:** Damit ist eine erste Telemetrie gefunden, nämlich die zwei Fehler L0 und L1 und
+    die Überraschung. Daraus entsteht ein Kontextsignal, das „wann wirken“ und „wann lernen“ steuert. Das
+    ist die einfachste Form des Port-Interfaces; ein gelernter Teacher könnte TAU, ALPHA und die Schwellen
+    ersetzen.
+  - Vorbehalte:
+    - Die Schwellen (M, TAU, ALPHA, mean + 3 sd) sind von Hand gesetzt und nicht abgestimmt. Die Smoke-Tests
+      liefen auf Seed 5, der im Lauf nicht vorkommt.
+    - Es gibt nur zwei Kontexte (Basis und ein Satz schneller Gewichte), und Aufgaben wechseln nur blockweise.
+      Batch-weise Wechsel oder mehrere neue Aufgaben sind nicht getestet.
+    - Codex-Review des Moduls: Zwei Fehler im ersten Lauf, beide behoben und neu gerechnet. DFA lief mit
+      η = 1 statt 3, und die Umschalt-Verzögerung wurde auf gerundeten c-Werten gemessen.
   - Nächste Fragen:
-    - Das Kontextsignal nicht als Orakel, sondern als Port: Woran erkennt ein Teacher eine neue Aufgabe ohne
-      neue Eingaben (Fehler-Telemetrie, Überraschung)?
+    - Mehrere Sätze schneller Gewichte, ausgewählt durch den Fehlervergleich (Vorstufe einer
+      Fähigkeiten-Bibliothek). Dazu ein Strom mit zwei oder drei neuen Aufgaben.
     - Wirkungsort und Regel gemischt (delta_head + dfa zusammen), gewichtet durch eine Modulation.
 
 **Phase C – T3 Freeze & Route als Lehrplan-Test**
