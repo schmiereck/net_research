@@ -702,6 +702,55 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
     - Kein Durchsickern der Antworten in die Vorhersage desselben Batches.
   - Nächste Frage: Warum bleiben die Kopier-Aufgaben in der Bibliothek 0.12 unter dem Orakel, obwohl die
     Auswahl zu 97 % stimmt und die Regelwahl jetzt meist richtig ist?
+- **Lücke bei den Kopier-Aufgaben, 2026-11-09** (library.py, Flag n, Modi k3cfn / k6cfn, results/library.jsonl):
+  - **Diagnose:**
+    - Beim ersten Besuch einer Kopier-Aufgabe wird der Satz im Mittel 0.8-mal neu begonnen, bei den anderen
+      Aufgaben fast nie.
+    - Die Neustarts kommen 35–97 Batches nach dem Anlegen, also kurz nach der Reife (30 Updates), bei einer
+      Trefferquote von ~0.12. 19 der 30 Neustarts betreffen hier_s.
+  - **Ursache** (Diagnose-Log NETRESEARCH_LIB_DIAG=1, Seeds 5 / 6):
+    - Der Konsistenztest verwirft den schwachen Kopier-Satz auf einzelnen verrauschten Batches, obwohl der
+      Satz den Fehler 6–8-fach senkt (log L0/L ≈ 2).
+    - Typischer Fall: 1 von 16 Beispielen richtig (0.06) gegen 0.5 × Niveau ≈ 0.08.
+    - Zwei solche Batches hintereinander legen einen neuen Satz an; der Lernfortschritt ist weg.
+    - Ein seltenerer zweiter Auslöser: Der Fehler liegt knapp über der Kompetenzgrenze (Faktor 1.0–1.35),
+      bei plus1 / minus1 (layer_s). Nicht behandelt.
+  - **Änderung (Flag n):** Inkonsistent ist ein Satz erst, wenn seine exakte Genauigkeit um mehr als eine
+    Binomial-Standardabweichung, sqrt(p (1 − p) / m), unter RHO × Niveau liegt.
+    - plus1 auf minus1 wird weiter verworfen: Schwelle 0.18, Genauigkeit ≈ 0.
+    - Z_CONS = 1 ist ohne Abstimmung gesetzt. Auf Seed 5 / 6 geprüft: Die Kopier-Aufgaben erreichen das
+      Orakel, plus1 / minus1 bleiben unverändert.
+  - Ergebnis auf den Test-Seeds 0–2 (zweiter Besuch, Lauf auf dem Worker-PC):
+
+  | Regel | Modus | 2. Besuch | erste 10 | Kopier-Aufgaben | plus1 / minus1 | XOR | Anlagen |
+  |---|---|---|---|---|---|---|---|
+  | delta_head | k6cf | 0.70 | 0.63 | 0.57 | 0.62 | 0.91 | 6.7 |
+  | delta_head | **k6cfn** | **0.70** | 0.64 | 0.58 | 0.62 | 0.91 | **6.1** |
+  | delta_head | oracle | 0.72 | 0.71 | 0.60 | 0.64 | 0.93 | – |
+  | pick | k6cf | 0.74 | 0.66 | 0.70 | 0.62 | 0.90 | 7.2 |
+  | pick | **k6cfn** | **0.76** | 0.69 | **0.76** | 0.62 | 0.91 | **6.2** |
+  | pick | oracle | 0.79 | 0.78 | 0.81 | 0.64 | 0.93 | – |
+  | pickm | k6cf | 0.75 | 0.67 | 0.71 | 0.62 | 0.91 | 7.1 |
+  | pickm | **k6cfn** | **0.77** | **0.70** | **0.80** | 0.62 | 0.91 | **6.1** |
+  | pickm | oracle | 0.80 | 0.78 | 0.83 | 0.64 | 0.93 | – |
+  | alle drei | k3cf → k3cfn | +0.01–0.02 | +0.02–0.03 | | | +0.02 | −1.1 |
+
+  - **Die Lücke bei den Kopier-Aufgaben schließt sich weitgehend:** pickm 0.71 → 0.80 (Orakel 0.83).
+  - Es werden praktisch nur noch so viele Sätze angelegt wie Aufgaben (6.1 für 6). Fehlanlagen gibt es also
+    kaum noch.
+  - plus1 / minus1 bleiben unverändert: Das Teilen bleibt verhindert.
+  - **Bester Modus: pickm / k6cfn, zweiter Besuch 0.77 gegen 0.80 beim Orakel.** Die Restlücke:
+    - erste 10 Batches 0.70 gegen 0.78 (~1 Batch Umschaltverzögerung bleibt)
+    - plus1 / minus1 0.62 gegen 0.64
+    - XOR 0.91 gegen 0.93
+  - **Lehre:** Tests auf Batch-Statistiken brauchen eine Rauschgrenze, die mit dem Niveau des Satzes
+    skaliert. Eine feste relative Schwelle verwirft genau die schwachen, langsam lernenden Sätze, die Schutz
+    am nötigsten haben.
+  - Codex-Review: Kern unverändert korrekt.
+    - Ohne Flag n sind beide Prädikate gleich wie vorher (245 Grenzfälle geprüft).
+    - m = mask.sum() ist der richtige Zähler.
+    - Gefunden und behoben: Das Diagnose-Log zeigte den Abstand ohne Rauschzuschlag; es loggt jetzt auch
+      das tatsächlich angewendete Testergebnis.
 
 **Phase C – T3 Freeze & Route als Lehrplan-Test**
 - Über die Sieb-Stufen (4c), mit individuellen Modulen oder einer Fähigkeiten-Bibliothek am Bus.

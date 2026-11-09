@@ -49,6 +49,12 @@ task, but the context EMA needs 2 batches to cross 0.5. If the active hypothesis
 above the surprise threshold; a mature set: exact match below RHO x its level) and the vote is another stored
 hypothesis (base or a mature set, consistent by the test above), the context switches at once. NEW (a new
 allocation) still needs the EMA, so a single false alarm cannot allocate.
+Noise-aware consistency (flag n, modes k3cfn / k6cfn): a set counts as inconsistent only if its exact match is
+below RHO x its level by more than Z_CONS binomial sd, sqrt(p (1 - p) / m) with m examples scored in the
+batch. Without it a weakly learned copy set (level ~0.15, 1 of 16 right = 0.06 < 0.08) failed on single
+noisy batches although it lowered the loss 6-8 fold; two such batches in a row allocated a new set and threw
+the progress away (0.8 restarts per copy task, mostly hier_s; diagnosed with NETRESEARCH_LIB_DIAG=1 on seeds
+5 / 6). plus1 on minus1 (level ~0.6, threshold 0.18, accuracy ~0) is still rejected.
 The probe restores F, the rule choice and its running scores; it is meant for the local rules of this module
 (delta_head, dfa, pick), whose updates have no optimizer state (grad / lora would keep Adam moments).
 Modes: K = 2, 3, 6 library places (+ 1 buffer); oracle (6 slots, slot = task, perfect context).
@@ -264,12 +270,14 @@ def stream(model_name, seed, variant, rule, mode):
             expl = {i: li for i, li in ls.items() if math.log(max(l0, 1e-6) / max(li, 1e-6)) > M
                     and (lvl[i] is None or li < LVL * lvl[i] + thr)
                     and not (consist and inconsistent(i, accs[i], m_b))}
-            if DIAG and active and active in ls:                    # why does the active set (not) explain?
+            if DIAG and active and active in ls:   # why (not) explained: [t, phase, n, log L0/L, L / level bound,
+                #   acc - RHO x level (without slack), acc, surprise, inconsistent (the test as applied)]
                 la = ls[active]
                 diag.append([t, phase, n_upd[active], round(math.log(max(l0, 1e-6) / max(la, 1e-6)), 3),
                              None if lvl[active] is None else round(la / (LVL * lvl[active] + thr), 3),
                              None if aval[active] is None else round(accs[active] - RHO * aval[active], 3),
-                             round(accs[active], 3), int(l0 > thr)])
+                             round(accs[active], 3), int(l0 > thr),
+                             int(consist and inconsistent(active, accs[active], m_b))])   # the actual test
             if mode == "oracle":
                 vote = active
             elif expl:
