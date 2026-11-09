@@ -329,8 +329,16 @@ def checkpoint_path(model_name, task_name, seed):
 def save_checkpoint(model, model_name, task_name, seed, score):
     p = checkpoint_path(model_name, task_name, seed)
     p.parent.mkdir(parents=True, exist_ok=True)
+    tmp = p.with_name(f"{p.name}.{os.getpid()}.tmp")   # atomic: parallel processes may train and load the
     torch.save({"model": model_name, "task": task_name, "seed": seed, "width": model.width_used,
-                "score": score, "state_dict": model.state_dict()}, p)
+                "score": score, "state_dict": model.state_dict()}, tmp)   # same base net (fresh worker)
+    for i in range(20):
+        try:
+            os.replace(tmp, p)
+            return
+        except PermissionError:                         # Windows: target open by a reader
+            time.sleep(0.5 * (i + 1))
+    os.replace(tmp, p)
 
 
 def load_checkpoint(model_name, task_name, seed=0):
