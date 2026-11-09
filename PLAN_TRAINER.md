@@ -672,14 +672,14 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
   | pick | k6c | 0.72 | 0.59 | 0.68 | 7.2 | – |
   | pick | **k6cf** | **0.74** | **0.66** | 0.70 | 7.2 | 6.8 |
   | pick | oracle | 0.79 | 0.78 | 0.81 | – | – |
-  | pickm* | k6c | 0.72 | 0.59 | 0.67 | 7.2 | – |
-  | pickm* | k6cf | 0.74 | 0.65 | 0.69 | 7.2 | 6.7 |
-  | pickm* | oracle | 0.81 | 0.79 | 0.85 | – | – |
-  | delta_head / pick / pickm* | k3c → k3cf | +0.01 | +0.03–0.04 | | unverändert | ~4 |
+  | pickm | k6c | 0.72 | 0.59 | 0.69 | 7.2 | – |
+  | pickm | **k6cf** | **0.75** | **0.67** | 0.71 | 7.1 | 6.8 |
+  | pickm | oracle | 0.80 | 0.78 | 0.83 | – | – |
+  | alle drei | k3c → k3cf | +0.01 | +0.03–0.04 | | unverändert | ~4 |
 
-  \* pickm-Zeilen auf den 6 Modell/Seed-Paaren, die in allen Modi vorliegen. Der Lauf wurde wegen
-  Speichermangel abgebrochen, 12 von 45 pickm-Jobs fehlen. Auf diesen Paaren liegen pick / k6cf bei 0.74
-  und pick / oracle bei 0.80.
+  Der Testlauf wurde auf dem Haupt-PC wegen Speichermangel abgebrochen. Die 12 fehlenden pickm-Jobs liefen
+  auf dem Worker-PC (jobs submit --module library). Einer brach dort zuerst ab, weil parallele Prozesse
+  denselben Basis-Checkpoint schrieben und lasen. Seither schreibt train.py Checkpoints atomar.
   - **Sofort-Umschalten wirkt wie geplant und kostet nichts:**
     - Erste 10 Batches +0.07 bei K = 6 in beiden Regeln, +0.03–0.04 bei K = 3.
     - Keine zusätzlichen Anlagen.
@@ -688,10 +688,11 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
     - Die Restlücke der ersten 10 Batches zum Orakel ist jetzt ~1 Batch Verzögerung plus der Lernrückstand
       der Sätze.
   - **pickm wählt die Regel richtiger, bringt in der Bibliothek aber wenig:**
-    - DFA-Wahl bei prev / prev2: 0.58 → 0.78 (k6c), Orakel 0.67 → 0.79.
-    - Im Orakel steigen die Kopier-Aufgaben von 0.81 auf 0.85.
-    - In der Bibliothek nur 0.68 → 0.69. Die verbleibende Lücke zum Orakel (0.69 gegen 0.85) liegt also
-      nicht mehr an der Regelwahl.
+    - DFA-Wahl bei prev / prev2: 0.58 → 0.77 (k6c), Orakel 0.67 → 0.75.
+    - Im Orakel steigen die Kopier-Aufgaben von 0.81 auf 0.83.
+    - In der Bibliothek von 0.68 auf 0.69 (k6c) bzw. 0.70 auf 0.71 (k6cf). Die verbleibende Lücke zum Orakel
+      (0.71 gegen 0.83) liegt also nicht mehr an der Regelwahl.
+    - Bester Modus insgesamt: pickm / k6cf, zweiter Besuch 0.75 gegen 0.80 beim Orakel.
     - Kandidat für die Ursache: Kopier-Sätze, die erst spät entscheiden, gehen unentschieden in die
       Verdrängung oder lernen weniger Batches. Das ist nicht geprüft.
   - Codex-Review: keine Fehler. Codex hat auch deterministisch geprüft (mit Attrappen statt echtem Training):
@@ -699,7 +700,7 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
     - Die Grenzfälle von pickm (Mindestalter, Marge, Horizont) verhalten sich wie vorgesehen.
     - Snapshot / Restore und Reset sichern bzw. setzen die neuen Werte.
     - Kein Durchsickern der Antworten in die Vorhersage desselben Batches.
-  - Nächste Frage: Warum bleiben die Kopier-Aufgaben in der Bibliothek 0.16 unter dem Orakel, obwohl die
+  - Nächste Frage: Warum bleiben die Kopier-Aufgaben in der Bibliothek 0.12 unter dem Orakel, obwohl die
     Auswahl zu 97 % stimmt und die Regelwahl jetzt meist richtig ist?
 
 **Phase C – T3 Freeze & Route als Lehrplan-Test**
