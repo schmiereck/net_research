@@ -632,6 +632,75 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
     - Regelwahl stabiler machen (DFA bei prev nur in 53–56 % gewählt), etwa nach Genauigkeit über mehr
       Updates oder mit einem gelernten Prior.
     - Schnellere Wiedererkennung beim zweiten Besuch (die ersten 10 Batches: 0.59 gegen 0.78 beim Orakel).
+- **Stabilere Regelwahl und schnellere Wiedererkennung, 2026-11-09** (library.py, Regel pickm, Modi
+  k3cf / k6cf, results/library.jsonl):
+  - **Diagnose Wiedererkennung** (gespeicherte k6c-Läufe):
+    - Die Abstimmung zeigt schon im ersten Batch einer zurückkehrenden Aufgabe zu 97–99 % auf den richtigen
+      Satz.
+    - Der Kontext (EMA, ALPHA 0.3) braucht aber genau 2 Batches, um 0.5 zu überschreiten; diese 2 Batches
+      liegen bei ~0.01.
+    - Ab Batch 3 liegt delta_head beim Orakel (0.70 gegen 0.71). Die ganze Lücke der ersten 10 Batches ist
+      Umschaltverzögerung.
+  - **Diagnose Regelwahl** (Seeds 5 / 6, beide Kandidaten 140 Updates auf jeder Aufgabe allein):
+    - Bei den Kopier-Aufgaben lernt DFA anfangs langsamer und schwankt stark; delta_head führt oft noch bei
+      Update 60.
+    - Am Ende ist DFA in 11 von 12 Kopier-Läufen klar besser. Die feste Entscheidung bei Update 60 trifft das
+      nur in 8 von 12.
+  - **Sofort-Umschalten (Flag f):** Der Kontext springt sofort, wenn zwei Bedingungen zusammen gelten:
+    - Die aktive Hypothese scheitert klar: bei der Basis Fehler über der Überraschungsschwelle, bei einem
+      fertigen Satz exakte Genauigkeit unter RHO × sein Niveau.
+    - Die Abstimmung zeigt auf eine andere gespeicherte Hypothese, also die Basis oder einen fertigen,
+      konsistenten Satz.
+    - Eine Neu-Anlage braucht weiter die EMA; ein einzelner Fehlalarm legt also nichts an.
+    - Die Antworten des aktuellen Batches wirken erst auf den nächsten Batch (von Codex geprüft).
+  - **Sequentielle Regelwahl (pickm):**
+    - Entschieden wird ab Update 60, aber erst, wenn ein Kandidat im langsamen Genauigkeitsmittel (EMA-Rate
+      0.05) um mehr als 0.15 führt; spätestens nach 120 Updates.
+    - Bis dahin sagt der Satz mit dem gerade besseren Kandidaten voraus.
+    - Die Schwellen wurden an den 36 Lernkurven von Seed 5 / 6 gewählt; dort ergab das 0 Fehlwahlen statt 3,
+      im Mittel bei Update ~66.
+  - **Abstimmung, Seeds 5 / 6:**
+    - Erste 10 Batches mit f: 0.56 → 0.63 (delta_head), 0.62 → 0.70 (pick).
+    - pickm wählt DFA für prev in 100 % statt 75 %.
+  - Ergebnis auf den Test-Seeds 0–2 (zweiter Besuch, Mittel über die Aufgaben):
+
+  | Regel | Modus | 2. Besuch | erste 10 | Kopier-Aufgaben | Anlagen | Sofort-Wechsel |
+  |---|---|---|---|---|---|---|
+  | delta_head | k6c | 0.68 | 0.56 | 0.55 | 6.7 | – |
+  | delta_head | **k6cf** | **0.70** | **0.63** | 0.57 | 6.7 | 6.9 |
+  | delta_head | oracle | 0.72 | 0.71 | 0.60 | – | – |
+  | pick | k6c | 0.72 | 0.59 | 0.68 | 7.2 | – |
+  | pick | **k6cf** | **0.74** | **0.66** | 0.70 | 7.2 | 6.8 |
+  | pick | oracle | 0.79 | 0.78 | 0.81 | – | – |
+  | pickm* | k6c | 0.72 | 0.59 | 0.67 | 7.2 | – |
+  | pickm* | k6cf | 0.74 | 0.65 | 0.69 | 7.2 | 6.7 |
+  | pickm* | oracle | 0.81 | 0.79 | 0.85 | – | – |
+  | delta_head / pick / pickm* | k3c → k3cf | +0.01 | +0.03–0.04 | | unverändert | ~4 |
+
+  \* pickm-Zeilen auf den 6 Modell/Seed-Paaren, die in allen Modi vorliegen. Der Lauf wurde wegen
+  Speichermangel abgebrochen, 12 von 45 pickm-Jobs fehlen. Auf diesen Paaren liegen pick / k6cf bei 0.74
+  und pick / oracle bei 0.80.
+  - **Sofort-Umschalten wirkt wie geplant und kostet nichts:**
+    - Erste 10 Batches +0.07 bei K = 6 in beiden Regeln, +0.03–0.04 bei K = 3.
+    - Keine zusätzlichen Anlagen.
+    - ~7 Sofort-Wechsel pro Lauf, das entspricht der Zahl der Aufgabenwechsel; Fehlwechsel innerhalb einer
+      Aufgabe sind also selten.
+    - Die Restlücke der ersten 10 Batches zum Orakel ist jetzt ~1 Batch Verzögerung plus der Lernrückstand
+      der Sätze.
+  - **pickm wählt die Regel richtiger, bringt in der Bibliothek aber wenig:**
+    - DFA-Wahl bei prev / prev2: 0.58 → 0.78 (k6c), Orakel 0.67 → 0.79.
+    - Im Orakel steigen die Kopier-Aufgaben von 0.81 auf 0.85.
+    - In der Bibliothek nur 0.68 → 0.69. Die verbleibende Lücke zum Orakel (0.69 gegen 0.85) liegt also
+      nicht mehr an der Regelwahl.
+    - Kandidat für die Ursache: Kopier-Sätze, die erst spät entscheiden, gehen unentschieden in die
+      Verdrängung oder lernen weniger Batches. Das ist nicht geprüft.
+  - Codex-Review: keine Fehler. Codex hat auch deterministisch geprüft (mit Attrappen statt echtem Training):
+    - Die alten Modi sind in 24 Kombinationen unverändert.
+    - Die Grenzfälle von pickm (Mindestalter, Marge, Horizont) verhalten sich wie vorgesehen.
+    - Snapshot / Restore und Reset sichern bzw. setzen die neuen Werte.
+    - Kein Durchsickern der Antworten in die Vorhersage desselben Batches.
+  - Nächste Frage: Warum bleiben die Kopier-Aufgaben in der Bibliothek 0.16 unter dem Orakel, obwohl die
+    Auswahl zu 97 % stimmt und die Regelwahl jetzt meist richtig ist?
 
 **Phase C – T3 Freeze & Route als Lehrplan-Test**
 - Über die Sieb-Stufen (4c), mit individuellen Modulen oder einer Fähigkeiten-Bibliothek am Bus.

@@ -39,6 +39,16 @@ Consistent sharing (modes k3c / k6c): a mature set explains a batch only if its 
 batch is at least RHO x its accuracy level (EMA on the batches it learned from; checked only if that level is
 >= 0.1). Exact match is sharp where the BCE loss is not: the plus1 set predicts +1 and is almost never exactly
 right on minus1, although most of the 8 output bits agree. No example memory needed.
+Stable rule choice (rule pickm): as pick, but the choice waits for a clear lead: after >= Y_PICK updates it
+keeps the candidate whose SLOW running accuracy (EMA rate PICK_A) leads by more than PICK_M, at the latest
+after PICK_H updates. On the copy tasks dfa learns slower at first and often overtakes delta_head only after
+60 updates (seeds 5 / 6, both candidates trained 140 updates: dfa is better at the end in 11 of 12 copy runs,
+the fixed decision at 60 picks it in 8). Until then the slot predicts with the currently better candidate.
+Fast re-recognition (flag f, modes k3cf / k6cf): the vote is already right on the first batch of a returning
+task, but the context EMA needs 2 batches to cross 0.5. If the active hypothesis FAILS clearly (base: loss
+above the surprise threshold; a mature set: exact match below RHO x its level) and the vote is another stored
+hypothesis (base or a mature set, consistent by the test above), the context switches at once. NEW (a new
+allocation) still needs the EMA, so a single false alarm cannot allocate.
 The probe restores F, the rule choice and its running scores; it is meant for the local rules of this module
 (delta_head, dfa, pick), whose updates have no optimizer state (grad / lora would keep Adam moments).
 Modes: K = 2, 3, 6 library places (+ 1 buffer); oracle (6 slots, slot = task, perfect context).
@@ -68,10 +78,11 @@ TASKS = {"xm0F": lambda w: w[:, 3] ^ 0x0F, "xmA5": lambda w: w[:, 3] ^ 0xA5, "pl
 ORDERS = [["xm0F", "prev", "plus1", "xmA5", "prev2", "minus1"], ["prev", "plus1", "xm0F", "minus1", "xmA5", "prev2"]]
 FIRST, SECOND, N_BASE = 100, 40, 30
 Y_PICK = 2 * Y
+PICK_A, PICK_M, PICK_H = 0.05, 0.15, 4 * Y                 # pickm: slow accuracy EMA, lead margin, horizon
 A, H, PROBE_STEPS = 32, 0.2, 3
 RHO = 0.5
-RULES = ["delta_head", "dfa", "pick"]
-MODES = ["k2", "k3", "k6", "oracle", "k3c", "k6c"]   # + k3p / k6p (probe)
+RULES = ["delta_head", "dfa", "pick", "pickm"]
+MODES = ["k2", "k3", "k6", "oracle", "k3c", "k6c", "k3cf", "k6cf"]   # + k3p / k6p (probe)
 
 
 def phases(order):
@@ -89,7 +100,8 @@ class Slot:
     """One library entry: one set of fast weights, or for rule 'pick' two candidates (delta_head, dfa)."""
 
     def __init__(self, model, rule, seed):
-        names = ["delta_head", "dfa"] if rule == "pick" else [rule]
+        names = ["delta_head", "dfa"] if rule.startswith("pick") else [rule]
+        self.margin = rule == "pickm"
         self.members = []
         for i, r in enumerate(names):
             fw = Fast(model, r + "@task", default_eta(r + "@task"), seed + 17 * i)
@@ -106,6 +118,7 @@ class Slot:
                     fw.opt = torch.optim.Adam(list(fw.F.values()), lr=fw.eta)
         self.choice = None if len(self.members) > 1 else 0
         self.ema = [None] * len(self.members)                    # running (accuracy, -loss) per candidate
+        self.slow = [None] * len(self.members)                   # pickm: slow running accuracy per candidate
         self.anchors, self.n_seen = [], 0
 
     def add_anchors(self, b, rng):
@@ -125,10 +138,10 @@ class Slot:
 
     def snapshot(self):
         return ([{n: f.clone() for n, f in fw.F.items()} for fw in self.members], self.choice,
-                list(self.ema))
+                list(self.ema), list(self.slow))
 
     def restore(self, snap):
-        Fs, self.choice, self.ema = snap
+        Fs, self.choice, self.ema, self.slow = snap
         with torch.no_grad():
             for fw, F0 in zip(self.members, Fs):
                 for n, f in fw.F.items():
@@ -158,9 +171,17 @@ class Slot:
                 li, ai = _loss_acc(fw.model, b, spec)
             e = self.ema[i]
             self.ema[i] = (ai, -li) if e is None else (0.8 * e[0] + 0.2 * ai, 0.8 * e[1] - 0.2 * li)
+            s = self.slow[i]
+            self.slow[i] = ai if s is None else (1 - PICK_A) * s + PICK_A * ai
             fw.step(b)
-        if n_upd + 1 >= Y_PICK:                                  # decide: keep the better rule
+        n = n_upd + 1
+        if self.margin:                                          # sequential: decide on a clear lead only
+            lead = self.slow[1] - self.slow[0]
+            if n >= Y_PICK and (abs(lead) > PICK_M or n >= PICK_H):
+                self.choice = int(lead > 0)
+        elif n >= Y_PICK:                                        # decide: keep the better rule
             self.choice = self.cur()
+        if self.choice is not None:
             with torch.no_grad():
                 for i, fw in enumerate(self.members):
                     if i != self.choice:
@@ -179,8 +200,9 @@ def stream(model_name, seed, variant, rule, mode):
     used = {t: 0 for t in order}
     rng = np.random.default_rng(seed * 100 + variant + 7)
     arng = np.random.default_rng(seed * 100 + variant + 99)       # anchors: own stream, base batches unchanged
-    probe, consist = mode.endswith("p"), mode.endswith("c")
-    cap = {"k2": 2, "k3": 3, "k3p": 3, "k3c": 3}.get(mode, 6)                     # library capacity (mature sets)
+    flags = mode[2:] if mode.startswith("k") else ""
+    probe, consist, fast = "p" in flags, "c" in flags, "f" in flags
+    cap = int(mode[1]) if mode.startswith("k") else 6         # library capacity (mature sets)
     K = cap + (mode != "oracle")                                # + 1 working buffer
     slots = [Slot(model, rule, seed * 100 + variant + 1000 * i) for i in range(K)]
 
@@ -202,7 +224,7 @@ def stream(model_name, seed, variant, rule, mode):
     lvl = [None] * (K + 1)
     aval = [None] * (K + 1)                                     # accuracy level per set
     gen = [0] * (K + 1)                                         # allocation counter per slot (identity)
-    active, n_upd, in_use, last_use, n_alloc = 0, [0] * (K + 1), [False] * (K + 1), [0] * (K + 1), 0
+    active, n_upd, in_use, last_use, n_alloc, n_fast = 0, [0] * (K + 1), [False] * (K + 1), [0] * (K + 1), 0, 0
     log, choices, alive, t = [], [], [], 0
     for phase, n in phases(order):
         alive.append([j * 1000 + gen[j] for j in range(1, K + 1) if in_use[j]])   # slot identities at phase start
@@ -287,6 +309,18 @@ def stream(model_name, seed, variant, rule, mode):
                     c[j] = 0.0
             if mode == "oracle":
                 continue
+            if fast and vote != active and vote != NEW and (vote == 0 or n_upd[vote] >= Y):
+                if active == 0:                                     # does the current hypothesis fail clearly?
+                    fails = l0 > thr
+                else:
+                    fails = (n_upd[active] >= Y and aval[active] is not None and aval[active] >= 0.1
+                             and accs[active] < RHO * aval[active])
+                if fails:                                           # ... and a stored one explains: switch now
+                    c[:] = 0.0
+                    c[vote] = 1.0
+                    n_fast += 1
+                    active = vote
+                    continue
             c = (1 - ALPHA) * c
             c[vote] += ALPHA
             top = int(np.argmax(c))
@@ -305,7 +339,8 @@ def stream(model_name, seed, variant, rule, mode):
                     active = j
                 else:
                     active = top
-    return log, {"thr": round(thr, 4), "n_alloc": n_alloc, "order": order, "choices": choices, "alive": alive}
+    return log, {"thr": round(thr, 4), "n_alloc": n_alloc, "n_fast": n_fast, "order": order, "choices": choices,
+                 "alive": alive}
 
 
 def phase_stats(log, order, alive):
@@ -386,9 +421,10 @@ def summary(path):
             for p in x["phases"]:
                 rows.append({"rule": r["rule"], "mode": r["mode"], "task": p["phase"], "visit": p["visit"],
                              "acc": p["acc"], "first10": p["acc_first10"], "end": p["acc_last10"],
-                             "sel": p["sel"], "hit": p["hit"], "alloc": x["n_alloc"]})
+                             "sel": p["sel"], "hit": p["hit"], "alloc": x["n_alloc"],
+                             "fast": x.get("n_fast", 0)})
             for ph, cc in x.get("choices", []):
-                ch.append({"mode": r["mode"], "task": ph, "dfa": float(cc == "dfa")})
+                ch.append({"rule": r["rule"], "mode": r["mode"], "task": ph, "dfa": float(cc == "dfa")})
     d = pd.DataFrame(rows)
     with pd.option_context("display.max_rows", 500, "display.width", 250, "display.max_columns", 50):
         print(d.groupby(["rule", "mode", "visit"]).mean(numeric_only=True).round(2).to_string())
@@ -396,7 +432,7 @@ def summary(path):
         print(d[d.visit == 2].pivot_table(index=["rule", "mode"], columns="task", values="acc").round(2).to_string())
         if ch:
             print("\npick: share of slots that chose dfa, by the task they were allocated for")
-            print(pd.DataFrame(ch).pivot_table(index="mode", columns="task", values="dfa").round(2).to_string())
+            print(pd.DataFrame(ch).pivot_table(index=["rule", "mode"], columns="task", values="dfa").round(2).to_string())
 
 
 def main():
