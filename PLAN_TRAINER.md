@@ -797,6 +797,55 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
       Schnappschuss als eigener Satz eingefroren, und das Lernen geht in einer Kopie weiter.
     - Messlatte: plus1 beim Wiederkommen (0.34 → Orakel 0.61), ohne Verlust im Übergang.
 
+- **Abspalten bei Drift, 2026-11-09** (library.py, Flag e, Modi k6cfne / k12cfne, results/library.jsonl mit
+  nets = pinned):
+  - **Mechanismus:** Ein fertiger Satz merkt sich sein bestes Genauigkeitsniveau und einen Schnappschuss davon.
+    - Fällt das laufende Niveau unter Bestwert − max(0.4 × Bestwert, 3 sd der Niveau-EMA), wird
+      abgespalten: Der aktuelle Stand lernt in einem freien oder jungen Platz weiter, der alte Satz geht
+      auf seinen Schnappschuss zurück.
+    - Die alte Fähigkeit behält damit ihre Identität.
+    - Der Schnappschuss stammt immer vom besten Zustand, eine strengere Schwelle verzögert also nur.
+  - **Abstimmung** (Seeds 5 / 6): Schwelle 0.25 (Flag d) gegen 0.4 (Flag e).
+    - Beide retten plus1 im Drift.
+    - 0.25 spaltet in Kaskaden (2.9 je Lauf) und kostet bei twelve 0.02.
+    - 0.4 spaltet 1.7-mal und kostet nichts.
+  - **Basis-Netze jetzt im Repository** (data/base_nets/numseq): Worker und Haupt-PC starten aus identischen
+    Gewichten. Datensätze tragen nets = pinned; alle Vergleiche dieses Abschnitts nur unter pinned.
+  - **Codex-Review fand fünf Fehler im Abspalten und einen in der Auswertung, alle behoben:**
+    - Die Kopie übernahm bei DFA nicht die zufälligen Rückkopplungsmatrizen und deren Generator, lernte also
+      mit einer anderen Regel weiter. Jetzt lernt sie für alle drei Regeln bitgenau wie das Original; selbst
+      geprüft.
+    - Veraltete Messwerte des Vorbesitzers des Platzes konnten sofort zurückschalten.
+    - Die Kontext-Gutschrift ging an den alten Satz.
+    - Mit Kapazität 1 stürzte es ab.
+    - Schnappschüsse waren nachträglich veränderbar.
+    - Die Auswertung mischte pinned und eigene Netze.
+    - Die Läufe mit dem Fehler wurden verworfen und neu gerechnet.
+  - Ergebnis auf den Test-Seeds 0–2 (zweiter Besuch, 18 Läufe je Zeile):
+
+  | Suite | Regel | ohne Abspalten | mit Abspalten (e) | Orakel | Abspaltungen je Lauf |
+  |---|---|---|---|---|---|
+  | drift, plus1 beim Wiederkommen | pickm | 0.34 | **0.62** | 0.61 | 1.4 |
+  | drift, plus1 beim Wiederkommen | delta_head | 0.32 | **0.62** | 0.61 | 1.6 |
+  | drift, zweiter Besuch gesamt | pickm | 0.65 | **0.72** | 0.73 | |
+  | drift, im Übergang | pickm | 0.37 | 0.37 | 0.33 | |
+  | six | pickm | 0.77 | 0.77 | | 0.0 |
+  | twelve, 12 Plätze | pickm | 0.68 | 0.68 | 0.72 | 0.9 |
+  | twelve, 12 Plätze | delta_head | 0.62 | 0.62 | 0.65 | 2.4 |
+
+  - **Das Abspalten löst den Drift vollständig:**
+    - plus1 kommt auf Orakel-Niveau zurück.
+    - Der zweite Besuch insgesamt liegt 0.01 unter dem Orakel.
+    - Im Übergang bleibt die Bibliothek so gut wie vorher, also besser als das Orakel, das je Batch hart
+      wechselt.
+  - Ohne Drift (six) wird nie abgespalten.
+  - Bei twelve spaltet es gelegentlich, ohne Schaden. Etwa die Hälfte schützt einen fremden Satz, der von
+    einer verwandten Aufgabe mitbenutzt wird (plus2 / minus2, prev2 / prev3). Der Rest trifft vor allem diff,
+    das niemand lernt und dessen Niveau nur schwankt (delta_head 23 von 43 Abspaltungen).
+  - **Lehre:** Gegen schleichende Veränderung hilft kein Test auf den einzelnen Batch, sondern nur ein
+    Gedächtnis für den eigenen besten Zustand. Abgespalten wird erst, wenn der Satz sich messbar
+    verschlechtert, nicht schon, wenn er sich verändert.
+
 **Phase C – T3 Freeze & Route als Lehrplan-Test**
 - Über die Sieb-Stufen (4c), mit individuellen Modulen oder einer Fähigkeiten-Bibliothek am Bus.
 
