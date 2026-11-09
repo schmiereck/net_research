@@ -97,7 +97,7 @@ PICK_A, PICK_M, PICK_H = 0.05, 0.15, 4 * Y                 # pickm: slow accurac
 A, H, PROBE_STEPS = 32, 0.2, 3
 RHO = 0.5
 Z_CONS = 1.0                                               # flag n: consistency slack in binomial sd
-DRIFT_FRAC, DRIFT_Z = 0.25, 3.0                            # flag d: fork if the level falls this far below its peak
+DRIFT_FRAC, DRIFT_FRAC_STRICT, DRIFT_Z = 0.25, 0.4, 3.0                            # flag d: fork if the level falls this far below its peak
 # (the larger of DRIFT_FRAC x peak and DRIFT_Z sd of the level EMA; that sd is 0.23 x the batch sd: EMA rate 0.1)
 DIAG = bool(os.environ.get("NETRESEARCH_LIB_DIAG"))         # log the explain criteria of the active set
 RULES = ["delta_head", "dfa", "pick", "pickm"]
@@ -255,7 +255,9 @@ def stream(model_name, seed, variant, rule, mode, suite="six"):
     arng = np.random.default_rng(seed * 100 + variant + 99)       # anchors: own stream, base batches unchanged
     mk = re.fullmatch(r"k(\d+)([a-z]*)", mode)
     flags = mk.group(2) if mk else ""
-    probe, consist, fast, noisy, fork = "p" in flags, "c" in flags, "f" in flags, "n" in flags, "d" in flags
+    probe, consist, fast, noisy = "p" in flags, "c" in flags, "f" in flags, "n" in flags
+    fork = "d" in flags or "e" in flags
+    drift_frac = DRIFT_FRAC_STRICT if "e" in flags else DRIFT_FRAC          # e: stricter fork threshold
     cap = int(mk.group(1)) if mk else len(S["tasks"])          # library capacity (mature sets); oracle: a slot per task
     K = cap + (mode != "oracle")                                # + 1 working buffer
     slots = [Slot(model, rule, seed * 100 + variant + 1000 * i) for i in range(K)]
@@ -367,7 +369,7 @@ def stream(model_name, seed, variant, rule, mode, suite="six"):
                     pk = peak[active]
                     if pk is None or aval[active] > pk[0]:          # new best level: keep a snapshot of it
                         peak[active] = (aval[active], lvl[active], slots[active - 1].snapshot())
-                    elif pk[0] >= 0.1 and aval[active] < pk[0] - max(DRIFT_FRAC * pk[0],
+                    elif pk[0] >= 0.1 and aval[active] < pk[0] - max(drift_frac * pk[0],
                                                                      DRIFT_Z * 0.23 * math.sqrt(pk[0] * (1 - pk[0]) / m_b)):
                         # drift: the set still explains and learns, but its level has fallen well below its best.
                         # The drifting state moves on in another place; the old set goes back to its best state.
