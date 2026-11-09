@@ -3,6 +3,7 @@
     python -m netresearch.fastweights sweep  [--models layer_s] [--seed 0]        # step sizes per rule
     python -m netresearch.fastweights run    --models layer_s hier_s ... [--seeds 0 1 2] [--workers 5]
     python -m netresearch.fastweights gates  --models layer_s hier_s [--cases all] [--seeds 0 1 2]   # context gates
+    python -m netresearch.fastweights inner  --models layer_s hier_s [--cases ...] [--seeds 0 1 2]  # gated inner fast weights
     python -m netresearch.fastweights summary [--file results/fastweights.jsonl]
 
 Question: does a fast weight layer alone give k-shot learning without forgetting? The slow weights W (the
@@ -38,6 +39,16 @@ Rules (the update signal each one needs is what a teacher would have to provide 
     The rule cases (adapt.py: double, trib, countbig) score on UNSEEN test sequences, so a gate must
     generalise. double / trib have the same input form as their base numseq (only the rule is new), so an
     input gate can hardly separate them; countbig has larger steps than count.
+    Gated fast weights inside the net (rule names "<rule>@<gate>", e.g. grad@lda): every forward first
+    runs the frozen net to get the head input and the gate g per example, then all fast contributions
+    (fc1, fc2, head) are scaled by g. The local rules weight their updates by g as well.
+    gate "task" (oracle): g = 1 on data of the new task, 0 on the base task. Stands for a perfect context
+                signal (later: from the teacher's telemetry). Needed where the new task has the SAME inputs as
+                the base task (xormask, prev, plus1, cycle2): an input gate cannot separate those.
+    grad        F on fc1, fc2 and head trained by Adam with the gradient through the frozen net (the "how"
+                with full credit assignment; upper bound for the local rules on the same fast weights).
+    Middle cases (adapt.py: xormask, prev, plus1, cycle2) are learnable in 200 updates by Adam but need
+    generalisation to unseen sequences.
     adam        reference: full Adam fine-tuning lr 1e-3 (= phase A "adam", run again with the same seeds)
 """
 import argparse
@@ -58,26 +69,44 @@ from .adapt import CASES, SPEC, STEPS, base_score, score_on, start_net
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "results" / "fastweights.jsonl"
 SWEEP = {"lora": [1e-3, 1e-2, 3e-2, 1e-1], "delta_head": [0.1, 0.3, 1.0, 3.0], "dfa": [0.03, 0.1, 0.3, 1.0],
-         "np3": [0.1, 0.3, 1.0, 3.0], "delta_gated": [1.0, 3.0], "adam": [1e-3]}
-DEFAULT = {"lora": 3e-2, "delta_head": 3.0, "dfa": 1.0, "np3": 0.1, "delta_gated": 3.0, "delta_novel": 3.0,
-           "delta_lda": 3.0, "adam": 1e-3}
+         "np3": [0.1, 0.3, 1.0, 3.0], "delta_gated": [1.0, 3.0], "adam": [1e-3], "grad": [1e-3, 3e-3, 1e-2]}
+DEFAULT = {"lora": 3e-2, "delta_head": 3.0, "dfa": 1.0, "dfa@task": 3.0, "np3": 0.1, "delta_gated": 3.0, "delta_novel": 3.0,
+           "delta_lda": 3.0, "adam": 1e-3, "grad": 3e-3}
 RANK, SIGMA, BETA = 4, 0.1, 50.0
 REF_B = 6                     # eta refers to a batch of 6 examples (fixcycle); bigger batches are averaged
-GATED = ("delta_gated", "delta_novel", "delta_lda")
+GATED = {"delta_gated": "knn", "delta_novel": "novel", "delta_lda": "lda"}   # old names = delta_head@gate
 GATE_RULES = ["adam", "delta_head", *GATED]
 GATE_KS = [8, 64, 512]
+MID_CASES = ["xormask", "prev", "plus1", "cycle2"]
+INNER_RULES = ["adam", "grad", "grad@task", "dfa@task", "delta_head@task", "grad@lda"]
+INNER_KS = [64, 512]
+
+
+def split_rule(rule):
+    """'grad@lda' -> ('grad', 'lda'); old names delta_gated / delta_novel / delta_lda -> delta_head + gate."""
+    if rule in GATED:
+        return "delta_head", GATED[rule]
+    base, _, gate = rule.partition("@")
+    return base, gate or None
+
+
+def default_eta(rule):
+    return DEFAULT.get(rule, DEFAULT[split_rule(rule)[0]])
 
 
 class Fast:
-    """Fast weights attached by forward hooks to the head (nn.Linear) and the shared fc1 / fc2 (CellLinear)."""
+    """Fast weights attached by forward hooks to the head (nn.Linear) and the shared fc1 / fc2 (CellLinear).
+    With a gate, every forward first runs the frozen net once (fast weights off) to get the head input h,
+    the gate g(h) in [0, 1] per example, and then runs again with all fast contributions scaled by g."""
 
     def __init__(self, model, rule, eta, seed):
         from .models.grid import CellLinear
         self.model, self.rule, self.eta = model, rule, eta
+        self.base, self.gate_kind = split_rule(rule)
         for p in model.parameters():
             p.requires_grad_(False)
         self.mods = {"head": model.head}
-        if rule not in ("delta_head", *GATED):
+        if self.base != "delta_head":
             for n in ("fc1", "fc2"):
                 m = getattr(model, n, None)
                 if isinstance(m, CellLinear) and m.shared:
@@ -86,30 +115,49 @@ class Fast:
         self.F, self.uv, self.B = {}, {}, {}
         for n, m in self.mods.items():
             n_in, n_out = (m.in_features, m.out_features) if isinstance(m, nn.Linear) else m.w.shape
-            if rule == "lora":
+            if self.base == "lora":
                 u = (torch.randn(n_in, RANK, generator=g) / math.sqrt(n_in)).requires_grad_()
                 self.uv[n] = (u, torch.zeros(RANK, n_out, requires_grad=True))
             else:
-                self.F[n] = torch.zeros(n_in, n_out)
+                self.F[n] = torch.zeros(n_in, n_out, requires_grad=self.base == "grad")
             m.register_forward_hook(self._hook(n))
-        self.opt = torch.optim.Adam([p for uv in self.uv.values() for p in uv], lr=eta) if rule == "lora" else None
+        params = [p for uv in self.uv.values() for p in uv] + (list(self.F.values()) if self.base == "grad" else [])
+        self.opt = torch.optim.Adam(params, lr=eta) if params else None
         self.gen = g
-        self.gate = []
-        self.rec, self.noise, self.keys, self.cap = None, None, None, None
+        self.rec, self.noise, self.cap = None, None, None
+        self.off, self.fitted, self.gv = False, False, None
+        self.task_on = 0.0                                  # gate "task": set by curve() per data source
+        if self.gate_kind and self.gate_kind != "task":
+            orig = model.forward
+
+            def forward(x, state):
+                if self.off or not self.fitted:
+                    return orig(x, state)
+                with torch.no_grad():                       # pre-pass: frozen net -> head input -> gate
+                    self.off, self.cap = True, []
+                    orig(x, state)
+                    h, self.cap, self.off = self.cap[-1], None, False
+                    self.gv = self.g(h)
+                return orig(x, state)
+            model.forward = forward
 
     def _hook(self, n):
         def hook(mod, inp, out):
             x = inp[0]
-            if self.rule == "lora":
+            if n == "head" and self.cap is not None:
+                self.cap.append(x.detach())
+            if self.off:
+                return out
+            if self.base == "lora":
                 u, v = self.uv[n]
-                out = out + (x @ u) @ v
-            elif self.rule in GATED:
-                if self.cap is not None:
-                    self.cap.append(x.detach())
-                if self.keys is not None:                   # gate fitted (fit_gate)
-                    out = out + self.g(x)[:, None] * (x @ self.F[n])
+                add = (x @ u) @ v
             else:
-                out = out + x @ self.F[n]
+                add = x @ self.F[n]
+            if self.gate_kind == "task":
+                add = add * self.task_on
+            elif self.gate_kind and self.fitted:
+                add = add * self.gv.view(-1, *([1] * (add.dim() - 1)))
+            out = out + add
             if self.noise is not None and n in ("head", "fc2"):
                 xi = torch.randn(out.shape, generator=self.gen) * SIGMA
                 self.noise.append((n, x, xi))
@@ -122,11 +170,12 @@ class Fast:
     # --------------------------------------------------------------------------------------------- gates
     @torch.no_grad()
     def head_inputs(self, obs):
+        """Head inputs of the FROZEN net (fast weights off)."""
         from .train import run_sequence
-        self.cap = []
+        self.cap, self.off = [], True
         for i in range(0, obs.shape[1], 512):
             run_sequence(self.model, obs[:, i:i + 512])
-        x, self.cap = torch.cat(self.cap), None
+        x, self.cap, self.off = torch.cat(self.cap), None, False
         return x
 
     @torch.no_grad()
@@ -140,12 +189,13 @@ class Fast:
         c = torch.cov(base.T)
         c += (0.1 * c.diagonal().mean()) * torch.eye(c.shape[0])        # shrinkage
         self.P, self.mu0 = torch.linalg.inv(c), mu0
-        if self.rule == "delta_novel":
+        if self.gate_kind == "novel":
             self.d99 = torch.quantile(self._maha(base), 0.99)
-        elif self.rule == "delta_lda":
+        elif self.gate_kind == "lda":
             self.w = self.P @ (new.mean(0) - mu0)
             s0, s1 = float((base @ self.w).mean()), float((new @ self.w).mean())
             self.c, self.tau = (s0 + s1) / 2, max(abs(s1 - s0) / 8, 1e-6) * (1 if s1 >= s0 else -1)
+        self.fitted = True
         return base
 
     def _maha(self, x):
@@ -153,9 +203,9 @@ class Fast:
         return ((d @ self.P) * d).sum(-1).sqrt()
 
     def g(self, x):
-        if self.rule == "delta_gated":
+        if self.gate_kind == "knn":
             return torch.exp(-BETA * (1 - F.normalize(x, dim=-1) @ self.keys.T)).max(-1).values
-        if self.rule == "delta_novel":
+        if self.gate_kind == "novel":
             return torch.sigmoid((self._maha(x) - self.d99) / (0.05 * self.d99))
         return torch.sigmoid((x @ self.w - self.c) / self.tau)
 
@@ -175,7 +225,7 @@ class Fast:
         self.F[n] -= self.eta * (x2.T @ d2) / x2.pow(2).sum(1).mean() / max(1.0, x.shape[0] / REF_B)
 
     def step(self, b):
-        if self.rule == "lora":
+        if self.opt is not None:                            # lora, grad: the gradient through the frozen net
             from .train import run_sequence, supervised_loss
             logits, _ = run_sequence(self.model, b["obs"])
             loss = supervised_loss(SPEC, logits, b["target"], b["mask"])
@@ -184,24 +234,27 @@ class Fast:
             self.opt.step()
             return
         with torch.no_grad():
-            if self.rule == "np3":
+            if self.base == "np3":
                 self._np3(b)
                 return
             self.rec = []
             _, e = self._err(b)
             rec, self.rec = self.rec, None
+            gv = self.gv if (self.gate_kind and self.gate_kind != "task" and self.fitted) else None
             for n, x, out in rec:
-                if n == "head":
-                    self._apply(n, x, e)
+                if n == "head":                             # d(out)/dF carries the gate factor too
+                    self._apply(n, x, e if gv is None else e * gv[:, None])
                     continue
                 key = (n, x.shape[1], out.shape[-1])
-                if key not in self.B:                       # fixed random feedback, one per cell
+                if key not in self.B:                       # fixed random feedback, one per column
                     self.B[key] = torch.randn(e.shape[-1], x.shape[1] * out.shape[-1], generator=self.gen) \
                         / math.sqrt(e.shape[-1])
                 d = (e @ self.B[key]).view(x.shape[0], x.shape[1], -1)
                 if n == "fc1":                              # gelu'(z), z = pre-activation
                     s = torch.sigmoid(1.702 * out)
                     d = d * s * (1 + 1.702 * out * (1 - s))
+                if gv is not None:
+                    d = d * gv[:, None, None]
                 self._apply(n, x, d / sum(r[0] == n for r in rec))   # average over the rows calling it
 
     def _np3(self, b):
@@ -234,7 +287,7 @@ def curve(model_name, seed, variant, rule, eta, case="fixcycle", k=6):
         return (*adapt_curve(model, b, tb, task, eta, False, seed + variant), None)
     fw = Fast(model, rule, eta, seed * 100 + variant)
     info = None
-    if rule in GATED:
+    if fw.gate_kind and fw.gate_kind != "task":
         base = fw.fit_gate(b, task, seed * 100 + variant + 1)
         with torch.no_grad():
             info = {"gate_base": round(float(fw.g(base).mean()), 4),
@@ -243,9 +296,12 @@ def curve(model_name, seed, variant, rule, eta, case="fixcycle", k=6):
     cur, ret = [], []
     for s in range(STEPS[-1] + 1):
         if s in STEPS:
+            fw.task_on = 1.0
             cur.append([s, score_on(model, tb)])
+            fw.task_on = 0.0
             ret.append([s, base_score(model, task)])
         if s < STEPS[-1]:
+            fw.task_on = 1.0
             fw.step(b)
     return cur, ret, info
 
@@ -322,7 +378,7 @@ def summary(path):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("cmd", choices=["sweep", "run", "gates", "summary"])
+    ap.add_argument("cmd", choices=["sweep", "run", "gates", "inner", "summary"])
     ap.add_argument("--cases", nargs="+", default=["all"])
     ap.add_argument("--models", nargs="+", default=["layer_s"])
     ap.add_argument("--rules", nargs="+", default=list(DEFAULT))
@@ -346,6 +402,12 @@ def main():
             jobs += [(m, s, r, DEFAULT[r], list(range(n_var)), c, k)
                      for s in a.seeds for m in a.models for r in rules for k in ks]
         execute(jobs, a.workers, a.out if a.out != str(OUT) else str(ROOT / "results" / "fastgate.jsonl"))
+    elif a.cmd == "inner":
+        cases = MID_CASES if a.cases == ["all"] else a.cases
+        rules = INNER_RULES if a.rules == list(DEFAULT) else a.rules
+        jobs = [(m, s, r, default_eta(r), [0, 1], c, k)
+                for s in a.seeds for c in cases for k in INNER_KS for m in a.models for r in rules]
+        execute(jobs, a.workers, a.out if a.out != str(OUT) else str(ROOT / "results" / "fastinner.jsonl"))
     else:
         execute([(m, s, r, DEFAULT[r], [0, 1, 2, 3]) for s in a.seeds for m in a.models for r in a.rules],
                 a.workers, a.out)

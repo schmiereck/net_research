@@ -349,10 +349,67 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
     Adam auf dem ganzen Netz erreicht nur 0.35–0.37 (double, k = 512).
     - Bei countbig verschlechtert die ungegatete Delta-Regel den Ausgangswert (k = 8, layer_s: 0.16 → 0.10). Mit Gate bleibt er
       erhalten.
+- **Gegatete schnelle Gewichte im Inneren, mittlere Fälle, 2026-11-09** (results/fastinner.jsonl):
+  - Neue Fälle (adapt.py), Eingaben = eigene Folgen der Basisaufgabe, nur die verlangte Ausgabe ändert sich,
+    bewertet auf ungesehenen Folgen:
+    - xormask: nächste Zahl XOR Maske.
+    - prev: die letzte sichtbare Zahl kopieren.
+    - plus1: nächste Zahl + 1.
+    - cycle2: das übernächste Wort im Zyklus.
+  - Schnelle Gewichte auf fc1, fc2 und Kopf, Regeln:
+    - grad: Gradient durch das eingefrorene Netz (Obergrenze).
+    - dfa: lokal, feste Zufalls-Rückkopplung.
+    - delta_head: nur Kopf.
+  - **Eingabe-Gates versagen hier**, weil neue und alte Aufgabe dieselben Eingaben haben:
+    - grad@lda: Gate auf der Basis 0.15–0.33, auf den neuen Testfolgen 0.18–0.56.
+    - Folge: Vergessen 0.2–0.5 und gebremstes Lernen.
+    - Das „Wann“ muss hier von außen kommen, als Aufgaben- oder Kontextsignal, später als Telemetrie oder
+      Modulation des Teachers.
+    - Getestet ist deshalb das Orakel-Gate `@task`: g = 1 auf Daten der neuen Aufgabe, 0 auf der Basis.
+  - Werte nach 200 Updates, 3 Modelle (layer_s, hier_s, layer_s_sp4) × 3 Seeds × 2 Varianten:
+
+  | Fall | k | Adam (vergisst) | grad@task | dfa@task | delta_head@task |
+  |---|---|---|---|---|---|
+  | xormask | 64 | 0.05–0.06 (0.84–0.96) | 0.04 | 0.01 | **0.67–0.87** |
+  | xormask | 512 | 0.30–0.49 (0.87–0.99) | 0.27–0.38 | 0.03–0.06 | **0.83–0.97** |
+  | prev | 64 | 0.61–0.97 (0.86–0.99) | 0.69–0.96 | 0.53–0.84 | 0.09–0.13 |
+  | prev | 512 | 1.00 (0.87–0.99) | 1.00 | **0.95–0.99** | 0.53–0.78 |
+  | plus1 | 64 | 0.21–0.35 (0.80–0.87) | 0.13–0.19 | 0.01 | **0.34–0.41** |
+  | plus1 | 512 | 0.55–0.84 (0.85–0.98) | 0.47–0.75 | 0.03–0.04 | 0.55–0.66 |
+  | cycle2 | 64 / 512 | 0.07–0.15 | 0.06–0.12 | ≤ 0.06 | ≤ 0.07 |
+
+  - **Mit Orakel-Gate ist das Vergessen bei allen Regeln exakt 0.00.** Das ist trivial, weil die schnellen
+    Gewichte auf der Basis abgeschaltet sind; die Frage ist nur noch, wie gut gelernt wird.
+  - **Gelernt wird mit gegateten schnellen Gewichten genauso gut wie mit Adam auf dem ganzen Netz.**
+    grad@task erreicht fast Adams Werte (plus1 k = 512: 0.47–0.75 gegen 0.55–0.84), ohne zu vergessen.
+  - **Welche lokale Regel passt, hängt davon ab, wo die Änderung sitzt:**
+    - Ausgangs-Änderungen (xormask): delta_head ist mit Abstand am besten, besser als Adam und grad.
+    - Innere Änderung (prev): DFA lernt sie lokal, ohne Backprop, fast so gut wie grad (k = 512: 0.95–0.99).
+      Der Kopf allein erreicht nur 0.53–0.78.
+    - plus1: delta_head ist bei k = 64 besser als Adam und grad, bei k = 512 etwas schwächer als Adam.
+      DFA steigt bei plus1 kurz an (hier_s k = 512: 0.24 nach 5 Updates) und bricht dann ein; η = 3 ist für
+      diesen Fall zu groß.
+    - cycle2 lernt keine Methode (Leiter-Stufe über den mittleren Fällen).
+  - **Folgerung:** Ein Teacher muss zwei Dinge liefern:
+    - das „Wann“ als Kontextsignal, wenn sich die Eingaben nicht unterscheiden;
+    - die Wahl des Wirkungsorts und der Regel (Kopf / Delta oder Inneres / DFA). Das ist ein natürlicher
+      Kandidat für Modulation durch den Teacher.
+  - **Vorbehalte:**
+    - Die Schrittweiten sind auf Seed 5 abgestimmt (plus1 k = 512, prev k = 64). DFA bei plus1 ist dabei nicht
+      eigens abgestimmt.
+    - Codex-Review: Die numseq-Trennung lief im Lauf über die Generator-Parameter. Identische sichtbare
+      Eingaben (arithmetisch und fibonacci-artig zugleich, a = k, etwa 1/256 der arithmetischen Folgen)
+      konnten deshalb auf beiden Seiten liegen.
+      - Danach behoben: Die Trennung läuft jetzt über die sichtbare Eingabe.
+      - Zwei Kontroll-Läufe mit der neuen Trennung (layer_s, Seed 0, k = 512) liegen im Rauschen der alten
+        Werte: plus1 grad@task 0.71 statt 0.69, xormask delta_head@task 0.97 statt 0.98.
+    - Codex-Review: Die Zyklus-Trennung behandelt Perioden-Wiederholungen wie (0,2) und (0,2,0,2) als
+      verschieden. Das betrifft auch die Basisaufgabe cycle und ist selten; es bleibt aus Gründen der
+      Vergleichbarkeit so.
   - Nächste Fragen:
-    - Schnelle Gewichte im Inneren (fc1 / fc2), gegatet, mit einer Regel, die tiefer als der Kopf lernt.
-    - Ein Fall mittlerer Schwierigkeit, den Adam in 200 Updates lernt, der aber Generalisierung braucht
-      (zwischen fixcycle und den Rechenregeln).
+    - Das Kontextsignal nicht als Orakel, sondern als Port: Woran erkennt ein Teacher eine neue Aufgabe ohne
+      neue Eingaben (Fehler-Telemetrie, Überraschung)?
+    - Wirkungsort und Regel gemischt (delta_head + dfa zusammen), gewichtet durch eine Modulation.
 
 **Phase C – T3 Freeze & Route als Lehrplan-Test**
 - Über die Sieb-Stufen (4c), mit individuellen Modulen oder einer Fähigkeiten-Bibliothek am Bus.

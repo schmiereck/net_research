@@ -15,6 +15,12 @@ Cases (each: base task the start net knows -> new variant):
                sequences; scored on unseen sequences of the same rule (has the RULE been learned?).
     trib       base numseq. New rule v[n+1] = v[n] + v[n-1] + v[n-2] (mod 256); as above.
     countbig   base count.  Steps 16..31 (training had 1..15); as above.
+Middle cases (candidates for "learnable in 200 updates, but needs generalisation"); the inputs are the
+base task's own sequences, only the asked output changes; scored on unseen sequences:
+    xormask    base numseq. Output = next number XOR a fixed mask (variant 0: 0x0F, 1: 0xA5).
+    prev       base numseq. Output = the last visible number (copy instead of predict).
+    plus1      base numseq. Output = next number + 1 (mod 256, carries).
+    cycle2     base cycle.  Output = the word after the next one (2P..15 rows visible).
 
 Methods (all Adam, full batch on the k examples):
     adam      fine-tuning of the start net, lr 1e-3
@@ -38,7 +44,7 @@ import numpy as np
 import torch
 
 from .spec import TaskSpec
-from .tasks.patterns import WORD, _split_of, draw_rows, gen_row_cycle, to_bits
+from .tasks.patterns import WORD, _split_of, draw_rows, gen_row_cycle, sample_row_cycles, to_bits
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "results" / "adapt.jsonl"
@@ -103,12 +109,53 @@ def case_rule(rule, variant, k):
     return make(k, "train"), make(N_TEST, "test")
 
 
+def _numseq_words(n, rng, split):
+    """Base numseq sequences (arithmetic step 1..63 or fibonacci-like), split by the visible prefix (first 3 numbers),
+    so identical inputs never fall on both sides. (A prefix that is both arithmetic and fibonacci-like, a = k,
+    keeps two different 4th values; about 1/256 of the arithmetic sequences.)"""
+    out = []
+    while len(out) < n:
+        a, b, k = (int(x) for x in rng.integers(0, 256, size=3))
+        k = 1 + k % 63
+        if rng.random() < 0.5:
+            seq = [a, b]
+            while len(seq) < 4:
+                seq.append((seq[-1] + seq[-2]) % 256)
+        else:
+            seq = [(a + k * j) % 256 for j in range(4)]
+        if _split_of(("mid", *seq[:3])) == split:
+            out.append(seq)
+    return np.array(out)
+
+
+MASKS = [0x0F, 0xA5]
+
+
+def case_mid(name, variant, k):
+    rng = np.random.default_rng(zlib.crc32(name.encode()) + 7919 * variant)
+
+    def make(n, split):
+        if name == "cycle2":
+            words, P = sample_row_cycles(n, 17, rng, split)
+            nv = np.array([rng.integers(min(2 * p, 15), 16) for p in P])
+            return _batch(words, nv, words[np.arange(n), nv + 1])
+        w = _numseq_words(n, rng, split)
+        tgt = {"xormask": w[:, 3] ^ MASKS[variant % 2], "prev": w[:, 2], "plus1": (w[:, 3] + 1) % 256}[name]
+        return _batch(w, np.full(n, 3), tgt)
+    return make(k, "train"), make(N_TEST, "test")
+
+
 CASES = {
     "fixcycle": ("cycle", lambda v, k: case_fixcycle(v, k), [6], 4),       # base, maker, ks, n variants
     "double": ("numseq", lambda v, k: case_rule("double", v, k), KS, 2),
     "trib": ("numseq", lambda v, k: case_rule("trib", v, k), KS, 2),
     "countbig": ("count", lambda v, k: case_rule("countbig", v, k), KS, 2),
+    "xormask": ("numseq", lambda v, k: case_mid("xormask", v, k), KS, 2),
+    "prev": ("numseq", lambda v, k: case_mid("prev", v, k), KS, 2),
+    "plus1": ("numseq", lambda v, k: case_mid("plus1", v, k), KS, 2),
+    "cycle2": ("cycle", lambda v, k: case_mid("cycle2", v, k), KS, 2),
 }
+PHASE_A = ["fixcycle", "double", "trib", "countbig"]          # "--cases all" of the phase A run
 
 
 # ------------------------------------------------------------------------------------------ measuring
@@ -253,7 +300,7 @@ def main():
     if a.cmd == "summary":
         summary(a.file)
     else:
-        run(a.models, list(CASES) if a.cases == ["all"] else a.cases, a.seeds, a.workers, a.out)
+        run(a.models, PHASE_A if a.cases == ["all"] else a.cases, a.seeds, a.workers, a.out)
 
 
 if __name__ == "__main__":

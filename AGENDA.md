@@ -57,8 +57,10 @@ Status: offen · läuft · erledigt.
 | P1 | Anpassungs-Benchmark (Phase A) | erledigt 2026-11-09 | fixcycle: von null an schneller als vortrainiert; Adam vergisst 0.5–0.9, Replay 0.1. Neue Rechenregeln lernt keine Methode (Leiter-Ende). Details PLAN_TRAINER Phase A |
 | P2 | Feste Regeln T1, T2 auf schnellen Gewichten (Phase B, erster Teil) | erledigt 2026-11-09 | kein k-shot (≤ 0.13 nach 5 Updates); Delta-Regel am Kopf schneller als Adam; Vergessen hängt am Wirkungsbereich: mit Ähnlichkeits-Gate 0.00 (PLAN_TRAINER Phase B) |
 | P2 | Gelerntes Kontext-Gate für schnelle Gewichte (novel / lda) | erledigt 2026-11-09 | Vergessen überall nahe 0, Gates generalisieren auf neue Test-Eingaben (kNN nicht); die Rechenregeln lernt der Kopf allein nicht (PLAN_TRAINER Phase B) |
-| P2 | Gegatete schnelle Gewichte im Inneren (fc1 / fc2) + Adaptionsfall mittlerer Schwierigkeit | als Nächstes | das „Wie“: tiefer lernen als der Kopf, ohne Backprop durchs ganze Netz |
-| P2 | Port-Interface (Telemetrie / Modulation / Freeze) | offen | Gate-Wert und Fehler als erste Telemetrie |
+| P2 | Gegatete schnelle Gewichte im Inneren (fc1 / fc2) + Adaptionsfall mittlerer Schwierigkeit | erledigt 2026-11-09 | Mittlere Fälle xormask / prev / plus1 / cycle2. Eingabe-Gates versagen bei gleichen Eingaben, mit Orakel-Kontext Vergessen 0. Regel hängt am Wirkungsort: Delta am Kopf für Ausgangs-Änderungen, DFA im Inneren lernt prev ohne Backprop (PLAN_TRAINER Phase B) |
+| P2 | Port-Interface (Telemetrie / Modulation / Freeze) | als Nächstes | Kontextsignal ohne neue Eingaben (Fehler / Überraschung) statt Orakel-Gate; Modulation wählt Wirkungsort und Regel |
+| P2 | Gemischte Regel: delta_head + dfa gemeinsam, gewichtet | offen | DFA-Schrittweite für plus1 abstimmen (bricht bei η = 3 ein) |
+| P3 | Zyklus-Trennung kanonisch (minimale Periode) | offen, bekannt | (0,2) und (0,2,0,2) liegen getrennt; selten, betrifft auch die Basisaufgabe cycle; Änderung bricht Vergleichbarkeit |
 | P2 | T3 Freeze & Route als Lehrplan-Test über die Sieb-Stufen (Phase C) | offen | braucht individuelle Module oder Fähigkeiten-Bibliothek |
 | P3 | Gelernter Teacher per ES (Phasen D–F) | offen | |
 | P3 | T4 State-Critic: Langeweile, Lernfortschritt, Gefahr, Muster (Phase G) | offen | setzt RL-Schleife voraus |
