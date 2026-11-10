@@ -1008,6 +1008,37 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
       Kompetenz-Boden 0.1 liegt, wird seine Kovarianz zurueckgesetzt (0.91 / 0.94). An einem Test-Seed
       gefunden; die Seeds 1 / 2 und 5 / 6 zeigen dasselbe Niveau wie Seed 0.
 
+- **Ziel-Eingang (Kommando-Port), 2026-11-10** (models/__init__.py attach_cmd, Modellnamen `<netz>+cmd`;
+  tasks/robot.py robot_find; results/robot.jsonl, scripts/robot_find_eval.py -> results/robot_find_eval.jsonl):
+  - **Anlass:** Ein anderes Ziel bei gleichem Bild lernt keine Kopf-Regel (gruen / blau 0.01). Das Ziel muss
+    als Eingang ins Netz, nicht als neue Gewichte.
+  - **Port:** Kommando-Vektor mit 16 Werten neben dem Bild; wirkt als gelerntes additives Muster auf das Bild
+    (ein Wert je Farbkanal und Spalte, 816 Parameter), also ab der ersten Schicht und fuer jede Architektur
+    gleich. Die Aufgabe malt nichts ins Bild. Ohne Kommando unveraendertes Verhalten.
+  - **robot_find:** Bild mit allen drei Wuerfeln, Kommando = Farbe des gesuchten Wuerfels (RGB als stetige
+    Adresse, keine Klassennummer), Ausgabe = Blickverschiebung zu diesem Wuerfel.
+  - Ergebnis (Seeds 0-2, 6000 Updates, Test-Szenen):
+
+  | Netz | gesamt | rot | gruen | blau | innerhalb +-1 (rot / gruen / blau) | falsches Kommando |
+  |---|---|---|---|---|---|---|
+  | cnn+cmd | 0.72 | 0.94 | 0.66 | 0.57 | 0.97 / 0.90 / 0.87 | 0.00 |
+  | layer_s_sp4+cmd | 0.54 | 0.89 | 0.40 | 0.34 | 0.96 / 0.76 / 0.71 | 0.00 |
+  | vit+cmd | 0.54 | 0.84 | 0.40 | 0.39 | 0.91 / 0.73 / 0.71 | 0.00 |
+  | layer_s+cmd | 0.52 | 0.90 | 0.39 | 0.29 | 0.96 / 0.76 / 0.67 | 0.00 |
+  | hier_s+cmd | 0.41 | 0.80 | 0.29 | 0.17 | 0.91 / 0.68 / 0.55 | 0.00 |
+  | layer_s / cnn ohne Port | 0.04 / 0.05 | 0.08 / 0.06 | 0.03 / 0.05 | 0.03 / 0.04 | 0.18 / 0.15 | |
+
+    - Der Port traegt: Alle Netze folgen dem Kommando (mit dem Kommando eines anderen Wuerfels wird der rote
+      nie mehr getroffen). Ohne Port bleibt die Aufgabe ungeloest.
+    - Rot ist leichter als gruen / blau. Das liegt sehr wahrscheinlich an den Daten, nicht an der Farbe: Der
+      rote Wuerfel liegt im Export gleichverteilt ueber die Zellen, die anderen liegen, wo sie eben liegen,
+      also oefter in der gestauchten Peripherie. Nicht getrennt geprueft.
+    - cnn ist hier klar das beste Netz; die Gitter-Netze liegen bei 0.5.
+  - **Die Adresse verallgemeinert nicht auf neue Objekte:** Mit der Farbe des L oder des U als Kommando (nie
+    trainiert) trifft kein Netz (0.00-0.02 exakt, 0.01-0.10 innerhalb +-1). Mit nur drei Trainingsfarben ist
+    das Kommando faktisch eine Klassennummer. Fuer eine stetige Adresse braucht das Training viele Farben
+    (Farben je Szene wuerfeln); dann ist "neue Farbe" eine Interpolation.
+
 **Phase C – T3 Freeze & Route als Lehrplan-Test**
 - Über die Sieb-Stufen (4c), mit individuellen Modulen oder einer Fähigkeiten-Bibliothek am Bus.
 

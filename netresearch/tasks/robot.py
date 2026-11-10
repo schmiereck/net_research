@@ -46,6 +46,46 @@ class _Robot(SupervisedTask):
                 "mask": np.ones((1, batch), np.float32)}
 
 
+class RobotFind(SupervisedTask):
+    """Look at the object the COMMAND names. Images with all three cubes in view (gazemulti); the command is
+    the colour of the wanted cube as a vector (its RGB in the first 3 of N_CMD values, a continuous address,
+    not a class id); output = the gaze shift (dx, dy) that centres that cube. Without the command the task is
+    ambiguous (three possible answers). held_out(k) gives the same for the L and the U (colours never
+    commanded in training): does the address generalise to a new object?"""
+    CUBES = 3
+
+    def __init__(self):
+        self.spec = TaskSpec("robot_find", "robot", "supervised", "bits", 8, seq_len=1, chance=0.0,
+                             description="robot fovea image + command (colour of the wanted cube) -> gaze shift "
+                                         "(dx, dy) that centres it")
+        self._data = {}
+
+    def _load(self, split):
+        if split not in self._data:
+            self._data[split] = dict(np.load(DATA / f"gazemulti_{split}.npz"))
+        return self._data[split]
+
+    def _batch(self, d, i, k):
+        from ..models import N_CMD
+        c = d["cells"][i].astype(np.int64)
+        cmd = np.zeros((len(i), N_CMD), np.float32)
+        cmd[:, :3] = d["colors"][k]
+        r = np.arange(len(i))
+        return {"obs": (d["obs"][i].astype(np.float32) / 255.0)[None], "cmd": cmd[None],
+                "target": command_bits(c[r, 2 * k], c[r, 2 * k + 1])[None],
+                "mask": np.ones((1, len(i)), np.float32)}
+
+    def sample(self, batch, rng, split="train"):
+        d = self._load(split)
+        return self._batch(d, rng.integers(0, len(d["obs"]), size=batch), rng.integers(0, self.CUBES, size=batch))
+
+    def held_out(self, k, split="test"):
+        """All examples of the split in which object k (3 = L, 4 = U; 0..2 = the cubes) is in view."""
+        d = self._load(split)
+        i = np.flatnonzero(d["cells"][:, 2 * k] > -128)
+        return self._batch(d, i, np.full(len(i), k))
+
+
 class RobotGaze(_Robot):
     kind, text = "gaze", "robot fovea image -> gaze shift (dx, dy) in cells that centres the red cube"
 

@@ -69,6 +69,10 @@ def models_for(task_name, group, multi):
     ck = "multi" if multi else task_name
     names = list(MODELS) if GROUPS[group] is None else GROUPS[group]
     have = [m for m in names if checkpoint_path(m, ck, 0).exists()]
+    if GROUPS[group] is None:                            # also variants by name suffix (+cmd, @size)
+        d = checkpoint_path("x", ck, 0).parent
+        have += sorted(p.name[:-len("_s0.pt")] for p in d.glob("*_s0.pt")
+                       if ("+" in p.name or "@" in p.name))
     missing = [] if GROUPS[group] is None else [m for m in names if m not in have]
     return have, missing
 
@@ -274,9 +278,13 @@ class SupervisedPanel(Panel):
             self.state = self.model.init_state(1)
 
     @torch.no_grad()
-    def step(self, obs, target, counted):
+    def step(self, obs, target, counted, cmd=None):
         spec = self.task.spec
+        if cmd is not None and hasattr(self.model, "cmd_in"):       # command port (models.attach_cmd)
+            self.model.cmd = torch.from_numpy(cmd[None])
         logits, self.state = self.model(torch.from_numpy(obs[None]), self.state)
+        if hasattr(self.model, "cmd_in"):
+            self.model.cmd = None
         lg = logits[0, spec.out_slice]
         if spec.head == "class":
             pred, tgt = int(lg.argmax()), int(target)
@@ -288,6 +296,13 @@ class SupervisedPanel(Panel):
             ptxt = "".join("#" if b else "." for b in pb)
             ttxt = "".join("#" if b else "." for b in target)
         trail = None
+        if spec.group == "robot" and spec.name != "robot_reach":    # gaze shift as a line from the centre
+            def steps(bits):
+                v = [int("".join(str(int(x)) for x in bits[i:i + 4]), 2) for i in (0, 4)]
+                return [x - 16 if x > 7 else x for x in v]
+            pc, tc = steps(pb), steps(target)
+            trail = [(7.5, 7.5), (7.5 + pc[0], 7.5 + pc[1])]
+            ptxt, ttxt = f"({pc[0]:+d}, {pc[1]:+d})", f"({tc[0]:+d}, {tc[1]:+d})"
         if spec.name == "servo":                 # show the commanded step as a line from the pointer
             def steps(bits):
                 v = [int("".join(str(int(x)) for x in bits[i:i + 4]), 2) for i in (0, 4)]
@@ -300,6 +315,8 @@ class SupervisedPanel(Panel):
             self.total += 1
         acc = f"{self.correct / self.total:5.1%} ({self.total})" if self.total else "   –"
         mark = "" if counted else "  (Warm-up)"
+        if cmd is not None:                      # robot_find: the command is the colour of the wanted object
+            ttxt += "  Kmd " + " ".join(f"{v:.1f}" for v in cmd[:3]) + ("" if hasattr(self.model, "cmd_in") else " (ohne Eingang)")
         self.show(obs, f"Ziel   : {ttxt}{mark}\nVorhers: {ptxt}\nGenauig: {acc}",
                   (GOOD if ok else BAD) if counted else MUTED, trail=trail)
 
@@ -417,8 +434,9 @@ class App:
         obs = self.seq["obs"][self.t, 0]
         target = self.seq["target"][self.t, 0]
         counted = self.seq["mask"][self.t, 0] > 0
+        cmd = self.seq["cmd"][self.t, 0] if "cmd" in self.seq else None
         for p in self.panels:
-            p.step(obs, target, counted)
+            p.step(obs, target, counted, cmd)
         self.t += 1
 
     def toggle(self):

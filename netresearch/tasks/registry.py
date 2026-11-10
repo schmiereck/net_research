@@ -10,7 +10,7 @@ from .games.racer import Racer
 from .images import Digits, Shapes
 from .memory import CrossMem, Delay, Recall
 from .patterns import BitSeq, Count, Cycle, CycleMem, NumSeq
-from .robot import RobotGaze, RobotReach
+from .robot import RobotFind, RobotGaze, RobotReach
 from .servo import Servo
 from .text import CharNext
 
@@ -35,6 +35,7 @@ TASKS = {
     "servo": Servo,
     "robot_gaze": RobotGaze,
     "robot_reach": RobotReach,
+    "robot_find": RobotFind,
     "shapes": Shapes,
     "digits": Digits,
     "charnext": CharNext,

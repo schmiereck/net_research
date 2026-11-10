@@ -28,21 +28,32 @@ def reset_state(state, keep):
     return tuple(s * keep.view(-1, *([1] * (s.dim() - 1))) for s in state)
 
 
-def run_sequence(model, obs, state=None, resets=None):
-    """obs [T,B,3,16,16] -> logits [T,B,64]. resets [T,B] (1 = new episode at t) for stateful models."""
+def run_sequence(model, obs, state=None, resets=None, cmd=None):
+    """obs [T,B,3,16,16] -> logits [T,B,64]. resets [T,B] (1 = new episode at t) for stateful models.
+    cmd [T,B,N_CMD]: command vectors for models with a command port (models.attach_cmd); others ignore it."""
     T, B = obs.shape[:2]
-    if not model.stateful:
-        out, _ = model(obs.reshape(T * B, *obs.shape[2:]), ())
-        return out.view(T, B, -1), ()
-    if state is None:
-        state = model.init_state(B)
-    outs = []
-    for t in range(T):
-        if resets is not None:
-            state = reset_state(state, 1.0 - resets[t])
-        o, state = model(obs[t], state)
-        outs.append(o)
-    return torch.stack(outs), state
+    if cmd is None or not hasattr(model, "cmd_in"):
+        cmd = None
+    try:
+        if not model.stateful:
+            if cmd is not None:
+                model.cmd = cmd.reshape(T * B, -1)
+            out, _ = model(obs.reshape(T * B, *obs.shape[2:]), ())
+            return out.view(T, B, -1), ()
+        if state is None:
+            state = model.init_state(B)
+        outs = []
+        for t in range(T):
+            if resets is not None:
+                state = reset_state(state, 1.0 - resets[t])
+            if cmd is not None:
+                model.cmd = cmd[t]
+            o, state = model(obs[t], state)
+            outs.append(o)
+        return torch.stack(outs), state
+    finally:
+        if cmd is not None:
+            model.cmd = None
 
 
 def make_opt(model, updates, lr):
@@ -97,7 +108,7 @@ def evaluate_supervised(model, task, n_batches=None):
     model.eval()
     correct = total = loss_sum = bit_correct = 0.0
     for b in eval_set(task)[:n_batches]:
-        logits, _ = run_sequence(model, b["obs"].float())
+        logits, _ = run_sequence(model, b["obs"].float(), cmd=b.get("cmd"))
         lg, m = logits[..., spec.out_slice], b["mask"]
         loss_sum += supervised_loss(spec, logits, b["target"], m).item() * m.sum().item()
         if spec.head == "class":
@@ -135,7 +146,7 @@ class SupervisedLearner:
         return to_t(self.task.sample(self.batch, self.probe_rng))
 
     def loss_on(self, model, b):
-        logits, _ = run_sequence(model, b["obs"])
+        logits, _ = run_sequence(model, b["obs"], cmd=b.get("cmd"))
         return supervised_loss(self.spec, logits, b["target"], b["mask"])
 
     def log(self):
@@ -345,12 +356,12 @@ def save_checkpoint(model, model_name, task_name, seed, score):
 
 def load_checkpoint(model_name, task_name, seed=0, path=None):
     """Rebuild a trained model from its checkpoint (None if it does not exist)."""
-    from .models import MODELS
+    from .models import construct
     p = Path(path) if path is not None else checkpoint_path(model_name, task_name, seed)
     if not p.exists():
         return None
     ck = torch.load(p, map_location="cpu", weights_only=True)
-    model = MODELS[model_name.partition("@")[0]][0](width=ck["width"])
+    model = construct(model_name, ck["width"])
     model.load_state_dict(ck["state_dict"])
     model.width_used, model.score = ck["width"], ck["score"]
     return model.eval()

@@ -121,18 +121,51 @@ def matched_width(name, target_params=100_000):
     return w * mult
 
 
+N_CMD = 16                              # command port: a vector the task may give in addition to the image
+
+
 def split_size(name):
     """'layer_s@25k' -> ('layer_s', 25000): a size suffix sets the target parameter count (default 100k), so
-    differently sized nets are different model names everywhere (results, checkpoints)."""
+    differently sized nets are different model names everywhere (results, checkpoints). A '+cmd' suffix of the
+    base name (command port, see attach_cmd) is removed here; has_cmd(name) tells whether it was there."""
     base, _, size = name.partition("@")
-    return base, (int(float(size.rstrip("k")) * 1000) if size else None)
+    return base.replace("+cmd", ""), (int(float(size.rstrip("k")) * 1000) if size else None)
+
+
+def has_cmd(name):
+    return "+cmd" in name
+
+
+def attach_cmd(model):
+    """Command port ("<model>+cmd"): a command vector c [B, N_CMD] (model.cmd, set by train.run_sequence from the
+    batch entry "cmd") enters as a learned additive pattern on the image, one value per colour channel and column
+    (broadcast over the rows; 816 parameters). So the command is a separate input, not drawn into the image by
+    the task, and reaches the net at its first layer for every architecture alike. Without a command the model
+    behaves as before."""
+    import torch.nn as nn
+    model.cmd_in = nn.Linear(N_CMD, 3 * 16)
+    model.cmd = None
+
+    def pre(mod, args):
+        if mod.cmd is None:
+            return None
+        x = args[0]
+        return (x + mod.cmd_in(mod.cmd).view(x.shape[0], 3, 1, 16),) + tuple(args[1:])
+    model.register_forward_pre_hook(pre)
+    return model
+
+
+def construct(name, width):
+    model = MODELS[split_size(name)[0]][0](width=width)
+    return attach_cmd(model) if has_cmd(name) else model
 
 
 def build_model(name, target_params=100_000, seed=0):
+    full = name
     name, size = split_size(name)
     target_params = size or target_params
     width = matched_width(WIDTH_FROM.get(name, name), target_params)
     torch.manual_seed(seed)
-    model = MODELS[name][0](width=width)
+    model = construct(full, width)
     model.width_used = width
     return model
