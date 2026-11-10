@@ -72,7 +72,13 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   nie gesehenen Farbton (92–97 % der Kontrolle).
 - Bei Objekten gleicher Farbe und verschiedener Form trägt die Adresse die Form (zwei Bilder desselben
   Körpers geben in 74–83 % die nächstliegende Adresse), aber die Suche in einem einzigen Blick scheitert
-  (0.05–0.09). Nächster Schritt: Kandidaten nacheinander anschauen und vergleichen.
+  (0.05–0.09).
+- **Anschauen und vergleichen** löst das: Erst das Bild des gesuchten Körpers, dann der Blick nacheinander
+  auf die drei Kandidaten. Der Attention-Speicher wählt in 82 % den richtigen Körper (beim nie gesehenen Y
+  56 %), das GRU in 68 %. Die Gitter-Netze scheitern daran vollständig, auch mit Notizblock: Sie können
+  Gespeichertes wiedergeben, aber nicht mit dem Gesehenen vergleichen. Das wird mit synthetischen Aufgaben
+  (`match`, `match_shift`) nachgeprüft.
+- Der Vergleich über die Adresse aus dem Zeigebild („ist es das?“ in einem Blick) gelingt keinem Netz (0.50).
 - Plan: Stufe b MuJoCo-Regelkreis mit Teacher als Experten, Stufe c Lieferquote als End-Benchmark; dazu die
   Servo-Stufe in Gelenkwinkeln (Fernziel physischer Arm, Abgleich über die Kamera).
 

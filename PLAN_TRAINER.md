@@ -1170,6 +1170,37 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
       (0.56), dem cnn schon (0.68). layer_i (individuelle Module) scheitert (0.18).
     - Die Hierarchie (hier_s) ist ueberall die langsamste Gitter-Variante.
 
+  - **Anschauen und vergleichen: mit Gedaechtnis geht die Form-Suche, ueber die Adresse nicht**
+    (Aufgaben robot_look, robot_lookmem; Export mit `cands` = Blick auf jedem der drei Koerper;
+    scripts/robot_look_eval.py -> results/robot_look*_eval.jsonl; Seeds 0-2).
+    - **Stufe 2, robot_lookmem** (Schritt 0: Bild des gesuchten Koerpers als normales Bild; Schritte 1-3: Blick
+      nacheinander auf den drei gleichfarbigen Koerpern; je Schritt "ist es der vom Anfang?"; kein
+      Zusatz-Eingang). Zufall: Antworten 0.67 ("immer nein"), Wahl des Koerpers 0.33.
+
+  | Netz | Updates | Antworten richtig | richtigen Koerper gewaehlt | ... beim nie gesehenen Y |
+  |---|---|---|---|---|
+  | attnmem | 6000 / 24000 | 0.82 / 0.92 | 0.60 / 0.82 | 0.38 / 0.56 |
+  | gru | 6000 / 24000 | 0.82 / 0.85 | 0.57 / 0.68 | 0.36 / 0.46 |
+  | layer_s, layer_s_sp4 | 6000 / 24000 | 0.67 / 0.67 | 0.00 / 0.00 | 0.00 |
+  | hier_s, layer_s_am4, vit | 6000 | 0.67 | 0.00 | 0.00 |
+
+      - **Die Form-Suche, die in einem Blick scheiterte (0.05-0.09), gelingt mit Nacheinander-Anschauen:**
+        attnmem waehlt in 82 % den richtigen Koerper, beim nie trainierten Y in 56 %.
+      - **Die Gitter-Netze scheitern vollstaendig,** auch mit Notizblock, Inhaltsadressierung und vierfacher
+        Trainingszeit: Der Verlust verlaesst das Plateau "immer nein" nie. Das ist kein Tempo-Problem. Dieselben
+        Netze loesen recall / delay / cycle_mem (Gespeichertes WIEDERGEBEN); hier muss Gespeichertes mit dem
+        Gesehenen VERGLICHEN werden. Offen, ob es am Vergleichen liegt oder an den Roboter-Bildern ->
+        synthetische Aufgaben `match` / `match_shift` (tasks/memory.py), Laeufe auf dem Rechen-PC.
+      - vit ohne Gedaechtnis bleibt wie erwartet bei Zufall (Kontrolle).
+    - **Stufe 1, robot_look** (ein Blick auf einen Koerper + Zeigebild ueber den Adress-Encoder `+ref` ->
+      ja / nein): **negativ.** vit+ref, cnn+ref, layer_s_sp4+cell+ref bleiben bei 0.50 (12000 und 36000
+      Updates), ebenso gru+ref und attnmem+ref (einzelne Seeds kommen kurz auf 0.6-0.65, nicht stabil).
+      Die Adresse (16 Werte, additiv eingespeist) reicht zum AUSWAEHLEN nach Farbe, aber nicht zum
+      VERGLEICHEN von Formen: Vergleich ist ein Produkt beider Seiten, kein Aufaddieren. Stufe 2 zeigt den
+      Ausweg: beide Bilder durch DASSELBE Netz, der Vergleich im Gedaechtnis.
+    - Lernkurven beider Stufen: langes Plateau beim Zufallswert, dann ploetzlicher Durchbruch (gru nach etwa
+      3000 Updates) oder nie.
+
 **Phase C – T3 Freeze & Route als Lehrplan-Test**
 - Über die Sieb-Stufen (4c), mit individuellen Modulen oder einer Fähigkeiten-Bibliothek am Bus.
 
