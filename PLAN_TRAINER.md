@@ -907,6 +907,107 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
     AGENDA (Netzgröße und Modulzahl) und STAND.md. Für servo: vit löst es schon mit 25k; layer mit 16 Spalten
     nur 0.41; alle 400k-Netze 0.99–1.00.
 
+- **Lernregel zweiter Ordnung am Kopf, 2026-11-10** (fastweights.py Regeln rls_head / rls_rf, library.py,
+  results/library.jsonl mit nets = pinned):
+  - **Anlass:** Auf servo erreicht die Delta-Regel am Kopf 0.5 bei Geraeten mit Rechnung; lineare Obergrenze
+    bei voller Anpassung 0.74, mit Zufallsmerkmalen 0.93.
+  - **Vorversuch** (Seeds 5 / 6, Korrektur der Logits aus dem Kopf-Eingang, ein Durchgang ueber 1600 Beispiele):
+    Delta-Regel mit bester Schrittweite 0.66, kleinste Quadrate (Ridge) 0.85, Ridge mit 4096 Zufallsmerkmalen
+    0.95. Der groessere Hebel ist die Regel, nicht die Erweiterung: Die Kopf-Eingaenge sind stark korreliert,
+    ein Schritt erster Ordnung ist schlecht konditioniert.
+  - **rls_head:** rekursive kleinste Quadrate am Kopf auf Logit-Ziele +-4. Je Satz schneller Gewichte eine
+    Schaetzung der inversen Eingangs-Kovarianz P (Start I / 10). Kein Backprop; gebraucht werden Kopf-Eingang
+    und Ausgabe-Fehler.
+  - **rls_rf:** dasselbe auf [x, tanh(x R + b)] mit 1024 festen Zufallsmerkmalen (nichtlinearer schneller Kopf,
+    gelernt wird weiter nur eine lineare Auslese). Etwa 3x Rechenzeit, 10 MB Zustand je Satz.
+  - **Einzelfall** (512 Beispiele, EIN Update, ungesehene Tests): servo flipx 0.71 / 0.74, swap 0.95 / 0.96,
+    numseq plus1 0.70 / 0.75, prev 0.95 / 0.95 (rls_head / rls_rf); Delta-Regel nach 200 Updates 0.53-0.91.
+    Wird derselbe Batch wiederholt gezeigt, sinkt rls_head wieder (zaehlt Wiederholungen als neue Evidenz).
+  - **Drift:** Ohne Vergessen wird die Regel steif. Die abgespaltene Kopie konnte nicht folgen und spaltete in
+    Kaskaden (Seeds 5 / 6: 0.56, 4 Abspaltungen). Abhilfe ohne neue Konstante: Die abgespaltene Kopie startet
+    mit frischem P. Damit 0.80; ein Vergessensfaktor (0.99 / 0.97) wirkte gleich gut, veraendert aber auch
+    die ruhigen Aufgaben und wurde nicht genommen.
+  - **Ergebnis auf den Test-Seeds 0-2** (zweiter Besuch, 18 Laeufe je Zelle, Bibliothek / Orakel):
+
+  | Suite | delta_head | pickm | rls_head | rls_rf |
+  |---|---|---|---|---|
+  | servo | 0.63 / 0.65 | 0.63 / 0.65 | 0.86 / 0.88 | **0.91** / 0.94 |
+  | six | 0.70 | 0.77 | 0.87 / 0.89 | **0.89** / 0.92 |
+  | drift | 0.67 / 0.68 | 0.72 / 0.73 | 0.81 / 0.83 | **0.86** / 0.88 |
+  | twelve (12 Plaetze) | 0.62 / 0.65 | 0.68 / 0.72 | 0.81 / 0.83 | **0.85** / 0.88 |
+
+    - servo je Geraet (rls_rf): flipx 0.90, offx 0.90, rot90 0.90, strong 0.87, swap 0.95, weak 0.95
+      (Delta-Regel: 0.47-0.56 und 0.89).
+    - Das Verwalten bleibt nahe am Orakel (Luecke 0.02-0.03), Auswahl 0.97-0.98, erste 10 Batches beim
+      Wiederkommen 0.79-0.84 auf servo.
+    - Die Regel ist kein Servo-Spezialfall: Sie hebt alle vier Suiten.
+    - twelve: auch `diff`, das bisher niemand lernte (0.05-0.18), erreicht 0.48 / 0.54. Abspaltungen 0.06 / 0.00
+      je Lauf (Delta-Regel 2.4).
+  - **Bedeutung fuer den Teacher:** Was der Teacher lernen muesste, ist zum grossen Teil die Konditionierung
+    des Updates (Kovarianz der Eingaenge), nicht nur dessen Richtung. Offen: dieselbe Idee fuer innere
+    Schichten (dfa versagt auf servo), und P ueber Saetze teilen (die Eingaenge sind in allen Aufgaben einer
+    Suite dieselben).
+
+- **Bruecke zum Roboter-Projekt, Stufe a, 2026-11-10** (tasks/robot.py, data/robot, results/robot.jsonl;
+  Export im Roboter-Projekt: src/pc_cvnn/export_netresearch.py, dort wiki/fragen/netresearch-bruecke.md):
+  - Fovea-Bilder (16x16 Hex-Zellen, Graustufen-RGB, Arm sichtbar) aus dem MuJoCo-Arm, je 12000 Trainings-
+    und 3000 Test-Beispiele aus getrennten Szenen. Ausgabe wie servo: Schritt (dx, dy) in Zellen.
+    - robot_gaze: Lage des roten Wuerfels relativ zur Bildmitte (Blickverschiebung).
+    - robot_reach: Schritt vom Greifpunkt zum roten Wuerfel.
+  - Erster Lauf, Seed 0, 6000 Updates (Test, exakt richtig):
+
+  | Netz | robot_gaze | robot_reach |
+  |---|---|---|
+  | layer_s_c16 | 1.00 | 0.10 |
+  | layer_s / layer_s_sp4 / cnn | 0.98 | 0.11 / 0.10 / 0.08 |
+  | vit | 0.97 | 0.13 |
+  | hier_s | 0.93 | 0.09 |
+  | gru / mlp | 0.44 / 0.38 | 0.06 / 0.05 |
+
+    - robot_gaze ist geloest. robot_reach nicht: innerhalb von +-1 Zelle liegen etwa 50 % (vit 57 %), der
+      mittlere Fehler ist 1.1-1.5 Zellen. Der Greifpunkt ist im Bild kein markierter Punkt, sondern muss aus
+      der Armform gelesen werden.
+  - **Fehler in der Bewertung gefunden und behoben:** eval_set wandelte Bilder in uint8 und setzte damit alle
+    Graustufen auf 0 (erste Anzeige: gaze 0.13). Jetzt nur noch bei binaeren Bildern. Die Tabelle stammt aus
+    der Neubewertung der gespeicherten Netze.
+
+  - **Warum robot_reach scheitert** (scripts/robot_reach_probe.py, results/robot_reach_probe.jsonl; gleiche
+    Bilder, drei Fragen; cnn und layer_s, Seed 0, Test-Szenen, exakt richtig):
+
+  | Frage | 12000 Beispiele | 48000 Beispiele | 48000, 24000 Updates |
+  |---|---|---|---|
+  | Zelle der Hand | 0.82-0.85 | 0.90 | |
+  | Zelle des Wuerfels | 0.56-0.62 | 0.70 | |
+  | Schritt Hand -> Wuerfel | 0.08-0.11 | 0.15 | 0.21-0.24 |
+
+    - Die Hand wird gut gelesen (innerhalb +-1 Zelle 0.95), obwohl der Greifpunkt nicht markiert ist.
+    - Der Wuerfel schlechter als in robot_gaze (0.98): der Arm steht ueber ihm.
+    - Engpass ist das Verrechnen: Aus beiden Ablesungen waeren ~0.6 zu erwarten, erreicht werden 0.15-0.24,
+      und der Trainingsfehler bleibt hoch (0.15-0.36). Mehr Daten und 4x Training helfen nur wenig.
+    - Der groessere Datensatz (48000, anderer Zufallsstrom als data/robot) liegt nicht im Repository.
+  - **Bibliothek auf Roboter-Bildern** (library.py Suite robot, Basis robot_gaze, Bilder aus
+    data/robot/gazemulti_train.npz mit allen drei Wuerfeln im Blickfeld; Basis-Netze in
+    data/base_nets/robot_gaze, 0.93-0.98). Sechs Aufgaben bei gleichen Bildern: Kalibrierungen des
+    Blick-Kommandos (eye_flipx, eye_swap, eye_offx, eye_rot90) und ein anderes Ziel (green, blue).
+    Zweiter Besuch, Seeds 0-2, Bibliothek / Orakel:
+
+  | Regel | Kalibrierungen | anderes Ziel (gruen / blau) |
+  |---|---|---|
+  | delta_head | 0.88 / 0.93 | 0.00 / 0.01 |
+  | rls_head | 0.91 / 0.95 | 0.01 / 0.01 |
+  | rls_rf | 0.91 / 0.96 | 0.01 / 0.01 |
+
+    - Kalibrierungen uebertragen sich auf echte Kamerabilder. Seeds 5 / 6 gleich (0.88-0.90 / 0.93-0.95).
+    - **Ein anderes Ziel lernt keine Kopf-Regel**, auch nicht mit Orakel: Der Kopf-Eingang des Basis-Netzes
+      traegt die Lage des roten Wuerfels, nicht die der anderen. Das ist die Grenze "nur am Kopf schreiben":
+      Dafuer braucht es Aenderungen im Inneren oder einen Ziel-Eingang (Kommando), den das Netz von Anfang
+      an mitlernt.
+    - **Schwaeche der rls-Regeln gefunden** (Lauf layer_s, Seed 0): Der Satz, der an gruen gescheitert war,
+      wurde fuer die naechste Aufgabe weiterbenutzt und war zu steif (eye_flipx 0.64, eye_swap 0.68 beim
+      zweiten Besuch). Abhilfe ohne neue Konstante: Solange ein Satz nach je 30 Updates unter dem
+      Kompetenz-Boden 0.1 liegt, wird seine Kovarianz zurueckgesetzt (0.91 / 0.94). An einem Test-Seed
+      gefunden; die Seeds 1 / 2 und 5 / 6 zeigen dasselbe Niveau wie Seed 0.
+
 **Phase C – T3 Freeze & Route als Lehrplan-Test**
 - Über die Sieb-Stufen (4c), mit individuellen Modulen oder einer Fähigkeiten-Bibliothek am Bus.
 

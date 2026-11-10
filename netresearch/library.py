@@ -92,6 +92,10 @@ ORDERS = [["xm0F", "prev", "plus1", "xmA5", "prev2", "minus1"], ["prev", "plus1"
 ORDERS12 = [["xm0F", "prev", "plus1", "xm33", "prev2", "minus2", "xmA5", "diff", "plus2", "xmFF", "prev3", "minus1"],
             ["prev", "plus2", "xm33", "minus1", "prev3", "xmA5", "plus1", "diff", "xmFF", "prev2", "minus2", "xm0F"]]
 ORDERS_SERVO = [["flipx", "swap", "offx", "strong", "rot90", "weak"], ["swap", "offx", "flipx", "weak", "strong", "rot90"]]
+ORDERS_ROBOT = [["green", "eye_flipx", "blue", "eye_swap", "eye_offx", "eye_rot90"],
+                ["eye_swap", "blue", "eye_offx", "green", "eye_rot90", "eye_flipx"]]
+ROBOT_TARGETS = {"green": 2, "blue": 4}                     # column of (dx, dy) in the cells of gazemulti
+_robot = {}
 DRIFT, N_DRIFT, N_AFTER = "plus1>plus2", 100, 50
 FIRST, SECOND, N_BASE = 100, 40, 30
 Y_PICK = 2 * Y
@@ -123,7 +127,10 @@ SUITES = {"six": {"tasks": list(ORDERS[0]), "orders": ORDERS, "plan": phases},
           "drift": {"tasks": ["xm0F", "prev", "plus1", "plus2"],
                     "orders": [["xm0F", "prev", "plus1"], ["prev", "xm0F", "plus1"]], "plan": drift_plan},
           # stage 2: calibrations of a servo device (tasks/servo.py), base task = the ideal device
-          "servo": {"tasks": list(ORDERS_SERVO[0]), "orders": ORDERS_SERVO, "plan": phases, "base": "servo"}}
+          "servo": {"tasks": list(ORDERS_SERVO[0]), "orders": ORDERS_SERVO, "plan": phases, "base": "servo"},
+          # robot fovea images (tasks/robot.py), base = look at the red cube. New skills on the same images:
+          # look at the green / blue cube, and calibrations of the gaze command (eye_<servo device>)
+          "robot": {"tasks": list(ORDERS_ROBOT[0]), "orders": ORDERS_ROBOT, "plan": phases, "base": "robot_gaze"}}
 
 
 def drift_data(a, b, seed, variant, n_batches):
@@ -137,8 +144,29 @@ def drift_data(a, b, seed, variant, n_batches):
     return da
 
 
+def robot_data(name, seed, variant, n):
+    """n examples of the multi-target gaze images (data/robot/gazemulti_train.npz) with the asked output."""
+    from .tasks.robot import DATA
+    from .tasks.servo import DEVICES, command_bits
+    from .train import to_t
+    if not _robot:
+        _robot.update(np.load(DATA / "gazemulti_train.npz"))
+    rng = np.random.default_rng(zlib.crc32(name.encode()) + 101 * seed + variant)
+    idx = rng.permutation(len(_robot["obs"]))[:n]
+    c = _robot["cells"][idx].astype(np.int64)
+    if name in ROBOT_TARGETS:
+        k = ROBOT_TARGETS[name]
+        dx, dy = c[:, k], c[:, k + 1]
+    else:
+        dx, dy = DEVICES[name[4:]](c[:, 0], c[:, 1])
+    return to_t({"obs": (_robot["obs"][idx].astype(np.float32) / 255.0)[None], "target": command_bits(dx, dy)[None],
+                 "mask": np.ones((1, n), np.float32)})
+
+
 def task_data(name, seed, variant, n):
     from .tasks.servo import DEVICES, servo_batch
+    if name in ROBOT_TARGETS or name.startswith("eye_"):
+        return robot_data(name, seed, variant, n)
     if name in DEVICES:
         from .train import to_t
         rng = np.random.default_rng(zlib.crc32(name.encode()) + 101 * seed + variant)
@@ -426,6 +454,10 @@ def stream(model_name, seed, variant, rule, mode, suite="six"):
                 if undecided and sl.choice is not None:
                     choices.append([phase, ["delta_head", "dfa"][sl.choice]])
                 n_upd[active] += 1
+                if n_upd[active] % Y == 0 and aval[active] is not None and aval[active] < 0.1:
+                    for fw in sl.members:                           # rls rules: a set that is still incompetent
+                        if "_Q" in fw.F:                            # stays plastic (its evidence is worthless);
+                            fw.F["_Q"].zero_()                      # else a failed start is too stiff for the next task
                 mature = [j for j in range(1, K + 1) if in_use[j] and n_upd[j] >= Y]
                 if mode != "oracle" and n_upd[active] == Y and len(mature) > cap:     # consolidate: evict LRU
                     j = min((j for j in mature if j != active), key=lambda i: last_use[i])

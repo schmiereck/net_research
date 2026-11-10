@@ -1,0 +1,14 @@
+{"model": "cnn", "target": "hand", "n": 12000, "updates": 6000, "exact": 0.8187, "within1": 0.9173, "mae": 0.232, "train_loss": 0.001, "time": 180}
+{"model": "layer_s", "target": "hand", "n": 12000, "updates": 6000, "exact": 0.8487, "within1": 0.9273, "mae": 0.204, "train_loss": 0.0045, "time": 236}
+{"model": "cnn", "target": "hand", "n": 48000, "updates": 6000, "exact": 0.9013, "within1": 0.949, "mae": 0.126, "train_loss": 0.0208, "time": 173}
+{"model": "layer_s", "target": "hand", "n": 48000, "updates": 6000, "exact": 0.9, "within1": 0.95, "mae": 0.132, "train_loss": 0.035, "time": 225}
+{"model": "cnn", "target": "cube", "n": 12000, "updates": 6000, "exact": 0.5613, "within1": 0.8637, "mae": 0.412, "train_loss": 0.0085, "time": 168}
+{"model": "layer_s", "target": "cube", "n": 12000, "updates": 6000, "exact": 0.623, "within1": 0.8873, "mae": 0.384, "train_loss": 0.0299, "time": 222}
+{"model": "cnn", "target": "cube", "n": 48000, "updates": 6000, "exact": 0.704, "within1": 0.9223, "mae": 0.252, "train_loss": 0.1031, "time": 166}
+{"model": "cnn", "target": "diff", "n": 12000, "updates": 6000, "exact": 0.085, "within1": 0.4443, "mae": 1.388, "train_loss": 0.116, "time": 170}
+{"model": "layer_s", "target": "cube", "n": 48000, "updates": 6000, "exact": 0.7027, "within1": 0.915, "mae": 0.273, "train_loss": 0.1267, "time": 225}
+{"model": "cnn", "target": "diff", "n": 48000, "updates": 6000, "exact": 0.15, "within1": 0.6297, "mae": 0.994, "train_loss": 0.3034, "time": 169}
+{"model": "layer_s", "target": "diff", "n": 12000, "updates": 6000, "exact": 0.1077, "within1": 0.5187, "mae": 1.271, "train_loss": 0.2196, "time": 214}
+{"model": "layer_s", "target": "diff", "n": 48000, "updates": 6000, "exact": 0.1507, "within1": 0.6373, "mae": 1.035, "train_loss": 0.3552, "time": 179}
+{"model": "cnn", "target": "diff", "n": 48000, "updates": 24000, "exact": 0.2133, "within1": 0.7047, "mae": 0.849, "train_loss": 0.1517, "time": 791}
+{"model": "layer_s", "target": "diff", "n": 48000, "updates": 24000, "exact": 0.242, "within1": 0.74, "mae": 0.808, "train_loss": 0.2244, "time": 951}

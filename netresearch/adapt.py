@@ -166,7 +166,7 @@ def case_servo(device, variant, k):
 SERVO_CASES = ["flipx", "swap", "rot90", "strong", "weak", "offx"]
 for _d in SERVO_CASES:
     CASES["servo_" + _d] = ("servo", lambda v, k, _d=_d: case_servo(_d, v, k), KS, 2)
-BASE_UPDATES = {"servo": 6000}                    # the grid nets need 4x the benchmark budget for servo
+BASE_UPDATES = {"servo": 6000, "robot_gaze": 6000}                    # the grid nets need 4x the benchmark budget for servo
 PHASE_A = ["fixcycle", "double", "trib", "countbig"]          # "--cases all" of the phase A run
 
 
