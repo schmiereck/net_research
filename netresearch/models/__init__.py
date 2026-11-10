@@ -129,7 +129,7 @@ def split_size(name):
     differently sized nets are different model names everywhere (results, checkpoints). A '+cmd' suffix of the
     base name (command port, see attach_cmd) is removed here; has_cmd(name) tells whether it was there."""
     base, _, size = name.partition("@")
-    return base.replace("+cmd", ""), (int(float(size.rstrip("k")) * 1000) if size else None)
+    return base.replace("+cmd", "").replace("+cell", ""), (int(float(size.rstrip("k")) * 1000) if size else None)
 
 
 def has_cmd(name):
@@ -144,7 +144,7 @@ def attach_cmd(model):
     behaves as before."""
     import torch.nn as nn
     model.cmd_in = nn.Linear(N_CMD, 3 * 16)
-    model.cmd = None
+    model.cmd, model.takes_cmd = None, True
 
     def pre(mod, args):
         if mod.cmd is None:
@@ -156,7 +156,12 @@ def attach_cmd(model):
 
 
 def construct(name, width):
-    model = MODELS[split_size(name)[0]][0](width=width)
+    """'+cmd': command as an additive pattern on the image (any architecture, attach_cmd). '+cell' (grids only):
+    command as an extra input of every cell (models/grid.py cmd_cells)."""
+    ctor = MODELS[split_size(name)[0]][0]
+    if "+cell" in name:
+        return ctor(width=width, n_cmd=N_CMD)
+    model = ctor(width=width)
     return attach_cmd(model) if has_cmd(name) else model
 
 

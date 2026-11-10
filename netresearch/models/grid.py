@@ -69,6 +69,15 @@ def split_writes(o, d_out, n_mem):
     return o[..., :d_out], o[..., d_out:d_out + 2 * n_mem], o[..., d_out + 2 * n_mem:]
 
 
+def cmd_cells(model, inp):
+    """Command port of the grids (model names "<grid>+cell"): the command vector (model.cmd [B, n_cmd], set by
+    train.run_sequence; zeros without a command) as an extra input of EVERY cell, like the global scratchpad."""
+    B, K = inp.shape[:2]
+    if model.cmd is None:
+        return torch.zeros(B, K, model.n_cmd, device=inp.device, dtype=inp.dtype)
+    return model.cmd[:, None].expand(-1, K, -1)
+
+
 def global_write(G, raws):
     """Every module proposes a write for the global scratchpad; the raw proposals are averaged."""
     return write_memory(G, torch.cat(raws, 1).mean(1))
@@ -262,7 +271,7 @@ class LayerGrid(Model):
     stateful = True
 
     def __init__(self, width=16, shared=False, R=4, C=8, n_mem=0, n_global=0, read="", slots=0, heads=1,
-                 alloc=False):
+                 alloc=False, n_cmd=0):
         super().__init__()
         assert not (slots and read), "key/value scratchpad and neighbour/address reading are separate variants"
         self.R, self.C, self.d = R, C, width
@@ -273,7 +282,8 @@ class LayerGrid(Model):
         self.kv = KV_MEMORY[alloc](C * width, n_mem, slots, heads) if slots else None
         self.reader = MemoryReader(read, "layer", R, C, C, n_mem, 5 * width, shared)
         self.register_buffer("cols", torch.arange(C), persistent=False)
-        self.fc1 = CellLinear(R, C, 5 * width + nl + n_global + self.reader.extra, h, shared)
+        self.n_cmd, self.cmd, self.takes_cmd = n_cmd, None, n_cmd > 0
+        self.fc1 = CellLinear(R, C, 5 * width + nl + n_global + self.reader.extra + n_cmd, h, shared)
         self.fc2 = CellLinear(R, C, h, width + 2 * (nl + n_global), shared, zero=True)
         init_write_bias(self.fc2, width, nl, n_global)
         self.ln = nn.LayerNorm(C * width)
@@ -311,6 +321,8 @@ class LayerGrid(Model):
                 if self.reader.extra:
                     parts.append(self.reader.read(ctx, r, self.cols, inp))
                 inp = torch.cat(parts, -1)
+            if self.n_cmd:
+                inp = torch.cat([inp, cmd_cells(self, inp)], -1)
             o = self.fc2(F.gelu(self.fc1(inp, r)), r)
             if mem:
                 o, wl, wg = split_writes(o, self.d, self.nl)
@@ -343,7 +355,7 @@ class HierGrid(Model):
     stateful = True
 
     def __init__(self, width=12, shared=False, R=6, C=8, ticks=1, zero_init=False, n_mem=0, n_global=0, read="",
-                 slots=0, heads=1, alloc=False):
+                 slots=0, heads=1, alloc=False, n_cmd=0):
         super().__init__()
         assert C % 2 == 0
         assert not (slots and read), "key/value scratchpad and neighbour/address reading are separate variants"
@@ -355,7 +367,8 @@ class HierGrid(Model):
         self.enc = StripEncoder(C, width, 2)
         self.kv = KV_MEMORY[alloc](2 * C * width, n_mem, slots, heads) if slots else None
         self.reader = MemoryReader(read, "hier", R, C, self.K, n_mem, 4 * width, shared)
-        self.fc1 = CellLinear(R, self.K, 4 * width + nl + n_global + self.reader.extra, h, shared)
+        self.n_cmd, self.cmd, self.takes_cmd = n_cmd, None, n_cmd > 0
+        self.fc1 = CellLinear(R, self.K, 4 * width + nl + n_global + self.reader.extra + n_cmd, h, shared)
         self.fc2 = CellLinear(R, self.K, h, 4 * width + 2 * (nl + n_global), shared, zero=zero_init)
         init_write_bias(self.fc2, 4 * width, nl, n_global)
         self.ln = nn.LayerNorm(C * width)
@@ -405,6 +418,8 @@ class HierGrid(Model):
                 if self.reader.extra:
                     parts.append(self.reader.read(ctx, r, cols, inp))
                 inp = torch.cat(parts, -1)
+            if self.n_cmd:
+                inp = torch.cat([inp, cmd_cells(self, inp)], -1)
             out = self.fc2(F.gelu(self.fc1(inp, r)), r)
             if mem:
                 out, wl, wg = split_writes(out, 4 * self.d, self.nl)

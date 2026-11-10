@@ -32,7 +32,7 @@ def run_sequence(model, obs, state=None, resets=None, cmd=None):
     """obs [T,B,3,16,16] -> logits [T,B,64]. resets [T,B] (1 = new episode at t) for stateful models.
     cmd [T,B,N_CMD]: command vectors for models with a command port (models.attach_cmd); others ignore it."""
     T, B = obs.shape[:2]
-    if cmd is None or not hasattr(model, "cmd_in"):
+    if cmd is None or not getattr(model, "takes_cmd", False):
         cmd = None
     try:
         if not model.stateful:

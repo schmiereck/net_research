@@ -1060,6 +1060,34 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
       additives Muster je Spalte passt schlecht zu Netzen, die das Bild in Spaltenstreifen zerlegen; der
       naheliegende Weg dort ist das Kommando als Eingang jeder Zelle (wie der globale Notizblock).
 
+  - **Kommando als Eingang jeder Zelle** (Gitter-Netze `<netz>+cell`, models/grid.py cmd_cells; Seeds 0-2):
+    Die Vermutung "der additive Port passt schlecht zu den Gittern" ist **widerlegt**. Bei 6000 Updates ist
+    der Zell-Eingang nicht besser, eher etwas schlechter:
+
+  | Netz | robot_findc `+cmd` | robot_findc `+cell` | robot_find `+cmd` | robot_find `+cell` |
+  |---|---|---|---|---|
+  | layer_s | 0.14 | 0.13 | 0.52 | 0.53 |
+  | layer_s_sp4 | 0.18 | 0.12 | 0.54 | 0.52 |
+  | hier_s | | 0.10 | 0.41 | 0.35 |
+
+    (robot_find: Mittel ueber rot / gruen / blau aus scripts/robot_find_eval.py.)
+  - **Die Gitter-Netze lernen die Aufgabe nur langsamer.** robot_findc mit 24000 Updates (4x), Seeds 0-2
+    (results/robot_findc_eval_long.jsonl), exakt richtig (innerhalb +-1 Zelle):
+
+  | Netz | Test | zurueckgehaltener Farbton | Kontrolle | falsches Kommando |
+  |---|---|---|---|---|
+  | vit+cmd | 0.64 (0.82) | 0.56 (0.79) | 0.63 (0.82) | 0.01 |
+  | cnn+cmd | 0.62 (0.82) | 0.41 (0.64) | 0.61 (0.81) | 0.00 |
+  | layer_s_sp4+cell | 0.45 (0.73) | 0.41 (0.70) | 0.43 (0.70) | 0.01 |
+
+    - layer_s_sp4+cell steigt von 0.12 auf 0.45; cnn von 0.44 auf 0.62, vit von 0.40 auf 0.64. Dasselbe Bild
+      wie bei servo (Gitter brauchten 4500 Updates, vit 2000): Auf Wahrnehmungs-Aufgaben lernen die Gitter
+      2-4x langsamer. Ob `+cmd` bei langem Training besser waere als `+cell`, ist nicht gemessen.
+    - Verallgemeinerung auf den nie gesehenen Farbton, relativ zur Kontrolle: layer_s_sp4+cell 95 %,
+      vit 89 %, cnn 67 %. Das cnn lernt die trainierten Farben am besten und verallgemeinert am schlechtesten.
+    - Die gespeicherten Netze von cnn+cmd, vit+cmd und layer_s_sp4+cell fuer robot_findc sind jetzt die
+      24000-Update-Netze.
+
 **Phase C – T3 Freeze & Route als Lehrplan-Test**
 - Über die Sieb-Stufen (4c), mit individuellen Modulen oder einer Fähigkeiten-Bibliothek am Bus.
 

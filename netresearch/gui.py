@@ -280,10 +280,10 @@ class SupervisedPanel(Panel):
     @torch.no_grad()
     def step(self, obs, target, counted, cmd=None):
         spec = self.task.spec
-        if cmd is not None and hasattr(self.model, "cmd_in"):       # command port (models.attach_cmd)
+        if cmd is not None and getattr(self.model, "takes_cmd", False):       # command port (models.attach_cmd)
             self.model.cmd = torch.from_numpy(cmd[None])
         logits, self.state = self.model(torch.from_numpy(obs[None]), self.state)
-        if hasattr(self.model, "cmd_in"):
+        if getattr(self.model, "takes_cmd", False):
             self.model.cmd = None
         lg = logits[0, spec.out_slice]
         if spec.head == "class":
@@ -316,7 +316,7 @@ class SupervisedPanel(Panel):
         acc = f"{self.correct / self.total:5.1%} ({self.total})" if self.total else "   –"
         mark = "" if counted else "  (Warm-up)"
         if cmd is not None:                      # robot_find: the command is the colour of the wanted object
-            ttxt += "  Kmd " + " ".join(f"{v:.1f}" for v in cmd[:3]) + ("" if hasattr(self.model, "cmd_in") else " (ohne Eingang)")
+            ttxt += "  Kmd " + " ".join(f"{v:.1f}" for v in cmd[:3]) + ("" if getattr(self.model, "takes_cmd", False) else " (ohne Eingang)")
         self.show(obs, f"Ziel   : {ttxt}{mark}\nVorhers: {ptxt}\nGenauig: {acc}",
                   (GOOD if ok else BAD) if counted else MUTED, trail=trail)
 
