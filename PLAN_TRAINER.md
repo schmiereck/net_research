@@ -1117,6 +1117,35 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
     - Nicht gemessen: ob zwei Zeigebilder desselben Wuerfels dieselbe Adresse geben (nur ein Zeigebild je
       Wuerfel und Szene im Export).
 
+  - **Formen: die Adresse traegt die Form, aber die Suche nutzt sie nicht** (Aufgabe robot_finds;
+    data/robot/gazeshape*.npz, nicht im Repository, per Export neu erzeugbar; scripts/robot_finds_eval.py ->
+    results/robot_finds_eval.jsonl). Drei Koerper gleicher Farbe und verschiedener Form (Wuerfel, L, U, T,
+    Kreuz; beliebig gedreht), zwei Zeigebilder je Koerper, das Y nie im Training. Seeds 0-2, 24000 Updates:
+
+  | Netz | Suche exakt (+-1) | Y exakt (+-1) | falsches Bild | gleiche Adresse fuer zwei Bilder | ... beim Y | Form aus der Adresse |
+  |---|---|---|---|---|---|---|
+  | layer_s_sp4+cell+ref | 0.09 (0.28) | 0.05 (0.18) | 0.03 | 0.83 | 0.63 | 0.75 |
+  | cnn+ref | 0.06 (0.22) | 0.05 (0.16) | 0.03 | 0.82 | 0.62 | 0.51 |
+  | vit+ref | 0.05 (0.19) | 0.04 (0.16) | 0.03 | 0.74 | 0.57 | 0.49 |
+  | cnn+cmd / vit+cmd (Form als Kennung) | 0.05 (0.19) | 0.02 / 0.01 | 0.02 / 0.03 | | | |
+
+    ("gleiche Adresse": Ist die Adresse des ersten Zeigebilds der des zweiten Bilds DESSELBEN Koerpers am
+    naechsten, unter den drei Koerpern der Szene? Zufall 0.33. "Form aus der Adresse": lineare Auslese, 5
+    Formen, Zufall 0.2.)
+    - **Die Suche scheitert, ehrliches Negativ:** 0.05-0.09 exakt. Auch mit der Form als fester Kennung
+      von aussen (`+cmd`) nicht besser; es liegt also nicht an der Adresse.
+    - **Die Adresse selbst traegt Form:** Zwei Bilder desselben Koerpers (andere Szene, andere Drehung) geben
+      in 74-83 % die naechstliegende Adresse, beim nie gesehenen Y in 57-63 %. Die Form ist zu 49-75 %
+      linear ablesbar. Das Gitter-Netz bildet hier die beste Adresse.
+    - **Woran die Suche scheitert** (Zusatzauswertung, innerhalb +-1 Zelle): Die Netze landen in 42-48 % auf
+      IRGENDEINEM der drei Koerper, aber nur in 19-28 % auf dem gefragten. Sie finden also Koerper, waehlen
+      aber kaum nach der Form aus. Das haengt nicht am Abstand von der Bildmitte (Ziel in der Mitte 0.13-0.36,
+      am Rand 0.21-0.30): Es ist nicht nur die gestauchte Peripherie.
+    - **Folgerung:** "Ein Blick, gleichzeitig alle Kandidaten gegen die Adresse pruefen" ist fuer Formen zu
+      viel. Naheliegend ist das, was eine Fovea ohnehin tut: Kandidaten nacheinander anschauen und das
+      zentrierte Bild mit der Adresse vergleichen (derselbe Encoder liefert "was sehe ich gerade"). Das
+      braucht mehrere Schritte und Gedaechtnis.
+
 **Phase C – T3 Freeze & Route als Lehrplan-Test**
 - Über die Sieb-Stufen (4c), mit individuellen Modulen oder einer Fähigkeiten-Bibliothek am Bus.
 

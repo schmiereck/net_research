@@ -150,6 +150,41 @@ class RobotFindImage(RobotFindColor):
         return b
 
 
+class RobotFindShape(RobotFindColor):
+    """Three objects of the SAME colour and DIFFERENT shape (cube, L, U, T, cross; any rotation); the wanted one
+    is shown as a picture ("ref": the object alone in another scene, in another rotation; one of two views,
+    drawn at random in training). Only the shape tells the objects apart, so the address a "+ref" net forms
+    has to carry the form. The Y never occurs in training (held_out). "cmd" carries the shape as a one-hot
+    code (first 6 command values): a "+cmd" net on the same scenes is the reference "name given from outside"
+    (it cannot know the Y)."""
+    files = ("gazeshape", "gazeshapeheld_test")
+    HELD_COL = 12
+
+    def __init__(self):
+        super().__init__()
+        self.spec = TaskSpec("robot_finds", "robot", "supervised", "bits", 8, seq_len=1, chance=0.0,
+                             description="robot fovea image, three shapes of one colour + a picture of the "
+                                         "wanted one -> gaze shift (dx, dy) that centres it")
+        self._rng = np.random.default_rng(0)
+
+    def make(self, d, i, k, view=None):
+        from ..models import N_CMD
+        c = d["cells"][i].astype(np.int64)
+        r = np.arange(len(i))
+        cmd = np.zeros((len(i), N_CMD), np.float32)
+        cmd[r, c[r, 9 + k]] = 1.0
+        v = self._rng.integers(0, 2, size=len(i)) if view is None else np.full(len(i), view)
+        return {"obs": (d["obs"][i].astype(np.float32) / 255.0)[None], "cmd": cmd[None],
+                "ref": (d["refs"][i, k, v].astype(np.float32) / 255.0)[None],
+                "target": command_bits(c[r, 2 * k], c[r, 2 * k + 1])[None],
+                "mask": np.ones((1, len(i)), np.float32)}
+
+    def held_out(self, other=False, view=0):
+        d = self._load(self.files[1])
+        k = d["cells"][:, self.HELD_COL].astype(np.int64)
+        return self.make(d, np.arange(len(k)), (k + 1) % 3 if other else k, view)
+
+
 class RobotGaze(_Robot):
     kind, text = "gaze", "robot fovea image -> gaze shift (dx, dy) in cells that centres the red cube"
 
