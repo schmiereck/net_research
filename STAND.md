@@ -50,6 +50,11 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   eine Frage der Architektur, nicht der Größe.
 - Die Spaltenzahl des Gitters wirkt stärker als die Größe: 16 statt 8 Spalten hebt `count` von 0.63 auf 0.84
   und `push_easy` von 0.56 auf 0.82, senkt aber `servo` von 0.99 auf 0.41. Die Zeilenzahl ist fast egal.
+- Nachgemessen mit vierfacher Trainingszeit (`results/grid_slow.jsonl`): Die Spaltenzahl ändert vor allem das
+  Lerntempo, und zwar je Aufgabe verschieden. 16 Spalten lernen Roboter-Bilder am schnellsten und `servo` am
+  langsamsten (am Ende trotzdem 0.96); 4 Spalten umgekehrt.
+- Gedächtnis (`cycle_mem`): Gitter-Netze 1.00 ab 100k, `vit` / `cnn` 0.00 in jeder Größe, `gru` erst mit 400k.
+  `hier_s` bricht mit 400k ein (0.01), Ursache offen.
 
 **5. Brücke zum Roboter-Projekt (rdf_thalamus_sml)**
 - Fovea-Bilder des MuJoCo-Arms sind als Aufgaben eingehängt. „Wo ist der rote Würfel“ (`robot_gaze`) lösen die
@@ -60,8 +65,8 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
 - Mit einem **Ziel-Eingang** (Kommando = Farbe des gesuchten Würfels als Vektor) finden die Netze den
   kommandierten Würfel (cnn 0.72, Gitter-Netze ~0.5, ohne Eingang 0.04) und folgen dem Kommando. Mit
   gewürfelten Farben im Training verallgemeinert das Kommando auf einen nie gesehenen Farbton (cnn 0.31
-  gegen 0.42 bei trainierten Farbtönen). Mit vierfacher Trainingszeit: vit 0.64, cnn 0.62, Gitter-Netz 0.45;
-  die Gitter-Netze lernen solche Wahrnehmungs-Aufgaben 2–4x langsamer.
+  gegen 0.42 bei trainierten Farbtönen). Mit vierfacher Trainingszeit: vit 0.64, cnn 0.62, Gitter-Netz 0.56
+  (16 Spalten 0.59); die Gitter-Netze brauchen dafür etwa dreimal so viele Updates wie das cnn.
 - Das Ziel kann auch als **Bild des Objekts** gezeigt werden: Ein kleiner Encoder bildet daraus selbst eine
   Adresse (16 Werte). Das ist so gut wie die vorgegebene Farbe (vit 0.59) und verallgemeinert besser auf einen
   nie gesehenen Farbton (92–97 % der Kontrolle).

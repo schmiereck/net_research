@@ -1146,6 +1146,30 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
       zentrierte Bild mit der Adresse vergleichen (derselbe Encoder liefert "was sehe ich gerade"). Das
       braucht mehrere Schritte und Gedaechtnis.
 
+  - **Lernen die Gitter-Netze Wahrnehmung langsam? Nur teilweise** (Rechen-PC 2026-11-10, results/grid_slow.jsonl;
+    Seeds 0-2, 24000 Updates, Lernkurve alle 250 Updates). Updates bis Score 0.9 (servo, robot_gaze) bzw. 0.4
+    (robot_findc), Spanne ueber die Seeds; dahinter der Endwert:
+
+  | Netz | servo | robot_gaze | robot_findc (+cmd) |
+  |---|---|---|---|
+  | vit | 1000-2750 (1.00) | 2000-3250 (0.99) | 400k: 5000-8750 (0.66) |
+  | cnn | 3250-3500 (1.00) | 1500-1750 (0.99) | 400k: 2500-2750 (0.68) |
+  | layer_s | 4000-6250 (1.00) | 1500-2500 (0.99) | 7750-8750 (0.56) |
+  | layer_s_c4 (4 Spalten) | 2750-4000 (1.00) | 5750-9500 (0.94) | nie (0.34) |
+  | layer_s_c16 (16 Spalten) | 9000-13000 (0.96) | 1000-1250 (1.00) | 6500-8750 (0.59; 400k 0.63) |
+  | layer_s_r2 / r8 | 3500-5250 / 4000-6500 | 2000-2500 / 2250-2750 | 12250-14750 (0.44) / 7250-9750 (0.55) |
+  | hier_s | 6500-8750 (1.00) | 4500-6750 (0.97) | 14250-16250 (0.43) |
+
+    - **Kein allgemeines Wahrnehmungs-Defizit:** robot_gaze lernt layer_s so schnell wie cnn, mit 16 Spalten
+      am schnellsten von allen. servo loesen am Ende alle (1.00).
+    - **Die Spaltenzahl ist ein Tausch, kein Regler:** 16 Spalten sind auf Roboter-Bildern am schnellsten und
+      auf servo am langsamsten (deshalb 0.41 nach 6000 Updates; mit 24000 0.96); 4 Spalten umgekehrt.
+    - **robot_findc:** Der Rueckstand ist kleiner als gedacht. layer_s+cmd 0.56 und layer_s_c16+cmd 0.59
+      gegen cnn 0.62 / vit 0.64 (100k). Der fruehere Wert 0.45 gehoerte zum Zell-Eingang (`+cell`), der damit
+      klar schlechter ist als der einfache additive Eingang (0.45 gegen 0.56). 400k hilft layer_s nicht
+      (0.56), dem cnn schon (0.68). layer_i (individuelle Module) scheitert (0.18).
+    - Die Hierarchie (hier_s) ist ueberall die langsamste Gitter-Variante.
+
 **Phase C – T3 Freeze & Route als Lehrplan-Test**
 - Über die Sieb-Stufen (4c), mit individuellen Modulen oder einer Fähigkeiten-Bibliothek am Bus.
 
