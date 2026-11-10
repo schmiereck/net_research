@@ -398,6 +398,9 @@ def stream(model_name, seed, variant, rule, mode, suite="six"):
                         k = free[0] if free else young[0]           # K = cap + 1: a non-mature place exists
                         j = active
                         slots[k - 1].copy_from(slots[j - 1])
+                        for fw in slots[k - 1].members:             # rls rules: the moving copy learns with fresh
+                            if "_Q" in fw.F:                       # confidence (P back to I / eta); without it the
+                                fw.F["_Q"].zero_()                   # copy is too stiff to follow and forks in cascades
                         in_use[k], gen[k], last_use[k] = True, gen[k] + 1, t
                         n_upd[k], lvl[k], aval[k], peak[k] = n_upd[j], lvl[j], aval[j], None
                         slots[j - 1].restore(pk[2])

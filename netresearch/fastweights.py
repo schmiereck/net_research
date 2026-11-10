@@ -49,11 +49,21 @@ Rules (the update signal each one needs is what a teacher would have to provide 
                 with full credit assignment; upper bound for the local rules on the same fast weights).
     Middle cases (adapt.py: xormask, prev, plus1, cycle2) are learnable in 200 updates by Adam but need
     generalisation to unseen sequences.
+    Second-order rules on the head (no backprop; they need the head input, the output error and a running
+    estimate of the input covariance, kept per set of fast weights):
+    rls_head    recursive least squares on the head: the fast part is fitted to logit targets +-RLS_M,
+                F += K r with K = P x^T (I + x P x^T)^-1, r = target logit - logit, P -= K x P, P(0) = I / eta.
+                One pass reaches what the delta rule needs many passes for (the head inputs are strongly
+                correlated, so a first-order step is badly conditioned).
+    rls_rf      the same on an expanded basis [x, tanh(x R + b)] with RF_N fixed random features: a nonlinear
+                fast head whose only learned part is still a linear readout (servo: sign flip, offset and
+                gain need carries between output bits, which a linear readout of x cannot produce).
     adam        reference: full Adam fine-tuning lr 1e-3 (= phase A "adam", run again with the same seeds)
 """
 import argparse
 import json
 import math
+import os
 import multiprocessing as mp
 import time
 import traceback
@@ -71,8 +81,12 @@ OUT = ROOT / "results" / "fastweights.jsonl"
 SWEEP = {"lora": [1e-3, 1e-2, 3e-2, 1e-1], "delta_head": [0.1, 0.3, 1.0, 3.0], "dfa": [0.03, 0.1, 0.3, 1.0],
          "np3": [0.1, 0.3, 1.0, 3.0], "delta_gated": [1.0, 3.0], "adam": [1e-3], "grad": [1e-3, 3e-3, 1e-2]}
 DEFAULT = {"lora": 3e-2, "delta_head": 3.0, "dfa": 1.0, "dfa@task": 3.0, "np3": 0.1, "delta_gated": 3.0, "delta_novel": 3.0,
-           "delta_lda": 3.0, "adam": 1e-3, "grad": 3e-3}
+           "delta_lda": 3.0, "adam": 1e-3, "grad": 3e-3,
+           "rls_head": 10.0, "rls_rf": 10.0}          # rls: eta = ridge strength (P starts at I / eta)
 RANK, SIGMA, BETA = 4, 0.1, 50.0
+RF_N, RF_GAIN, RLS_M = 1024, 0.5, 4.0
+RLS_LAMBDA = float(os.environ.get("NETRESEARCH_RLS_LAMBDA", 1.0))   # forgetting factor (1 = none)
+HEAD_ONLY = ("delta_head", "rls_head", "rls_rf")
 REF_B = 6                     # eta refers to a batch of 6 examples (fixcycle); bigger batches are averaged
 GATED = {"delta_gated": "knn", "delta_novel": "novel", "delta_lda": "lda"}   # old names = delta_head@gate
 GATE_RULES = ["adam", "delta_head", *GATED]
@@ -106,15 +120,22 @@ class Fast:
         for p in model.parameters():
             p.requires_grad_(False)
         self.mods = {"head": model.head}
-        if self.base != "delta_head":
+        if self.base not in HEAD_ONLY:
             for n in ("fc1", "fc2"):
                 m = getattr(model, n, None)
                 if isinstance(m, CellLinear) and m.shared:
                     self.mods[n] = m
         g = torch.Generator().manual_seed(seed)
         self.F, self.uv, self.B = {}, {}, {}
+        if self.base == "rls_rf":                           # fixed random expansion of the head input
+            n_in = model.head.in_features
+            self.B["rf_R"] = torch.randn(n_in, RF_N, generator=g) * (RF_GAIN / math.sqrt(n_in))
+            self.B["rf_b"] = torch.rand(RF_N, generator=g) * 2 - 1
         for n, m in self.mods.items():
             n_in, n_out = (m.in_features, m.out_features) if isinstance(m, nn.Linear) else m.w.shape
+            if self.base.startswith("rls"):                 # F on the (expanded) head input; _Q = P - I / eta
+                n_in += RF_N if self.base == "rls_rf" else 0
+                self.F["_Q"] = torch.zeros(n_in, n_in)
             if self.base == "lora":
                 u = (torch.randn(n_in, RANK, generator=g) / math.sqrt(n_in)).requires_grad_()
                 self.uv[n] = (u, torch.zeros(RANK, n_out, requires_grad=True))
@@ -152,7 +173,7 @@ class Fast:
                 u, v = self.uv[n]
                 add = (x @ u) @ v
             else:
-                add = x @ self.F[n]
+                add = self.phi(x) @ self.F[n]
             if self.gate_kind == "task":
                 add = add * self.task_on
             elif self.gate_kind and self.fitted:
@@ -166,6 +187,28 @@ class Fast:
                 self.rec.append((n, x, out))
             return out
         return hook
+
+    def phi(self, x):
+        if self.base != "rls_rf":
+            return x
+        return torch.cat([x, torch.tanh(x @ self.B["rf_R"] + self.B["rf_b"])], -1)
+
+    def _rls(self, b):
+        """One recursive-least-squares step of the head on the batch (targets: logits +-RLS_M)."""
+        self.rec = []
+        logits, _ = self._err(b)
+        (_, x, _), self.rec = self.rec[-1], None
+        keep = b["mask"][0] > 0
+        p = self.phi(x)[keep]
+        r = torch.zeros_like(logits[0])
+        r[:, SPEC.out_slice] = RLS_M * (2 * b["target"][0] - 1) - logits[0][:, SPEC.out_slice]
+        Q = self.F["_Q"]
+        Pp = p / self.eta + p @ Q                           # p P, P = I / eta + Q
+        K = torch.linalg.solve(torch.eye(len(p)) + Pp @ p.T, Pp).T   # P p^T (I + p P p^T)^-1  (P symmetric)
+        self.F["head"] += K @ r[keep]
+        Q -= K @ Pp
+        if RLS_LAMBDA < 1:                                  # P <- P / lambda
+            Q.add_(torch.eye(len(Q)) / self.eta).div_(RLS_LAMBDA).sub_(torch.eye(len(Q)) / self.eta)
 
     # --------------------------------------------------------------------------------------------- gates
     @torch.no_grad()
@@ -236,6 +279,9 @@ class Fast:
         with torch.no_grad():
             if self.base == "np3":
                 self._np3(b)
+                return
+            if self.base.startswith("rls"):
+                self._rls(b)
                 return
             self.rec = []
             _, e = self._err(b)
