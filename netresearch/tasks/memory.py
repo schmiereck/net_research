@@ -123,3 +123,45 @@ class CrossMem(SupervisedTask):
                 target[t, b] = to_bits(words[b, i])
                 mask[t, b] = 1.0
         return {"obs": obs, "target": target, "mask": mask}
+
+
+class Match(SupervisedTask):
+    """Look and compare without robot data: frame 0 shows a word (green marker), frames 1-3 show three
+    candidate words, exactly one of them is the word of frame 0. At each candidate: is it the same? (2 classes)
+    Distractors: half of them random words, half the shown word with 1-2 bits flipped. The net has to keep the
+    word AND compare it with what it sees (recall / delay only ask to repeat it). chance = 2/3 ("always no").
+    SHIFT: every frame puts its word at a random place, so the comparison cannot be done pixel by pixel."""
+    name, SHIFT = "match", False
+
+    def __init__(self):
+        self.spec = TaskSpec(self.name, "memory", "supervised", "class", 2, seq_len=4, chance=2 / 3,
+                             needs_memory=True,
+                             description="a word, then three candidate words -> at each: is it the first one?"
+                                         + (" (every word at a random place)" if self.SHIFT else ""))
+
+    def sample(self, batch, rng, split="train"):
+        ar = np.arange(batch)
+        w = _words(rng, batch, split)
+        flips = (1 << rng.integers(0, WORD, size=(batch, 3))) | (1 << rng.integers(0, WORD, size=(batch, 3)))
+        other = (w[:, None] + rng.integers(1, 256, size=(batch, 3))) % 256
+        cand = np.where(rng.random((batch, 3)) < 0.5, w[:, None] ^ flips, other)
+        right = rng.integers(0, 3, size=batch)
+        cand[ar, right] = w
+        words = np.concatenate([w[:, None], cand], 1)                       # [B, 4]
+        bits = ((words[..., None] >> np.arange(WORD - 1, -1, -1)) & 1).astype(np.float32)
+        obs = np.zeros((4, batch, 3, 16, 16), np.float32)
+        obs[0, :, 1, 0, 0] = 1.0                                            # green marker: the shown word
+        for t in range(4):
+            row = rng.integers(1, 16, size=batch) if self.SHIFT else np.full(batch, 5)
+            col = rng.integers(0, 16 - WORD + 1, size=batch) if self.SHIFT else np.full(batch, 4)
+            for i in range(WORD):
+                obs[t, ar, :, row, col + i] = bits[:, t, i, None]
+        target = np.zeros((4, batch), np.int64)
+        target[1:] = (np.arange(3)[:, None] == right[None]).astype(np.int64)
+        mask = np.ones((4, batch), np.float32)
+        mask[0] = 0.0
+        return {"obs": obs, "target": target, "mask": mask}
+
+
+class MatchShift(Match):
+    name, SHIFT = "match_shift", True

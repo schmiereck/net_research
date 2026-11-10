@@ -8,9 +8,10 @@ from .games.maze import Maze
 from .games.paddle import Paddle, PaddleMem
 from .games.racer import Racer
 from .images import Digits, Shapes
-from .memory import CrossMem, Delay, Recall
+from .memory import CrossMem, Delay, Match, MatchShift, Recall
 from .patterns import BitSeq, Count, Cycle, CycleMem, NumSeq
-from .robot import RobotFind, RobotFindColor, RobotFindImage, RobotFindShape, RobotGaze, RobotReach
+from .robot import (RobotFind, RobotFindColor, RobotFindImage, RobotFindShape, RobotGaze, RobotLook,
+                    RobotLookMem, RobotReach)
 from .servo import Servo
 from .text import CharNext
 
@@ -39,11 +40,15 @@ TASKS = {
     "robot_findc": RobotFindColor,
     "robot_findi": RobotFindImage,
     "robot_finds": RobotFindShape,
+    "robot_look": RobotLook,
+    "robot_lookmem": RobotLookMem,
     "shapes": Shapes,
     "digits": Digits,
     "charnext": CharNext,
     "recall": Recall,
     "delay": Delay,
+    "match": Match,
+    "match_shift": MatchShift,
     "crossmem": CrossMem,
     "paddle": _game_task("paddle", Paddle, "paddle duel vs CPU, first to 5 points"),
     "paddle_mem": _game_task("paddle_mem", PaddleMem, "paddle duel without ball trail (needs memory)", True),

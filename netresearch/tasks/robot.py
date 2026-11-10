@@ -185,6 +185,83 @@ class RobotFindShape(RobotFindColor):
         return self.make(d, np.arange(len(k)), (k + 1) % 3 if other else k, view)
 
 
+class RobotLook(SupervisedTask):
+    """Look and compare, stage 1: "is it this one?". The image is the fovea centred on ONE of the three
+    same-coloured shapes of a search scene (the others around it); "ref" is a picture of an object (alone, other
+    scene, other rotation): the same object in half of the cases, another object of the scene otherwise.
+    Output: 2 classes, 1 = it is the shown object. For nets with an address encoder ("+ref")."""
+    name, T = "robot_look", 1
+
+    def __init__(self):
+        self.spec = TaskSpec(self.name, "robot", "supervised", "class", 2, seq_len=self.T, chance=self.chance,
+                             needs_memory=self.T > 1, description=self.text)
+        self._data = {}
+
+    chance = 0.5
+    text = "robot fovea on one of three shapes + a picture of an object -> is it the shown object? (2 classes)"
+
+    def _load(self, name):
+        if name not in self._data:
+            self._data[name] = dict(np.load(DATA / f"{name}.npz"))
+        return self._data[name]
+
+    @staticmethod
+    def _img(a):
+        return a.astype(np.float32) / 255.0
+
+    def make(self, d, i, k, j, v):
+        """Candidate k of scene i in view, the picture shows object j (view v)."""
+        return {"obs": self._img(d["cands"][i, k])[None], "ref": self._img(d["refs"][i, j, v])[None],
+                "target": (k == j).astype(np.int64)[None], "mask": np.ones((1, len(i)), np.float32)}
+
+    def _pairs(self, n, rng, k=None):
+        k = rng.integers(0, 3, size=n) if k is None else k
+        same = rng.random(n) < 0.5
+        return k, np.where(same, k, (k + rng.integers(1, 3, size=n)) % 3), rng.integers(0, 2, size=n)
+
+    def sample(self, batch, rng, split="train"):
+        d = self._load(f"gazeshape_{split}")
+        return self.make(d, rng.integers(0, len(d["obs"]), size=batch), *self._pairs(batch, rng))
+
+    def held_out(self, rng, on_y=True):
+        """Scenes with the Y (never trained). on_y: the Y is looked at (picture: the Y or another object);
+        else another object is looked at (picture: itself or another one, possibly the Y)."""
+        d = self._load("gazeshapeheld_test")
+        y = d["cells"][:, 12].astype(np.int64)
+        n = len(y)
+        k = y if on_y else (y + rng.integers(1, 3, size=n)) % 3
+        return self.make(d, np.arange(n), *self._pairs(n, rng, k))
+
+
+class RobotLookMem(RobotLook):
+    """Look and compare, stage 2, with memory and without any extra input port: step 0 shows the picture of the
+    wanted object as the image; steps 1-3 show the fovea on the three shapes of the search scene one after the
+    other. At every candidate step: is it the object shown at the beginning? (exactly one of the three is).
+    The net has to keep what it saw at step 0. chance = 2/3, the accuracy of "always no"."""
+    name, T, chance = "robot_lookmem", 4, 2 / 3
+    text = ("picture of an object, then the fovea on three shapes one after the other -> at each: is it the one "
+            "shown first? (needs memory)")
+
+    def seq(self, d, i, w, v):
+        obs = np.stack([self._img(d["refs"][i, w, v])] + [self._img(d["cands"][i, k]) for k in range(3)])
+        tgt = np.stack([np.zeros(len(i), np.int64)] + [(w == k).astype(np.int64) for k in range(3)])
+        mask = np.ones((4, len(i)), np.float32)
+        mask[0] = 0.0
+        return {"obs": obs, "target": tgt, "mask": mask}
+
+    def sample(self, batch, rng, split="train"):
+        d = self._load(f"gazeshape_{split}")
+        return self.seq(d, rng.integers(0, len(d["obs"]), size=batch), rng.integers(0, 3, size=batch),
+                        rng.integers(0, 2, size=batch))
+
+    def held_out(self, rng, on_y=True):
+        """Scenes with the Y: the Y is the wanted object (on_y) or another object of the scene is."""
+        d = self._load("gazeshapeheld_test")
+        y = d["cells"][:, 12].astype(np.int64)
+        w = y if on_y else (y + rng.integers(1, 3, size=len(y))) % 3
+        return self.seq(d, np.arange(len(y)), w, rng.integers(0, 2, size=len(y)))
+
+
 class RobotGaze(_Robot):
     kind, text = "gaze", "robot fovea image -> gaze shift (dx, dy) in cells that centres the red cube"
 
