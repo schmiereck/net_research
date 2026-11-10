@@ -1088,6 +1088,35 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
     - Die gespeicherten Netze von cnn+cmd, vit+cmd und layer_s_sp4+cell fuer robot_findc sind jetzt die
       24000-Update-Netze.
 
+  - **Adresse aus einem Bild des Objekts** (Netze `<netz>+ref`, models/__init__.py AddressEncoder; Aufgabe
+    robot_findi; data/robot/gazecolorref_*.npz, 12000 Trainingsszenen; results/robot_findi_eval.jsonl):
+    - **Zeigebild:** je Wuerfel ein Bild, das ihn allein in einer ANDEREN Szene zeigt (Blick auf ihm, Arm in
+      anderer Stellung). Suchszene und Zeigebild haben nur das Objekt gemeinsam.
+    - **Adress-Encoder:** zwei Faltungen und eine lineare Schicht (etwa 4-6k Parameter), Zeigebild -> 16 Werte
+      in [-1, 1], die in den Kommando-Port gehen. Gelernt nur ueber den Fehler der Suchaufgabe; niemand gibt
+      vor, was in der Adresse stehen soll. Sie ist auslesbar (model.ref_enc(bild)) und ohne Bild wieder
+      eingebbar.
+    - Vergleich auf denselben Szenen: `+cmd` bekommt die Farbe als Kommando von aussen. Seeds 0-2, 24000
+      Updates, exakt richtig (innerhalb +-1 Zelle):
+
+  | Netz | Test | zurueckgehaltener Farbton | Kontrolle | falsches Bild / Kommando | Farbe aus der Adresse (R2) |
+  |---|---|---|---|---|---|
+  | vit+ref (Bild) | 0.59 (0.80) | 0.56 (0.79) | 0.58 (0.78) | 0.01 | 0.92 |
+  | vit+cmd (Farbe) | 0.59 (0.79) | 0.51 (0.77) | 0.57 (0.77) | 0.01 | |
+  | cnn+ref (Bild) | 0.53 (0.78) | 0.46 (0.71) | 0.50 (0.75) | 0.01 | 0.91 |
+  | cnn+cmd (Farbe) | 0.48 (0.75) | 0.31 (0.56) | 0.45 (0.73) | 0.01 | |
+  | layer_s_sp4+cell+ref (Bild) | 0.45 (0.72) | 0.39 (0.68) | 0.43 (0.71) | 0.01 | 0.94 |
+
+    - **Die selbst gebildete Adresse ist so gut wie oder besser als die vorgegebene Farbe** (vit gleich, cnn
+      0.53 gegen 0.48) und verallgemeinert besser auf den nie gesehenen Farbton: relativ zur Kontrolle
+      vit 97 % (Farbe 89 %), cnn 92 % (Farbe 69 %), Gitter-Netz 91 %.
+    - Mit dem Bild eines anderen Wuerfels wird der gefragte nicht mehr getroffen (0.01): Das Netz folgt dem
+      gezeigten Objekt.
+    - Die Adresse traegt die Farbe fast linear (R2 0.91-0.94), obwohl das nie verlangt war. Hier unterscheiden
+      sich die Objekte nur in der Farbe; ob die Adresse auch FORM traegt, ist der naechste Test.
+    - Nicht gemessen: ob zwei Zeigebilder desselben Wuerfels dieselbe Adresse geben (nur ein Zeigebild je
+      Wuerfel und Szene im Export).
+
 **Phase C – T3 Freeze & Route als Lehrplan-Test**
 - Über die Sieb-Stufen (4c), mit individuellen Modulen oder einer Fähigkeiten-Bibliothek am Bus.
 

@@ -114,16 +114,40 @@ class RobotFindColor(SupervisedTask):
                 "target": command_bits(c[r, 2 * k], c[r, 2 * k + 1])[None],
                 "mask": np.ones((1, len(i)), np.float32)}
 
+    files = ("gazecolor", "gazecolorheld_test")
+
+    def make(self, d, i, k):
+        return self._batch(d, i, k)
+
     def sample(self, batch, rng, split="train"):
-        d = self._load(f"gazecolor_{split}")
-        return self._batch(d, rng.integers(0, len(d["obs"]), size=batch), rng.integers(0, 3, size=batch))
+        d = self._load(f"{self.files[0]}_{split}")
+        return self.make(d, rng.integers(0, len(d["obs"]), size=batch), rng.integers(0, 3, size=batch))
 
     def held_out(self, other=False):
         """Test scenes with one cube in a held-out hue; the command names that cube (other=True: a cube with a
         trained hue in the same scenes, as the control)."""
-        d = self._load("gazecolorheld_test")
+        d = self._load(self.files[1])
         k = d["cells"][:, 15].astype(np.int64)
-        return self._batch(d, np.arange(len(k)), (k + 1) % 3 if other else k)
+        return self.make(d, np.arange(len(k)), (k + 1) % 3 if other else k)
+
+
+class RobotFindImage(RobotFindColor):
+    """robot_findc, but the wanted cube is named by a PICTURE of it (batch entry "ref": the cube alone in
+    another scene, the gaze on it) instead of its colour. A net with an address encoder ("+ref") has to form
+    its own address of the object from the picture. The batch also carries the colour command ("cmd"), so a
+    "+cmd" net trained on the same scenes is the reference for "address given from outside"."""
+    files = ("gazecolorref", "gazecolorrefheld_test")
+
+    def __init__(self):
+        super().__init__()
+        self.spec = TaskSpec("robot_findi", "robot", "supervised", "bits", 8, seq_len=1, chance=0.0,
+                             description="robot fovea image + a picture of the wanted cube -> gaze shift "
+                                         "(dx, dy) that centres it")
+
+    def make(self, d, i, k):
+        b = self._batch(d, i, k)
+        b["ref"] = (d["refs"][i, k].astype(np.float32) / 255.0)[None]
+        return b
 
 
 class RobotGaze(_Robot):

@@ -28,10 +28,14 @@ def reset_state(state, keep):
     return tuple(s * keep.view(-1, *([1] * (s.dim() - 1))) for s in state)
 
 
-def run_sequence(model, obs, state=None, resets=None, cmd=None):
+def run_sequence(model, obs, state=None, resets=None, cmd=None, ref=None):
     """obs [T,B,3,16,16] -> logits [T,B,64]. resets [T,B] (1 = new episode at t) for stateful models.
-    cmd [T,B,N_CMD]: command vectors for models with a command port (models.attach_cmd); others ignore it."""
+    cmd [T,B,N_CMD]: command vectors for models with a command port (models.attach_cmd); others ignore it.
+    ref [T,B,3,16,16]: pictures of the wanted object; a model with an address encoder ("+ref") turns them into
+    its command (and then ignores cmd)."""
     T, B = obs.shape[:2]
+    if ref is not None and hasattr(model, "ref_enc"):
+        cmd = model.ref_enc(ref.float())
     if cmd is None or not getattr(model, "takes_cmd", False):
         cmd = None
     try:
@@ -88,7 +92,7 @@ def _compact(batch):
     """Binary observations are kept as uint8 (4x less memory) and converted to float on use. Tasks with real
     valued images (robot fovea, tasks/robot.py) stay float: the cast would set every pixel below 1 to 0."""
     b = to_t(batch)
-    if bool(((b["obs"] == 0) | (b["obs"] == 1)).all()):
+    if bool(((b["obs"] == 0) | (b["obs"] == 1)).all()) and "ref" not in b:
         b["obs"] = b["obs"].to(torch.uint8)
     return b
 
@@ -108,7 +112,7 @@ def evaluate_supervised(model, task, n_batches=None):
     model.eval()
     correct = total = loss_sum = bit_correct = 0.0
     for b in eval_set(task)[:n_batches]:
-        logits, _ = run_sequence(model, b["obs"].float(), cmd=b.get("cmd"))
+        logits, _ = run_sequence(model, b["obs"].float(), cmd=b.get("cmd"), ref=b.get("ref"))
         lg, m = logits[..., spec.out_slice], b["mask"]
         loss_sum += supervised_loss(spec, logits, b["target"], m).item() * m.sum().item()
         if spec.head == "class":
@@ -146,7 +150,7 @@ class SupervisedLearner:
         return to_t(self.task.sample(self.batch, self.probe_rng))
 
     def loss_on(self, model, b):
-        logits, _ = run_sequence(model, b["obs"], cmd=b.get("cmd"))
+        logits, _ = run_sequence(model, b["obs"], cmd=b.get("cmd"), ref=b.get("ref"))
         return supervised_loss(self.spec, logits, b["target"], b["mask"])
 
     def log(self):

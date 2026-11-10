@@ -129,7 +129,9 @@ def split_size(name):
     differently sized nets are different model names everywhere (results, checkpoints). A '+cmd' suffix of the
     base name (command port, see attach_cmd) is removed here; has_cmd(name) tells whether it was there."""
     base, _, size = name.partition("@")
-    return base.replace("+cmd", "").replace("+cell", ""), (int(float(size.rstrip("k")) * 1000) if size else None)
+    for suf in ("+cmd", "+cell", "+ref"):
+        base = base.replace(suf, "")
+    return base, (int(float(size.rstrip("k")) * 1000) if size else None)
 
 
 def has_cmd(name):
@@ -155,14 +157,37 @@ def attach_cmd(model):
     return model
 
 
+class AddressEncoder(torch.nn.Module):
+    """Image of an object (16 x 16 fovea view with the object in the centre) -> its ADDRESS: a command vector
+    of N_CMD values in [-1, 1]. Model names "<net>+ref": the task shows the wanted object as a picture
+    (batch entry "ref"), the encoder turns it into the command of the net's command port. The address is the
+    net's own name for the object: it can be read out (model.ref_enc(image)), stored and given again later
+    without the picture. Small on purpose (about 3k parameters): two strided convolutions and a linear map."""
+
+    def __init__(self):
+        super().__init__()
+        nn = torch.nn
+        self.net = nn.Sequential(nn.Conv2d(3, 8, 3, stride=2, padding=1), nn.GELU(),          # 8 x 8
+                                 nn.Conv2d(8, 16, 3, stride=2, padding=1), nn.GELU(),         # 4 x 4
+                                 nn.Flatten(), nn.Linear(16 * 16, N_CMD), nn.Tanh())
+
+    def forward(self, img):                                    # [..., 3, 16, 16] -> [..., N_CMD]
+        return self.net(img.reshape(-1, *img.shape[-3:])).view(*img.shape[:-3], N_CMD)
+
+
 def construct(name, width):
     """'+cmd': command as an additive pattern on the image (any architecture, attach_cmd). '+cell' (grids only):
     command as an extra input of every cell (models/grid.py cmd_cells)."""
     ctor = MODELS[split_size(name)[0]][0]
     if "+cell" in name:
-        return ctor(width=width, n_cmd=N_CMD)
-    model = ctor(width=width)
-    return attach_cmd(model) if has_cmd(name) else model
+        model = ctor(width=width, n_cmd=N_CMD)
+    else:
+        model = ctor(width=width)
+        if has_cmd(name) or "+ref" in name:
+            attach_cmd(model)
+    if "+ref" in name:                                         # '+ref' alone = '+cmd+ref'; '+cell+ref' for grids
+        model.ref_enc = AddressEncoder()
+    return model
 
 
 def build_model(name, target_params=100_000, seed=0):
