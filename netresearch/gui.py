@@ -287,13 +287,21 @@ class SupervisedPanel(Panel):
             ok = bool((pb == target).all())
             ptxt = "".join("#" if b else "." for b in pb)
             ttxt = "".join("#" if b else "." for b in target)
+        trail = None
+        if spec.name == "servo":                 # show the commanded step as a line from the pointer
+            def steps(bits):
+                v = [int("".join(str(int(x)) for x in bits[i:i + 4]), 2) for i in (0, 4)]
+                return [x - 16 if x > 7 else x for x in v]
+            (py, px), (pc, tc) = np.argwhere(obs[1] > 0)[0], (steps(pb), steps(target))
+            trail = [(px, py), (px + pc[0], py + pc[1])]
+            ptxt, ttxt = f"({pc[0]:+d}, {pc[1]:+d})", f"({tc[0]:+d}, {tc[1]:+d})"
         if counted:
             self.correct += ok
             self.total += 1
         acc = f"{self.correct / self.total:5.1%} ({self.total})" if self.total else "   –"
         mark = "" if counted else "  (Warm-up)"
         self.show(obs, f"Ziel   : {ttxt}{mark}\nVorhers: {ptxt}\nGenauig: {acc}",
-                  (GOOD if ok else BAD) if counted else MUTED)
+                  (GOOD if ok else BAD) if counted else MUTED, trail=trail)
 
 
 class App:

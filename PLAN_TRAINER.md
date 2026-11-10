@@ -903,9 +903,9 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
     - **Folgerung für den Teacher:** Das Schreibziel „linearer Kopf“ reicht für Umordnungen, nicht für
       Rechnungen auf dem Ausgabe-Code. Kandidaten: nichtlinearer schneller Kopf (Erweiterung + lokale
       Regel mit besserer Schrittweite), oder ein Ausgabe-Code, in dem Geräte-Unterschiede linear sind.
-  - **Architektur-Vergleich läuft** (Worker, Nacht 2026-11-10): Netzgröße 25k / 100k / 400k und Modulzahl
-    (layer mit 2 / 8 Zeilen, 4 / 16 Spalten) auf servo, numseq, count, push_easy, grid_follow, cycle_mem.
-    Größen als Modellname mit Suffix (`layer_s@25k`).
+  - **Architektur-Vergleich** (Worker, Nacht 2026-11-10; results/size.jsonl, scripts/size_summary.py): Befunde in
+    AGENDA (Netzgröße und Modulzahl) und STAND.md. Für servo: vit löst es schon mit 25k; layer mit 16 Spalten
+    nur 0.41; alle 400k-Netze 0.99–1.00.
 
 **Phase C – T3 Freeze & Route als Lehrplan-Test**
 - Über die Sieb-Stufen (4c), mit individuellen Modulen oder einer Fähigkeiten-Bibliothek am Bus.

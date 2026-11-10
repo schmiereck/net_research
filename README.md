@@ -6,6 +6,7 @@ deren Gewichte entweder geteilt oder individuell sind. Sie treten gegen klassisc
 CVNN, ViT, GRU, Attention). Langfristig geht es um Netze mit Gedächtnis und um ein **Trainer-Netz**, das schnelles
 Lernen ohne Backprop ermöglicht.
 
+* **Stand der Forschung (Kurzfassung): [`STAND.md`](STAND.md)**, alle Themen: [`AGENDA.md`](AGENDA.md)
 * Konzept: [`NetResearch.md`](NetResearch.md)
 * Umsetzungsplan der Plattform: [`PLAN.md`](PLAN.md)
 * Nächster Forschungsschritt (Trainer-Netz, World-Model, Lernen ohne Backprop): [`PLAN_TRAINER.md`](PLAN_TRAINER.md)
