@@ -16,7 +16,10 @@ def test_task_shapes(name):
     spec = task.spec
     rng = np.random.default_rng(0)
     if spec.kind == "supervised":
-        b = task.sample(4, rng)
+        try:
+            b = task.sample(4, rng)
+        except FileNotFoundError as e:              # large robot data sets are not in the repository
+            pytest.skip(str(e))
         T = spec.seq_len
         assert b["obs"].shape == (T, 4) + OBS_SHAPE
         if spec.group == "robot":                 # real-valued camera images (tasks/robot.py)
