@@ -86,6 +86,46 @@ class RobotFind(SupervisedTask):
         return self._batch(d, i, np.full(len(i), k))
 
 
+class RobotFindColor(SupervisedTask):
+    """robot_find with RANDOM cube colours per scene (gazecolor): the command is the colour of the wanted cube
+    (RGB in the first 3 command values), so it is a continuous address and not one of three fixed codes. The
+    hue band 0.25-0.40 (green) never occurs in training; held_out() gives test scenes in which the commanded
+    cube has a hue from that band (gazecolorheld): does the address generalise to a colour never seen?"""
+
+    def __init__(self):
+        self.spec = TaskSpec("robot_findc", "robot", "supervised", "bits", 8, seq_len=1, chance=0.0,
+                             description="robot fovea image, cubes in random colours + command (colour of the "
+                                         "wanted cube) -> gaze shift (dx, dy) that centres it")
+        self._data = {}
+
+    def _load(self, name):
+        if name not in self._data:
+            self._data[name] = dict(np.load(DATA / f"{name}.npz"))
+        return self._data[name]
+
+    @staticmethod
+    def _batch(d, i, k):
+        from ..models import N_CMD
+        c = d["cells"][i].astype(np.int64)
+        r = np.arange(len(i))
+        cmd = np.zeros((len(i), N_CMD), np.float32)
+        cmd[:, :3] = (c[r[:, None], 6 + 3 * k[:, None] + np.arange(3)] + 128) / 255.0
+        return {"obs": (d["obs"][i].astype(np.float32) / 255.0)[None], "cmd": cmd[None],
+                "target": command_bits(c[r, 2 * k], c[r, 2 * k + 1])[None],
+                "mask": np.ones((1, len(i)), np.float32)}
+
+    def sample(self, batch, rng, split="train"):
+        d = self._load(f"gazecolor_{split}")
+        return self._batch(d, rng.integers(0, len(d["obs"]), size=batch), rng.integers(0, 3, size=batch))
+
+    def held_out(self, other=False):
+        """Test scenes with one cube in a held-out hue; the command names that cube (other=True: a cube with a
+        trained hue in the same scenes, as the control)."""
+        d = self._load("gazecolorheld_test")
+        k = d["cells"][:, 15].astype(np.int64)
+        return self._batch(d, np.arange(len(k)), (k + 1) % 3 if other else k)
+
+
 class RobotGaze(_Robot):
     kind, text = "gaze", "robot fovea image -> gaze shift (dx, dy) in cells that centres the red cube"
 

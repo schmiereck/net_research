@@ -1039,6 +1039,27 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
     das Kommando faktisch eine Klassennummer. Fuer eine stetige Adresse braucht das Training viele Farben
     (Farben je Szene wuerfeln); dann ist "neue Farbe" eine Interpolation.
 
+  - **Stetige Adresse mit gewuerfelten Farben** (robot_findc; data/robot/gazecolor_*.npz, 24000 Trainings-
+    szenen; scripts/robot_findc_eval.py -> results/robot_findc_eval.jsonl): Die drei Wuerfel tragen je Szene
+    zufaellige Farben, der Farbton 0.25-0.40 (gruen) kommt im Training nie vor. Seeds 0-2, 6000 Updates,
+    exakt richtig (in Klammern innerhalb +-1 Zelle):
+
+  | Netz | Test, trainierte Farbtoene | zurueckgehaltener Farbton | Kontrolle (gleiche Szenen, trainierter Farbton) | falsches Kommando |
+  |---|---|---|---|---|
+  | cnn+cmd | 0.44 (0.75) | 0.31 (0.61) | 0.42 (0.73) | 0.01 |
+  | vit+cmd | 0.40 (0.64) | 0.33 (0.61) | 0.38 (0.63) | 0.01 |
+  | layer_s_sp4+cmd | 0.18 (0.52) | 0.16 (0.46) | 0.18 (0.52) | 0.02 |
+  | layer_s+cmd | 0.14 (0.47) | 0.11 (0.41) | 0.13 (0.47) | 0.01 |
+
+    - **Die Adresse verallgemeinert jetzt:** Ein nie gesehener Farbton wird mit 74-87 % der Trefferquote
+      der Kontrolle gefunden (cnn 0.31 gegen 0.42, vit 0.33 gegen 0.38); mit drei festen Farben waren es
+      0.00-0.02. Viele Farben im Training machen aus dem Kommando eine Adresse statt einer Klassennummer.
+    - Die Aufgabe ist deutlich schwerer als mit drei festen Farben (cnn 0.72 -> 0.44) und nach 6000 Updates
+      nicht ausgelernt.
+    - **Die Gitter-Netze fallen hier ab** (0.14-0.18 gegen 0.40-0.44). Vermutung, ungeprueft: Der Port als
+      additives Muster je Spalte passt schlecht zu Netzen, die das Bild in Spaltenstreifen zerlegen; der
+      naheliegende Weg dort ist das Kommando als Eingang jeder Zelle (wie der globale Notizblock).
+
 **Phase C – T3 Freeze & Route als Lehrplan-Test**
 - Über die Sieb-Stufen (4c), mit individuellen Modulen oder einer Fähigkeiten-Bibliothek am Bus.
 
