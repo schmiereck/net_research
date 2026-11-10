@@ -74,9 +74,11 @@ _eval_cache = {}
 
 
 def _compact(batch):
-    """Observations are binary: keep them as uint8 (4x less memory), convert to float on use."""
+    """Binary observations are kept as uint8 (4x less memory) and converted to float on use. Tasks with real
+    valued images (robot fovea, tasks/robot.py) stay float: the cast would set every pixel below 1 to 0."""
     b = to_t(batch)
-    b["obs"] = b["obs"].to(torch.uint8)
+    if bool(((b["obs"] == 0) | (b["obs"] == 1)).all()):
+        b["obs"] = b["obs"].to(torch.uint8)
     return b
 
 

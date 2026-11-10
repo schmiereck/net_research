@@ -10,6 +10,7 @@ from .games.racer import Racer
 from .images import Digits, Shapes
 from .memory import CrossMem, Delay, Recall
 from .patterns import BitSeq, Count, Cycle, CycleMem, NumSeq
+from .robot import RobotGaze, RobotReach
 from .servo import Servo
 from .text import CharNext
 
@@ -32,6 +33,8 @@ TASKS = {
     "count": Count,
     "numseq": NumSeq,
     "servo": Servo,
+    "robot_gaze": RobotGaze,
+    "robot_reach": RobotReach,
     "shapes": Shapes,
     "digits": Digits,
     "charnext": CharNext,

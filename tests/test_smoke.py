@@ -19,7 +19,10 @@ def test_task_shapes(name):
         b = task.sample(4, rng)
         T = spec.seq_len
         assert b["obs"].shape == (T, 4) + OBS_SHAPE
-        assert set(np.unique(b["obs"])) <= {0.0, 1.0}
+        if spec.group == "robot":                 # real-valued camera images (tasks/robot.py)
+            assert b["obs"].min() >= 0.0 and b["obs"].max() <= 1.0
+        else:
+            assert set(np.unique(b["obs"])) <= {0.0, 1.0}
         assert b["mask"].shape == (T, 4)
         if spec.head == "class":
             assert b["target"].shape == (T, 4) and b["target"].max() < spec.n_out
