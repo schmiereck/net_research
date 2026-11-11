@@ -8,7 +8,8 @@ from .games.maze import Maze
 from .games.paddle import Paddle, PaddleMem
 from .games.racer import Racer
 from .images import Digits, Shapes
-from .memory import CrossMem, Delay, Match, MatchShift, Recall
+from .memory import (CrossMem, Delay, KeepFixed, KeepShift, Match, MatchShift, ReadShift, Recall, SameFixed,
+                     SameShift)
 from .patterns import BitSeq, Count, Cycle, CycleMem, NumSeq
 from .robot import (RobotFind, RobotFindColor, RobotFindImage, RobotFindShape, RobotGaze, RobotLook,
                     RobotLookMem, RobotReach)
@@ -49,6 +50,11 @@ TASKS = {
     "delay": Delay,
     "match": Match,
     "match_shift": MatchShift,
+    "read_shift": ReadShift,
+    "keep_shift": KeepShift,
+    "keep_fixed": KeepFixed,
+    "same_shift": SameShift,
+    "same_fixed": SameFixed,
     "crossmem": CrossMem,
     "paddle": _game_task("paddle", Paddle, "paddle duel vs CPU, first to 5 points"),
     "paddle_mem": _game_task("paddle_mem", PaddleMem, "paddle duel without ball trail (needs memory)", True),

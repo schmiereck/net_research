@@ -125,6 +125,26 @@ class CrossMem(SupervisedTask):
         return {"obs": obs, "target": target, "mask": mask}
 
 
+def _distract(w, rng):
+    """For every word a different one: half of them a random other word, half with 1-2 bits flipped."""
+    flips = (1 << rng.integers(0, WORD, size=w.shape)) | (1 << rng.integers(0, WORD, size=w.shape))
+    return np.where(rng.random(w.shape) < 0.5, w ^ flips, (w + rng.integers(1, 256, size=w.shape)) % 256)
+
+
+def _place(frames, words, rng, shift, row=5, col=4, rows=(1, 15)):
+    """frames [B,3,16,16]: word b as 8 white pixels; at (row, col), or with shift at a random place in rows.
+    A blue line under the word marks where it starts and ends: without it a shifted word would be ambiguous
+    (00000110 looks like 00001100 one pixel further left)."""
+    n = len(words)
+    r = rng.integers(*rows, size=n) if shift else np.full(n, row)
+    c = rng.integers(0, 16 - WORD + 1, size=n) if shift else np.full(n, col)
+    bits = ((words[:, None] >> np.arange(WORD - 1, -1, -1)) & 1).astype(np.float32)
+    for i in range(WORD):
+        frames[np.arange(n), :, r, c + i] = bits[:, i, None]
+        frames[np.arange(n), 2, r + 1, c + i] = 1.0
+    return bits
+
+
 class Match(SupervisedTask):
     """Look and compare without robot data: frame 0 shows a word (green marker), frames 1-3 show three
     candidate words, exactly one of them is the word of frame 0. At each candidate: is it the same? (2 classes)
@@ -139,23 +159,20 @@ class Match(SupervisedTask):
                              description="a word, then three candidate words -> at each: is it the first one?"
                                          + (" (every word at a random place)" if self.SHIFT else ""))
 
-    def sample(self, batch, rng, split="train"):
-        ar = np.arange(batch)
+    def draw(self, batch, rng, split):
+        """words [B, 4] (the shown word, three candidates), right [B] (index of the equal candidate)."""
         w = _words(rng, batch, split)
-        flips = (1 << rng.integers(0, WORD, size=(batch, 3))) | (1 << rng.integers(0, WORD, size=(batch, 3)))
-        other = (w[:, None] + rng.integers(1, 256, size=(batch, 3))) % 256
-        cand = np.where(rng.random((batch, 3)) < 0.5, w[:, None] ^ flips, other)
+        cand = _distract(w[:, None].repeat(3, 1), rng)
         right = rng.integers(0, 3, size=batch)
-        cand[ar, right] = w
-        words = np.concatenate([w[:, None], cand], 1)                       # [B, 4]
-        bits = ((words[..., None] >> np.arange(WORD - 1, -1, -1)) & 1).astype(np.float32)
+        cand[np.arange(batch), right] = w
+        return np.concatenate([w[:, None], cand], 1), right
+
+    def sample(self, batch, rng, split="train"):
+        words, right = self.draw(batch, rng, split)
         obs = np.zeros((4, batch, 3, 16, 16), np.float32)
         obs[0, :, 1, 0, 0] = 1.0                                            # green marker: the shown word
         for t in range(4):
-            row = rng.integers(1, 16, size=batch) if self.SHIFT else np.full(batch, 5)
-            col = rng.integers(0, 16 - WORD + 1, size=batch) if self.SHIFT else np.full(batch, 4)
-            for i in range(WORD):
-                obs[t, ar, :, row, col + i] = bits[:, t, i, None]
+            _place(obs[t], words[:, t], rng, self.SHIFT)
         target = np.zeros((4, batch), np.int64)
         target[1:] = (np.arange(3)[:, None] == right[None]).astype(np.int64)
         mask = np.ones((4, batch), np.float32)
@@ -165,3 +182,67 @@ class Match(SupervisedTask):
 
 class MatchShift(Match):
     name, SHIFT = "match_shift", True
+
+
+# ---- match_shift taken apart: which part breaks? (every task with SHIFT = word at a random place, and a
+# ---- control with the word at a fixed place)
+class ReadShift(SupervisedTask):
+    """Part 1, reading without memory: one word somewhere in the image -> the word (8 bits)."""
+    name, SHIFT = "read_shift", True
+
+    def __init__(self):
+        self.spec = TaskSpec(self.name, "patterns", "supervised", "bits", WORD, seq_len=1, chance=0.0,
+                             description="one word at a random place -> the word")
+
+    def sample(self, batch, rng, split="train"):
+        obs = np.zeros((1, batch, 3, 16, 16), np.float32)
+        bits = _place(obs[0], _words(rng, batch, split), rng, self.SHIFT)
+        return {"obs": obs, "target": bits[None], "mask": np.ones((1, batch), np.float32)}
+
+
+class KeepShift(SupervisedTask):
+    """Part 2, keeping: frame 0 a word (random place with SHIFT), frame 1 blank, frame 2 a blue cue -> the word."""
+    name, SHIFT = "keep_shift", True
+
+    def __init__(self):
+        self.spec = TaskSpec(self.name, "memory", "supervised", "bits", WORD, seq_len=3, chance=0.0,
+                             needs_memory=True, description="a word"
+                             + (" at a random place" if self.SHIFT else "") + ", a blank frame, a cue -> the word")
+
+    def sample(self, batch, rng, split="train"):
+        obs = np.zeros((3, batch, 3, 16, 16), np.float32)
+        bits = _place(obs[0], _words(rng, batch, split), rng, self.SHIFT)
+        obs[2, :, 2, 0, 0] = 1.0
+        target = np.zeros((3, batch, WORD), np.float32)
+        target[2] = bits
+        mask = np.zeros((3, batch), np.float32)
+        mask[2] = 1.0
+        return {"obs": obs, "target": target, "mask": mask}
+
+
+class KeepFixed(KeepShift):
+    name, SHIFT = "keep_fixed", False
+
+
+class SameShift(SupervisedTask):
+    """Part 3, comparing without memory: two words in ONE image (upper half, lower half), equal in half of the
+    cases -> same? (2 classes). SHIFT: each at a random place of its half; else rows 4 and 11, column 4."""
+    name, SHIFT = "same_shift", True
+
+    def __init__(self):
+        self.spec = TaskSpec(self.name, "patterns", "supervised", "class", 2, seq_len=1, chance=0.5,
+                             description="two words in one image" + (" at random places" if self.SHIFT else "")
+                                         + " -> are they the same?")
+
+    def sample(self, batch, rng, split="train"):
+        w = _words(rng, batch, split)
+        same = rng.random(batch) < 0.5
+        w2 = np.where(same, w, _distract(w, rng))
+        obs = np.zeros((1, batch, 3, 16, 16), np.float32)
+        _place(obs[0], w, rng, self.SHIFT, row=4, rows=(0, 7))
+        _place(obs[0], w2, rng, self.SHIFT, row=11, rows=(8, 15))
+        return {"obs": obs, "target": same.astype(np.int64)[None], "mask": np.ones((1, batch), np.float32)}
+
+
+class SameFixed(SameShift):
+    name, SHIFT = "same_fixed", False

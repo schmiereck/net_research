@@ -1226,6 +1226,32 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
       Zufalls-Distraktoren, nicht die mit 1-2 gekippten Bits; nicht aufgeschluesselt). match_shift ist damit
       eine brauchbare offene Leiterstufe.
 
+  - **match_shift zerlegt: es bricht beim VERGLEICHEN zweier ortsunabhaengiger Beschreibungen, bei allen
+    Netzen** (lokal 2026-11-11, results/match_parts.jsonl, scripts/match_breakdown.py; Seeds 0-2, 6000 Updates).
+    Seit dieser Messung hat jedes Wort eine blaue Linie darunter (Anfang und Ende); ohne sie war ein
+    verschobenes Wort nicht eindeutig (00000110 = 00001100 einen Pixel weiter links). Die Worker-Zahlen oben
+    sind von vor der Aenderung; match_shift lief hier neu mit.
+
+  | Netz | read_shift (lesen) | same_fixed (vergleichen, fester Ort) | same_shift (vergleichen, ein Bild, wandernd) | keep_fixed | keep_shift (merken, wandernd) | match_shift |
+  |---|---|---|---|---|---|---|
+  | layer_s, _sp4, _am4, _c16 | 1.00 | 1.00 | 0.04-0.07 | 1.00 | 1.00 | 0.00 |
+  | hier_s / layer_i | 1.00 | 1.00 | 0.35 / 0.35 (Seeds 0.04-0.70) | 1.00 | 1.00 | 0.00 |
+  | gru | 0.98 | 1.00 | 0.55 (0.27-0.70) | 1.00 | 0.77 | 0.43 |
+  | attnmem | 1.00 | 1.00 | 0.02 | 1.00 | 1.00 | 0.43 |
+  | vit / cnn | 1.00 | 1.00 | 0.01 | 0.01 | 0.01 | 0.00 |
+
+    - **Die Deutung "den Gittern fehlt eine ortsunabhaengige Beschreibung" war falsch:** Alle Gitter lesen ein
+      wanderndes Wort (1.00) und merken es (1.00), besser als das gru (0.77).
+    - **Gebrochen ist same_shift, und zwar OHNE Gedaechtnis und bei jeder Architektur,** auch vit und cnn.
+      Jedes Netz kann beide Woerter lesen und kann vergleichen, wenn die Orte fest sind, lernt aber nicht,
+      beides zu verbinden. Die Kurven zeigen wieder Plateau und spaeten Durchbruch einzelner Seeds: ein
+      LERN-Problem (kein Gradient, solange keine der beiden Teilleistungen steht), kein Architektur-Loch.
+    - match_shift, nach Kandidaten-Art: gru / attnmem erkennen den gleichen Kandidaten in 0.79-0.80, lehnen
+      fast gleiche (1-2 Bits anders) in 0.77-0.78 ab und ferne in 0.91; richtiger Kandidat gewaehlt in
+      0.67-0.68. Sie vergleichen also unscharf, nicht nur grob.
+    - Folge: kein Umbau am Netz. Das ist ein Fall fuer Lehrplan / Teacher: Teilleistung (lesen) vorhanden,
+      Zusammensetzen wird allein nicht gefunden.
+
 **Phase C – T3 Freeze & Route als Lehrplan-Test**
 - Über die Sieb-Stufen (4c), mit individuellen Modulen oder einer Fähigkeiten-Bibliothek am Bus.
 

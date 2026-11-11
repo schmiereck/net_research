@@ -79,7 +79,11 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   Gespeichertes wiedergeben, aber nicht mit dem Gesehenen vergleichen. Synthetische Aufgaben zeigen den Grund
   (`results/match.jsonl`): Steht das Muster immer am selben Ort (`match`), vergleichen alle Gitter-Netze
   fehlerfrei. Wandert es (`match_shift`), bleiben sie bei „immer nein“; GRU und Attention-Speicher
-  schaffen dort etwa die Hälfte. Den Gittern fehlt eine ortsunabhängige Beschreibung vor dem Speichern.
+  schaffen dort etwa die Hälfte.
+- Die Zerlegung (`results/match_parts.jsonl`) zeigt: Lesen und Merken eines wandernden Musters können die
+  Gitter-Netze fehlerfrei. Gebrochen ist das Vergleichen zweier wandernder Muster, schon in einem einzigen
+  Bild und bei allen Architekturen (auch vit und cnn). Die Teilleistungen sind da, das Zusammensetzen wird
+  nicht gelernt: ein Fall für Lehrplan und Teacher, nicht für einen Umbau der Netze.
 - Der Vergleich über die Adresse aus dem Zeigebild („ist es das?“ in einem Blick) gelingt keinem Netz (0.50).
 - Plan: Stufe b MuJoCo-Regelkreis mit Teacher als Experten, Stufe c Lieferquote als End-Benchmark; dazu die
   Servo-Stufe in Gelenkwinkeln (Fernziel physischer Arm, Abgleich über die Kamera).
