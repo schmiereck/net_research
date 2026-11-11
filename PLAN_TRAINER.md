@@ -1249,6 +1249,10 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
     - match_shift, nach Kandidaten-Art: gru / attnmem erkennen den gleichen Kandidaten in 0.79-0.80, lehnen
       fast gleiche (1-2 Bits anders) in 0.77-0.78 ab und ferne in 0.91; richtiger Kandidat gewaehlt in
       0.67-0.68. Sie vergleichen also unscharf, nicht nur grob.
+    - **same_shift mit 24000 Updates: das Plateau ist lang, nicht endgueltig, und die Gitter sind dann die
+      Besten:** hier_s 0.96 (0.93-0.98), layer_s 0.89 (0.86-0.92), layer_i 0.89 (0.87-0.92), layer_s_am4 0.77
+      (0.50-0.95), layer_s_sp4 0.61 (0.32-0.86), layer_s_c16 0.32, gru 0.71 (alle Seeds, Decke), attnmem 0.12,
+      vit 0.13, cnn 0.00. Fuer vit / cnn / attnmem ist es also mehr als Lerntempo, fuer die Gitter nicht.
     - Folge: kein Umbau am Netz. Das ist ein Fall fuer Lehrplan / Teacher: Teilleistung (lesen) vorhanden,
       Zusammensetzen wird allein nicht gefunden.
 

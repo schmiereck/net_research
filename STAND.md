@@ -82,8 +82,10 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   schaffen dort etwa die Hälfte.
 - Die Zerlegung (`results/match_parts.jsonl`) zeigt: Lesen und Merken eines wandernden Musters können die
   Gitter-Netze fehlerfrei. Gebrochen ist das Vergleichen zweier wandernder Muster, schon in einem einzigen
-  Bild und bei allen Architekturen (auch vit und cnn). Die Teilleistungen sind da, das Zusammensetzen wird
-  nicht gelernt: ein Fall für Lehrplan und Teacher, nicht für einen Umbau der Netze.
+  Bild und bei allen Architekturen (auch vit und cnn). Mit vierfacher Trainingszeit lösen es die
+  Gitter-Netze dann doch, und zwar am besten von allen (Hierarchie-Gitter 0.96, GRU 0.71, vit / cnn /
+  Attention-Speicher höchstens 0.13). Die Teilleistungen sind da, das Zusammensetzen wird nur sehr spät
+  gefunden: ein Fall für Lehrplan und Teacher, nicht für einen Umbau der Netze.
 - Der Vergleich über die Adresse aus dem Zeigebild („ist es das?“ in einem Blick) gelingt keinem Netz (0.50).
 - Plan: Stufe b MuJoCo-Regelkreis mit Teacher als Experten, Stufe c Lieferquote als End-Benchmark; dazu die
   Servo-Stufe in Gelenkwinkeln (Fernziel physischer Arm, Abgleich über die Kamera).
