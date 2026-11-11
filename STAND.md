@@ -89,8 +89,9 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
 - **Lehrplan** (`scripts/curriculum.py`, erster Durchgang auf den Abstimm-Seeds): Lernt ein Netz erst Merken und
   Vergleichen wandernder Muster, löst es danach den Vergleich mit Gedächtnis (Gitter-Netze 0.00 → 1.00).
   Dieselbe synthetische Vorstufe öffnet auch die Roboter-Aufgabe mit den drei Kandidaten: Das
-  Hierarchie-Gitter kommt von 0.00 auf das Niveau des Attention-Speichers. Bestätigung auf den Test-Seeds
-  steht aus.
+  Hierarchie-Gitter wählt danach in 86 % den richtigen Körper (nie gesehenes Y: 60 %) und ist damit das
+  beste Netz auf dieser Aufgabe (Attention-Speicher 82 % / 56 %; Test-Seeds 0–2). Das flache Gitter-Netz
+  schafft es in zwei von drei Seeds.
 - Der Vergleich über die Adresse aus dem Zeigebild („ist es das?“ in einem Blick) gelingt keinem Netz (0.50).
 - Plan: Stufe b MuJoCo-Regelkreis mit Teacher als Experten, Stufe c Lieferquote als End-Benchmark; dazu die
   Servo-Stufe in Gelenkwinkeln (Fernziel physischer Arm, Abgleich über die Kamera).

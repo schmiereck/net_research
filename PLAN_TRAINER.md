@@ -1281,7 +1281,20 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
 
       Die synthetische Vorstufe (Woerter aus Pixeln) oeffnet also die Aufgabe auf MuJoCo-Bildern: hier_s
       erreicht das Niveau des Attention-Speichers. Die Zwischenstufe match_shift schadet eher (je ein Seed
-      faellt aus). Noch nicht auf den Seeds 0-2 bestaetigt, nicht auf dem Y ausgewertet.
+      faellt aus).
+    - **robot_lookmem mit Vorstufe, bestaetigt auf Seeds 0-2** (Plan keep_shift+same_shift:12000 ->
+      robot_lookmem:12000; scripts/robot_look_eval.py --ckpt robot_lookmem_cur ->
+      results/robot_lookmem_cur_eval.jsonl):
+
+  | Netz | Antworten richtig | richtigen Koerper gewaehlt | ... beim nie gesehenen Y |
+  |---|---|---|---|
+  | hier_s mit Vorstufe | 0.94 (0.93-0.95) | 0.86 (0.84-0.88) | 0.60 (0.59-0.61) |
+  | layer_s mit Vorstufe | 0.80 (0.67 / 0.89 / 0.85) | 0.47 (0.00 / 0.77 / 0.66) | 0.31 (0.00 / 0.52 / 0.40) |
+  | zum Vergleich attnmem ohne Vorstufe, 24000 Updates | 0.92 | 0.82 | 0.56 |
+  | layer_s / hier_s ohne Vorstufe | 0.67 | 0.00 | 0.00 |
+
+      hier_s ist damit das beste Netz auf dieser Aufgabe, auch beim Y. layer_s faellt in einem von drei
+      Seeds aus (bleibt bei "immer nein").
     - **Lehrplan fuer same_shift selbst** (12000 Updates insgesamt): Bei den Gittern gibt
       read_shift+same_fixed:2000 -> same_shift:10000 die besten Endwerte. Seeds 0-2: layer_s 0.92 / 0.95 / 0.60
       gegen allein 0.41 / 0.08 / 0.03; hier_s 0.92 / 0.83 / 0.87 gegen 0.88 / 0.74 / 0.84. Das Plateau wird kaum
