@@ -1256,6 +1256,40 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
     - Folge: kein Umbau am Netz. Das ist ein Fall fuer Lehrplan / Teacher: Teilleistung (lesen) vorhanden,
       Zusammensetzen wird allein nicht gefunden.
 
+  - **Lehrplan: die Vorstufe "merken + vergleichen" oeffnet match_shift und robot_lookmem fuer die Gitter**
+    (lokal 2026-11-11, scripts/curriculum.py -> results/curriculum.jsonl; Plan = Phasen "aufgabe[+aufgabe]:updates",
+    jede Phase mit eigenem Optimierer; Abstimm-Seeds 5 / 6, wo nicht anders vermerkt).
+    - **Uebertrag auf match_shift** (Endwerte je Seed):
+
+  | Plan | layer_s | hier_s | gru |
+  |---|---|---|---|
+  | match_shift:12000 | 0.00 / 0.00 | 0.00 / 0.00 | 0.43 / 0.44 |
+  | same_shift:12000 -> match_shift:12000 | 0.90 / 0.00 | 0.89 / 0.87 | 0.95 / 0.94 |
+  | keep_shift+same_shift:12000 -> match_shift:12000 | 1.00 / 1.00 | 1.00 / 1.00 | 0.99 / 0.99 |
+  | same_shift+match_shift:24000 (zugleich) | 0.00 / 0.00 | 0.00 / 0.00 | 0.91 / 0.92 |
+
+      Nach der Vorstufe faellt match_shift in 750-1500 Updates. Zugleich lernen hilft den Gittern nicht, nur
+      nacheinander. Die Vorstufe wird dabei vergessen (same_shift danach wieder bei Zufall).
+    - **Uebertrag auf die Roboter-Aufgabe robot_lookmem** (Score; 0 = "immer nein"; Anteil richtiger Antworten
+      = 2/3 + Score/3; ohne Vorstufe 0.00 bei 6000 und 24000 Updates; attnmem ohne Vorstufe, 24000 Updates,
+      Seeds 0-2: Score 0.76):
+
+  | Plan | layer_s | hier_s |
+  |---|---|---|
+  | keep_shift+same_shift:12000 -> robot_lookmem:12000 | 0.68 / 0.56 | 0.77 / 0.80 |
+  | ... -> match_shift:4000 -> robot_lookmem:12000 | 0.00 / 0.69 | 0.04 / 0.80 |
+
+      Die synthetische Vorstufe (Woerter aus Pixeln) oeffnet also die Aufgabe auf MuJoCo-Bildern: hier_s
+      erreicht das Niveau des Attention-Speichers. Die Zwischenstufe match_shift schadet eher (je ein Seed
+      faellt aus). Noch nicht auf den Seeds 0-2 bestaetigt, nicht auf dem Y ausgewertet.
+    - **Lehrplan fuer same_shift selbst** (12000 Updates insgesamt): Bei den Gittern gibt
+      read_shift+same_fixed:2000 -> same_shift:10000 die besten Endwerte. Seeds 0-2: layer_s 0.92 / 0.95 / 0.60
+      gegen allein 0.41 / 0.08 / 0.03; hier_s 0.92 / 0.83 / 0.87 gegen 0.88 / 0.74 / 0.84. Das Plateau wird kaum
+      kuerzer (Score 0.5 nach 4500-6750 statt 6250-7500 Updates, Seeds 5 / 6), aber verlaesslicher verlassen.
+      vit: read_shift+same_shift zugleich 0.84-0.86 statt Zufall. gru: 0.71 in jeder Variante.
+    - Offen: Bestaetigung des match_shift-Uebertrags auf Seeds 0-2 fuer sechs Netze (Lauf vom System wegen
+      Speichermangel beendet, nichts fertig).
+
 **Phase C – T3 Freeze & Route als Lehrplan-Test**
 - Über die Sieb-Stufen (4c), mit individuellen Modulen oder einer Fähigkeiten-Bibliothek am Bus.
 

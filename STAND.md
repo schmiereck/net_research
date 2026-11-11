@@ -86,6 +86,11 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   Gitter-Netze dann doch, und zwar am besten von allen (Hierarchie-Gitter 0.96, GRU 0.71, vit / cnn /
   Attention-Speicher höchstens 0.13). Die Teilleistungen sind da, das Zusammensetzen wird nur sehr spät
   gefunden: ein Fall für Lehrplan und Teacher, nicht für einen Umbau der Netze.
+- **Lehrplan** (`scripts/curriculum.py`, erster Durchgang auf den Abstimm-Seeds): Lernt ein Netz erst Merken und
+  Vergleichen wandernder Muster, löst es danach den Vergleich mit Gedächtnis (Gitter-Netze 0.00 → 1.00).
+  Dieselbe synthetische Vorstufe öffnet auch die Roboter-Aufgabe mit den drei Kandidaten: Das
+  Hierarchie-Gitter kommt von 0.00 auf das Niveau des Attention-Speichers. Bestätigung auf den Test-Seeds
+  steht aus.
 - Der Vergleich über die Adresse aus dem Zeigebild („ist es das?“ in einem Blick) gelingt keinem Netz (0.50).
 - Plan: Stufe b MuJoCo-Regelkreis mit Teacher als Experten, Stufe c Lieferquote als End-Benchmark; dazu die
   Servo-Stufe in Gelenkwinkeln (Fernziel physischer Arm, Abgleich über die Kamera).
