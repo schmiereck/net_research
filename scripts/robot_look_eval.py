@@ -40,6 +40,7 @@ def main():
     ap.add_argument("--task", default="robot_look", choices=["robot_look", "robot_lookmem"])
     ap.add_argument("--models", nargs="+", default=None)
     ap.add_argument("--seeds", nargs="+", type=int, default=[0, 1, 2])
+    ap.add_argument("--ckpt", default=None, help="checkpoint name in place of the task name (curriculum runs)")
     a = ap.parse_args()
     models = a.models or (["vit+ref", "cnn+ref", "layer_s_sp4+cell+ref"] if a.task == "robot_look" else
                           ["layer_s_sp4", "layer_s", "hier_s", "layer_s_am4", "gru", "attnmem", "vit"])
@@ -50,12 +51,12 @@ def main():
     rows = []
     for m in models:
         for s in a.seeds:
-            model = load_checkpoint(m, a.task, s)
+            model = load_checkpoint(m, a.ckpt or a.task, s)
             if model is None:
                 continue
             for name, b in sets.items():
                 rows.append({"model": m, "seed": s, "set": name, **score(model, b, task.spec)})
-    with open(f"results/{a.task}_eval.jsonl", "w") as f:
+    with open(f"results/{a.ckpt or a.task}_eval.jsonl", "w") as f:
         for r in rows:
             f.write(json.dumps(r) + "\n")
     import pandas as pd
