@@ -76,8 +76,10 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
 - **Anschauen und vergleichen** löst das: Erst das Bild des gesuchten Körpers, dann der Blick nacheinander
   auf die drei Kandidaten. Der Attention-Speicher wählt in 82 % den richtigen Körper (beim nie gesehenen Y
   56 %), das GRU in 68 %. Die Gitter-Netze scheitern daran vollständig, auch mit Notizblock: Sie können
-  Gespeichertes wiedergeben, aber nicht mit dem Gesehenen vergleichen. Das wird mit synthetischen Aufgaben
-  (`match`, `match_shift`) nachgeprüft.
+  Gespeichertes wiedergeben, aber nicht mit dem Gesehenen vergleichen. Synthetische Aufgaben zeigen den Grund
+  (`results/match.jsonl`): Steht das Muster immer am selben Ort (`match`), vergleichen alle Gitter-Netze
+  fehlerfrei. Wandert es (`match_shift`), bleiben sie bei „immer nein“; GRU und Attention-Speicher
+  schaffen dort etwa die Hälfte. Den Gittern fehlt eine ortsunabhängige Beschreibung vor dem Speichern.
 - Der Vergleich über die Adresse aus dem Zeigebild („ist es das?“ in einem Blick) gelingt keinem Netz (0.50).
 - Plan: Stufe b MuJoCo-Regelkreis mit Teacher als Experten, Stufe c Lieferquote als End-Benchmark; dazu die
   Servo-Stufe in Gelenkwinkeln (Fernziel physischer Arm, Abgleich über die Kamera).

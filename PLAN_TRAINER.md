@@ -1201,6 +1201,31 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
     - Lernkurven beider Stufen: langes Plateau beim Zufallswert, dann ploetzlicher Durchbruch (gru nach etwa
       3000 Updates) oder nie.
 
+  - **Die Gitter-Netze koennen vergleichen, aber nur am selben Ort** (Rechen-PC 2026-11-10/11,
+    results/match.jsonl; Aufgaben match / match_shift in tasks/memory.py; Seeds 0-2, 12000 Updates;
+    Score 0 = "immer nein", 1 = alles richtig):
+
+  | Netz | match (Wort immer am selben Ort) | match_shift (jedes Wort an anderer Stelle) |
+  |---|---|---|
+  | attnmem (25k / 100k / 400k) | 1.00 | 0.44 / 0.43 / 0.27 |
+  | gru (25k / 100k / 400k) | 0.99 / 1.00 / 0.99 | 0.56 / 0.42 / 0.41 (ein 25k-Seed 0.83) |
+  | layer_s, layer_s_sp4, layer_s_c16, hier_s, hier_s_sp4 (auch 25k / 400k) | 1.00 | 0.00 |
+  | layer_s_am4 (100k / 400k) | 1.00 | 0.07 / 0.01 |
+  | layer_i | 1.00 | 0.25 (Seeds 0.00 / 0.00 / 0.75) |
+  | vit, cnn, mlp (ohne Gedaechtnis) | 0.00 | 0.00 |
+
+    - **Vergleichen an sich ist kein Problem:** Alle Gitter-Netze loesen match in 250 Updates, schneller als
+      das gru (500).
+    - **Sobald das Wort wandert, bleibt jedes Gitter mit geteilten Modulen bei "immer nein",** unabhaengig von
+      Groesse, Spaltenzahl und Art des Speichers. Das erklaert robot_lookmem: Zeigebild und Kandidat zeigen
+      denselben Koerper anders gedreht, also an anderen Pixeln.
+    - Deutung (nicht gemessen): Jede Spalte sieht nur ihren Bildstreifen und vergleicht mit dem, was SIE
+      gespeichert hat. Es fehlt eine ortsunabhaengige Beschreibung VOR dem Speichern. gru und attnmem lesen
+      das ganze Bild in einen Vektor.
+    - Auch gru / attnmem loesen match_shift nur halb (0.42-0.44, sehr stabil ueber Seeds; vermutlich die
+      Zufalls-Distraktoren, nicht die mit 1-2 gekippten Bits; nicht aufgeschluesselt). match_shift ist damit
+      eine brauchbare offene Leiterstufe.
+
 **Phase C – T3 Freeze & Route als Lehrplan-Test**
 - Über die Sieb-Stufen (4c), mit individuellen Modulen oder einer Fähigkeiten-Bibliothek am Bus.
 
