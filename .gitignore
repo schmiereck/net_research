@@ -13,3 +13,5 @@ results/remote/
 # large robot data sets: regenerate in rdf_thalamus_sml with src/pc_cvnn/export_netresearch.py
 # (--tasks gazeshape --n-train 12000 --n-test 3000; --tasks gazeshapeheld --n-train 0 --n-test 3000)
 data/robot/gazeshape*.npz
+# (--tasks shapeview --n-train 12000 --n-test 3000: resolution test, 52 MB)
+data/robot/shapeview*.npz
