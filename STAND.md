@@ -147,6 +147,17 @@ beides gerechnet haben; 6–14 Architekturen je Paar, also eine Beschreibung, no
 | `servo` | `robot_findc` | +0.31 | keine Vorhersage |
 | `cycle_mem`, `recall`, `keep_shift`, `same_shift` | `robot_lookmem` | −0.5 … +0.3 | **keine Vorhersage**: Die Gitter lösen die Gedächtnis-Batterie und scheitern am Vergleichen auf Roboter-Bildern |
 
+**Blinde Prognose für die drei neuen Netze** (aufgeschrieben 2026-11-12 vor den Roboter-Läufen; kleine
+Ergebnisse in results/new3.jsonl, Seeds 0–2):
+
+| Netz | kleine Aufgaben | Prognose `robot_lookmem` | Prognose `robot_findc` | Prognose `robot_gaze` |
+|---|---|---|---|---|
+| vitmem | `match_shift` 0.50, `push_easy` 0.61, `servo` 1.00 | deutlich über 0 (um 0.4–0.5, je Seed verschieden) | 0.5–0.6, bei cnn und Gittern | über 0.9 |
+| lstm | `match_shift` 0.60, `push_easy` 0.09, `servo` 0.61 | deutlich über 0 (um 0.5) | um 0.1 | um 0.4–0.5 wie gru |
+| esn | `match_shift` 0.00, `push_easy` −0.03, `servo` 0.01 | 0.00 | um 0.1 | unter 0.4 |
+
+Für `robot_reach` gibt es keine kleine Entsprechung, also keine Prognose. Ergebnis: steht aus.
+
 Erfahrungen, die in die Pipeline gehören:
 - **Das Trainingsprotokoll entscheidet mit.** Rangfolgen kippen zwischen 6000 und 24000 Updates und mit einer
   Vorstufe (Hierarchie-Gitter auf `robot_lookmem`: 0.00 allein, bestes Netz mit Vorstufe). Ein „lohnt sich
