@@ -271,7 +271,7 @@ class LayerGrid(Model):
     stateful = True
 
     def __init__(self, width=16, shared=False, R=4, C=8, n_mem=0, n_global=0, read="", slots=0, heads=1,
-                 alloc=False, n_cmd=0):
+                 alloc=False, n_cmd=0, prod=False):
         super().__init__()
         assert not (slots and read), "key/value scratchpad and neighbour/address reading are separate variants"
         self.R, self.C, self.d = R, C, width
@@ -284,7 +284,14 @@ class LayerGrid(Model):
         self.register_buffer("cols", torch.arange(C), persistent=False)
         self.n_cmd, self.cmd, self.takes_cmd = n_cmd, None, n_cmd > 0
         self.fc1 = CellLinear(R, C, 5 * width + nl + n_global + self.reader.extra + n_cmd, h, shared)
-        self.fc2 = CellLinear(R, C, h, width + 2 * (nl + n_global), shared, zero=True)
+        # comparator cell ("_x"): besides the usual sum of its inputs the cell gets PRODUCTS of what comes from
+        # above now (LP, P, RP) with what it holds from before (L, R of the previous tick, own and global
+        # scratchpad): k = width features (A u) * (B v). A sum can select, a product can compare.
+        self.prod = width if prod else 0
+        if prod:
+            self.pa = CellLinear(R, C, 3 * width, width, shared)
+            self.pb = CellLinear(R, C, 2 * width + nl + n_global, width, shared)
+        self.fc2 = CellLinear(R, C, h + self.prod, width + 2 * (nl + n_global), shared, zero=True)
         init_write_bias(self.fc2, width, nl, n_global)
         self.ln = nn.LayerNorm(C * width)
         self.head = nn.Linear(C * width, N_OUT)
@@ -316,14 +323,19 @@ class LayerGrid(Model):
             lat = F.pad(prev[:, r], (0, 0, 1, 1))
             inp = torch.cat([pa[:, :-2], pa[:, 1:-1], pa[:, 2:], lat[:, :-2], lat[:, 2:]], -1)  # LP,P,RP,L,R
             inp = F.layer_norm(inp, inp.shape[-1:])
+            now, held = inp[..., :3 * self.d], inp[..., 3 * self.d:]
             if mem:
                 parts = [inp, self.kv.read(M[:, r], qr) if self.kv else M[:, r], Gx]
+                held = torch.cat([held, parts[1], Gx], -1)
                 if self.reader.extra:
                     parts.append(self.reader.read(ctx, r, self.cols, inp))
                 inp = torch.cat(parts, -1)
             if self.n_cmd:
                 inp = torch.cat([inp, cmd_cells(self, inp)], -1)
-            o = self.fc2(F.gelu(self.fc1(inp, r)), r)
+            hid = F.gelu(self.fc1(inp, r))
+            if self.prod:
+                hid = torch.cat([hid, self.pa(now, r) * self.pb(held, r)], -1)
+            o = self.fc2(hid, r)
             if mem:
                 o, wl, wg = split_writes(o, self.d, self.nl)
                 new_m.append(self.kv.write(M[:, r], kw, wl) if self.kv else write_memory(M[:, r], wl))

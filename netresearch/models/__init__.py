@@ -86,6 +86,13 @@ for _grid, _cls in (("layer", LayerGrid), ("hier", HierGrid)):
                              (4, 256), 1)
             SCRATCH_ORDER.append(_name)
 
+# comparator cell (models/grid.py, prod): "_x" = products of the input from above with what the cell holds
+for _name, _kw in (("layer_s_x", {"shared": True}), ("layer_i_x", {"shared": False}),
+                   ("layer_s_sp4x", {"shared": True, "n_mem": 4}),
+                   ("layer_s_am4x", {"shared": True, "n_mem": 4, "slots": 16, "heads": 4, "alloc": True})):
+    MODELS[_name] = (partial(LayerGrid, prod=True, **_kw), (4, 256), 1)
+    SCRATCH_ORDER.append(_name)
+
 # number of modules: "_r<R>" rows (base 4), "_c<C>" columns (base 8; the strips are 16 / C pixels wide)
 SHAPE_ORDER = []
 for _sh in ("s", "i"):
