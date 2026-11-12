@@ -1409,6 +1409,40 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
       Es ist der INHALT: Merken allein reicht auch mit 12000 Updates nicht, Vergleichen allein kaum; erst
       beides zusammen oeffnet die Roboter-Aufgabe. 6000 Updates reichen (eher besser als 12000), 3000 sind
       fuer hier_s zu wenig. Anders als bei match_shift, wo Merken allein mit 3000 Updates reichte.
+- **„Hand zum Wuerfel“: Datenmenge, Netzgroesse, Lesen** (2026-11-12, Rechen-PC, results/reach_read.jsonl,
+  Seeds 5 / 6, 24000 Updates je Aufgabe; „beides“ = Hilfsaufgabe und Hauptaufgabe im Wechsel, 48000 Updates).
+  Score auf robot_reach, in Klammern die Lesequote der Hilfsaufgabe (Hand und Wuerfel exakt):
+
+  | Netz | 12000 Bilder allein | 12000 beides | 48000 allein | 48000 beides |
+  |---|---|---|---|---|
+  | vit | 0.13 | 0.42 (0.45) | 0.29 | 0.59 (0.61) |
+  | vit@400k | 0.13 | 0.45 (0.48) | 0.31 | 0.64 (0.66) |
+  | cnn | 0.08 | 0.14 (0.26) | 0.21 | 0.42 (0.58) |
+  | cnn@400k | 0.10 | 0.18 (0.33) | 0.23 | 0.50 (0.60) |
+  | layer_s | 0.11 | 0.20 (0.36) | 0.26 | 0.45 (0.55) |
+  | layer_s_c16 | 0.09 | 0.16 (0.40) | 0.25 | 0.39 (0.61) |
+  | hier_s | 0.09 | 0.12 (0.18) | 0.18 | 0.23 (0.41) |
+
+      Mehr Daten helfen deutlich, mehr Parameter kaum. Beim vit erreicht die Hauptaufgabe fast die Lesequote:
+      Das Verrechnen ist dort geloest. cnn und Gitter lesen aehnlich gut, verrechnen aber schlechter. Die Hand
+      wird zu 0.78–0.92 gelesen, der Wuerfel zu 0.54–0.72 (48000 Bilder): Der Wuerfel ist der Engpass.
+- **Aufloesung der Fovea** (2026-11-12, results/resolution.jsonl, Seeds 0–2, 6000 Updates; Aufgabe robot_shape:
+  Blick auf einem von drei gleichfarbigen Koerpern, bis eine Zelle daneben, Ausgabe = seine Form, 5 Klassen):
+
+  | Abtastung | cnn | layer_s | hier_s | vit |
+  |---|---|---|---|---|
+  | Standard 16 × 16 | 0.986 | 0.983 | 0.947 | 0.934 |
+  | Zoom 2× (16 × 16) | 0.988 | 0.984 | 0.975 | 0.937 |
+  | Zoom 4× (16 × 16) | 0.978 | 0.971 | 0.967 | 0.911 |
+  | 32 × 32, gemittelt (+ret0) | 0.983 | 0.976 | 0.948 | 0.928 |
+  | 32 × 32, 1 Schicht (+ret1) | 0.932 | 0.937 | 0.918 | 0.755 |
+  | 32 × 32, 2 Schichten (+ret2) | 0.992 | 0.991 | 0.991 | 0.977 |
+  | 32 × 32, 3 Schichten (+ret3) | 0.996 | 0.998 | 0.994 | 0.984 |
+
+      Die Form wird schon mit der Standard-Fovea erkannt. Die doppelte Aufloesung mit gelernter Vorstufe holt
+      den Rest (Fehler 1.4–6.6 % → 0.2–1.6 %), ist aber nicht der Engpass der Form-Suche. Eine einzelne
+      Schicht 2 × 2 ist schlechter als blosses Mitteln. Nicht geprueft: Koerper am Rand des Blickfelds, wo die
+      Zellen grob sind, und ob die Netze den Umriss oder nur die Flaeche nutzen.
 
 **Phase C – T3 Freeze & Route als Lehrplan-Test**
 - Über die Sieb-Stufen (4c), mit individuellen Modulen oder einer Fähigkeiten-Bibliothek am Bus.

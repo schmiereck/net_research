@@ -114,22 +114,37 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   bei den Pixel-Wörtern reichte, reicht den Gitter-Netzen auf Roboter-Bildern nicht. Dort braucht die Vorstufe
   Merken UND Vergleichen zusammen (je allein: 0.00 bzw. höchstens 0.32); 6000 Updates davon genügen.
 - `robot_reach` liest seit 2026-11-12 den Datensatz `reachcells_*` (gleicher Generator, andere Szenen).
+- **„Hand zum Würfel“ hängt an der Datenmenge und am Lesen des Würfels** (reach_read, Seeds 5 / 6, 24000
+  Updates je Aufgabe). Viermal so viele Bilder (48000) heben jedes Netz: allein 0.08–0.13 → 0.18–0.31, mit der
+  Hilfsaufgabe 0.12–0.45 → 0.23–0.64 (vit 0.59, vit@400k 0.64, cnn@400k 0.50, layer_s 0.45, hier_s 0.23).
+  Viermal so viele Parameter bringen wenig (+0.03 bis +0.08). Mit Hilfsaufgabe liegt die Hauptaufgabe beim vit
+  fast auf der Höhe des Lesens (0.59 gegen 0.61): Das Verrechnen ist gelöst, begrenzt wird durch das Lesen.
+  Gelesen wird die Hand zu 0.78–0.92, der Würfel nur zu 0.54–0.72.
+- **Die Auflösung der Fovea begrenzt das Erkennen der Form nicht, wenn der Blick auf dem Körper liegt**
+  (`robot_shape`, 5 Formen, Zufall 0.2, Seeds 0–2, 6000 Updates): Standard-Fovea 0.93–0.99, doppelte
+  Vergrößerung 0.94–0.99, vierfache 0.91–0.98. Mit 32 × 32 über dasselbe Blickfeld und zwei bis drei gelernten
+  Schichten davor 0.98–1.00, mit bloßem Mitteln 0.93–0.98 (wie Standard), mit nur einer Schicht schlechter
+  (0.76–0.94). Der Gewinn durch doppelte Auflösung ist also klein (rund ein Prozentpunkt beim cnn, fünf beim
+  vit und beim Hierarchie-Gitter). Einschränkung: Der Blick liegt hier höchstens eine Zelle neben dem Körper;
+  Körper am Rand des Blickfelds (grobe Zellen) sind damit nicht geprüft, und die Netze können die Form auch
+  an der Fläche statt am Umriss erkennen.
 - Der Vergleich über die Adresse aus dem Zeigebild („ist es das?“ in einem Blick) gelingt keinem Netz (0.50).
 - Plan: Stufe b MuJoCo-Regelkreis mit Teacher als Experten, Stufe c Lieferquote als End-Benchmark; dazu die
   Servo-Stufe in Gelenkwinkeln (Fernziel physischer Arm, Abgleich über die Kamera).
 
 ## Prognose: welche kleine Aufgabe sagt welche Roboter-Aufgabe vorher?
 
-Stand 2026-11-12, `python scripts/forecast.py` (Rangübereinstimmung rho über die Architekturen, die beides
-gerechnet haben; 6–10 Architekturen je Paar, also eine Beschreibung, noch kein Beweis).
+Stand 2026-11-12 abends, `python scripts/forecast.py` (Rangübereinstimmung rho über die Architekturen, die
+beides gerechnet haben; 6–14 Architekturen je Paar, also eine Beschreibung, noch kein Beweis).
 
 | kleine Aufgabe | Roboter-Aufgabe | rho | Befund |
 |---|---|---|---|
 | `match_shift` | `robot_lookmem` (Kandidaten nacheinander vergleichen) | +0.88 | Dieselben zwei Netze kommen ohne Hilfe durch (attnmem, gru), alle anderen 0. Auch das Heilmittel (Vorstufe) übertrug sich. Aber: nach dem Roboter-Befund gebaut, keine blinde Prognose |
-| `push_easy` | `robot_findc` (Ziel per Kommando suchen) | +0.85 | Gleiche Rangfolge über cnn und acht Gitter-Varianten; vit fehlt auf `push_easy` |
-| `servo` | `robot_gaze` (Blick zentrieren) | +0.26 | Taugt als Sieb, nicht als Rangfolge: wer `servo` nicht löst (mlp, gru), löst `robot_gaze` nicht. 16 Spalten sind die Ausnahme (nur langsam auf `servo`) |
+| `push_easy` | `robot_findc` (Ziel per Kommando suchen) | +0.70 (n = 14) | Gleiche Rangfolge über cnn und die Gitter-Varianten; attnmem, gru, mlp scheitern an beidem. **Die blinde Prognose für das vit ist gescheitert:** `push_easy` 0.11, `robot_findc` 0.65 (bestes Netz). Auch hier_s fällt heraus (−0.01 gegen 0.43). Die Aufgabe sagt also nur für cnn und flache Gitter vorher |
+| `count` | `robot_findc` | +0.65 (n = 14) | ähnlich: stimmt für die Gitter, vit ist die Ausnahme (0.19 gegen 0.65) |
+| `servo` | `robot_gaze` (Blick zentrieren) | +0.21 (n = 11) | Sieb in einer Richtung: wer `servo` nicht löst (mlp, gru), löst `robot_gaze` nicht. Umgekehrt gilt es nicht: attnmem löst `servo` (1.00) und bleibt auf `robot_gaze` bei 0.51. 16 Spalten sind nur langsam auf `servo` |
 | `servo` | `robot_reach` (Hand zum Würfel) | (+0.81) | Scheinbar: `robot_reach` löst niemand (0.05–0.13). `servo` ist als Vorhersage zu leicht |
-| `count`, `servo` | `robot_findc` | +0.2 | keine Vorhersage |
+| `servo` | `robot_findc` | +0.31 | keine Vorhersage |
 | `cycle_mem`, `recall`, `keep_shift`, `same_shift` | `robot_lookmem` | −0.5 … +0.3 | **keine Vorhersage**: Die Gitter lösen die Gedächtnis-Batterie und scheitern am Vergleichen auf Roboter-Bildern |
 
 Erfahrungen, die in die Pipeline gehören:
