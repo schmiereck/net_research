@@ -1362,6 +1362,22 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
       Hilfsaufgabe 0.03-0.10 (nur das Gitter-Netz steigt leicht, 0.055 -> 0.08-0.10). Die Hilfsaufgabe selbst
       wird nicht geloest (0.00 bei "alle 36 Bits richtig"; Teilgenauigkeit nicht ausgewertet). Offen, ob die
       Reihenfolge links-nach-rechts als Zwischenziel taugt oder ob Lesen der Formen in der Peripherie die Grenze ist.
+    - **robot_finds, Hilfsaufgabe nach Teilen** (lokal 2026-11-12, results/curriculum_parts.jsonl; TaskSpec.parts
+      -> Anteil exakt richtiger Teile; Seeds 5 / 6; Hilfsaufgabe allein 12000 bzw. zugleich mit der Suche 24000,
+      beide Plaene geben dieselben Teilwerte):
+
+  | Netz | Schritt zu Koerper 1 / 2 / 3 (von links) | Form von Koerper 1 / 2 / 3 (Zufall 0.2) | Form im Zeigebild |
+  |---|---|---|---|
+  | layer_s_sp4+cell+ref | 0.21 / 0.12 / 0.19 | 0.29 / 0.26 / 0.29 | 0.96 |
+  | vit+ref | 0.18 / 0.12 / 0.17 | 0.29 / 0.25 / 0.27 | 0.65-0.91 |
+  | cnn+ref | 0.17 / 0.10 / 0.13 | 0.25 / 0.22 / 0.24 | 0.30-0.89 |
+
+      **Die Suchszene wird nicht gelesen:** Die Form im Zeigebild erkennen die Netze (Gitter 0.96), aber in der
+      Szene mit drei gleichfarbigen Koerpern treffen sie weder die Positionen (0.10-0.21 exakt; robot_gaze mit
+      einem roten Wuerfel: 0.97) noch die Formen (kaum ueber Zufall). Der Engpass von robot_finds ist also die
+      Wahrnehmung in einem Blick, nicht Adresse oder Auswahl. Das stuetzt den Weg ueber die Fovea: nacheinander
+      anschauen (robot_lookmem, 0.86). Nicht getrennt: ob die Positionen an der Reihenfolge links-nach-rechts
+      scheitern (mittlerer Koerper am schlechtesten) oder am Trennen gleichfarbiger Koerper.
     - **robot_lookmem mit kurzer Vorstufe keep_shift:3000** (Seeds 0-2, Score; richtig gewaehlt / beim Y):
 
   | Netz | keep_shift:3000 -> robot_lookmem:12000 | robot_lookmem:15000 | zum Vergleich: keep_shift+same_shift:12000 -> 12000 |

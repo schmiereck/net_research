@@ -107,7 +107,10 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   Ausgabe, verschwinden sie bei allen Architekturen. Das ist die Rolle, die ein Teacher übernehmen soll.
 - Auf den Roboter-Aufgaben trägt das Prinzip bisher nur teilweise: Bei „Hand zum Würfel“ hebt die Hilfsaufgabe
   (Zelle der Hand, Zelle des Würfels) das vit von 0.12 auf 0.40; danach begrenzt das genaue Lesen, nicht mehr
-  das Verrechnen. Bei der Form-Suche in einem Blick hilft sie nicht (0.03–0.10). Und die kurze Vorstufe, die
+  das Verrechnen. Bei der Form-Suche in einem Blick hilft sie nicht (0.03–0.10): Die
+  Netze erkennen die Form im Zeigebild (0.96), lesen aber in der Szene mit drei gleichfarbigen Körpern weder
+  deren Positionen (0.10–0.21) noch deren Formen (kaum über Zufall). Der Engpass ist die Wahrnehmung in einem
+  Blick. Und die kurze Vorstufe, die
   bei den Pixel-Wörtern reichte, reicht den Gitter-Netzen auf Roboter-Bildern nicht. Dort braucht die Vorstufe
   Merken UND Vergleichen zusammen (je allein: 0.00 bzw. höchstens 0.32); 6000 Updates davon genügen.
 - `robot_reach` liest seit 2026-11-12 den Datensatz `reachcells_*` (gleicher Generator, andere Szenen).
