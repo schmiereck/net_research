@@ -1,6 +1,7 @@
 # Stand der Forschung
 
-Kurzfassung, Stand 2026-11-10. Details: [`AGENDA.md`](AGENDA.md) (alle Themen mit Status),
+Kurzfassung, Stand 2026-11-12. Der Weg dahin steht chronologisch in [`LOGBUCH.md`](LOGBUCH.md). Details:
+[`AGENDA.md`](AGENDA.md) (alle Themen mit Status),
 [`PLAN_TRAINER.md`](PLAN_TRAINER.md) (Trainer-Netz, Messungen je Phase), [`results/report.md`](results/report.md)
 (Benchmark-Tabellen).
 
