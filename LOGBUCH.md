@@ -268,8 +268,33 @@ Abgrenzung zu den anderen Dokumenten:
 - **Belege:** `results/curriculum.jsonl`, `results/robot_lookmem_eval.jsonl`,
   `results/robot_lookmem_curV_eval.jsonl`, `results/robot_lookmem_aloneV_eval.jsonl`.
 
+## 2026-11-12 — `robot_reach` auf den Test-Seeds bestätigt
+
+- **Gemacht:** dieselben vier Pläne wie am Vormittag, Seeds 0–2, dazu `vitmem` (Rechen-PC, `reach_confirm`).
+- **Ergebnis (Score auf `robot_reach`; in Klammern die Lesequote der Hilfsaufgabe):**
+
+  | Netz | 12000 Bilder allein | 12000 mit Hilfsaufgabe | 48000 allein | 48000 mit Hilfsaufgabe |
+  |---|---|---|---|---|
+  | vit | 0.15 | 0.47 (0.50) | 0.33 | 0.62 (0.63) |
+  | vitmem | 0.13 | 0.40 (0.42) | 0.31 | 0.59 (0.61) |
+  | layer_s | 0.12 | 0.20 (0.33) | 0.25 | 0.44 (0.55) |
+  | cnn | 0.09 | 0.14 (0.29) | 0.21 | 0.40 (0.59) |
+  | hier_s | 0.08 | 0.12 (0.17) | 0.18 | 0.24 (0.41) |
+
+  Lesen bei 48000 Bildern: Hand 0.79–0.89, Würfel 0.53–0.71.
+- **Schluss:** Das Bild von den Abstimm-Seeds hält. Mehr Daten und die Hilfsaufgabe wirken zusammen (vit 0.15 →
+  0.62). Die beiden vit-Netze setzen das Gelesene fast verlustfrei um, cnn und Gitter verlieren beim
+  Verrechnen 0.11–0.19. `vitmem` liegt knapp unter dem vit.
+- **Belege:** `results/reach_read.jsonl`.
+
+## 2026-11-12 — Form am Rand des Blickfelds: erster Versuch fehlerhaft
+
+- **Gemacht:** `robot_shape_edge`: der Körper liegt bis 7 Zellen neben der Mitte.
+- **Fehler:** Die anderen beiden gleichfarbigen Körper lagen oft mit im Blickfeld, ohne dass die Aufgabe sagt,
+  welcher gemeint ist. Die Zahlen (0.28–0.57 über alle Ringe) messen deshalb nicht die Auflösung am Rand.
+- **Behoben:** Der Export verwirft jetzt Szenen mit einem zweiten Körper im Blickfeld; Lauf wiederholt.
+- **Belege:** `results/edge_ambiguous/` (der fehlerhafte Lauf, nur zur Nachvollziehbarkeit).
+
 ## 2026-11-12 — Laufend
 
-- Bestätigung `robot_reach` auf Seeds 0–2 mit vit, cnn, `layer_s`, `hier_s`, `vitmem` (Rechen-PC,
-  Auftrag `reach_confirm`).
-- Danach: Form am Rand des Blickfelds.
+- Form am Rand des Blickfelds, zweiter Lauf mit nur einem Körper im Blickfeld (lokal).

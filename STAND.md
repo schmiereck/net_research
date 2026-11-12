@@ -115,7 +115,8 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   bei den Pixel-Wörtern reichte, reicht den Gitter-Netzen auf Roboter-Bildern nicht. Dort braucht die Vorstufe
   Merken UND Vergleichen zusammen (je allein: 0.00 bzw. höchstens 0.32); 6000 Updates davon genügen.
 - `robot_reach` liest seit 2026-11-12 den Datensatz `reachcells_*` (gleicher Generator, andere Szenen).
-- **„Hand zum Würfel“ hängt an der Datenmenge und am Lesen des Würfels** (reach_read, Seeds 5 / 6, 24000
+- **„Hand zum Würfel“ hängt an der Datenmenge und am Lesen des Würfels** (reach_read, Seeds 5 / 6, bestätigt
+  auf Seeds 0–2: vit 0.62, vitmem 0.59, layer_s 0.44, cnn 0.40, hier_s 0.24 mit 48000 Bildern und Hilfsaufgabe; 24000
   Updates je Aufgabe). Viermal so viele Bilder (48000) heben jedes Netz: allein 0.08–0.13 → 0.18–0.31, mit der
   Hilfsaufgabe 0.12–0.45 → 0.23–0.64 (vit 0.59, vit@400k 0.64, cnn@400k 0.50, layer_s 0.45, hier_s 0.23).
   Viermal so viele Parameter bringen wenig (+0.03 bis +0.08). Mit Hilfsaufgabe liegt die Hauptaufgabe beim vit
