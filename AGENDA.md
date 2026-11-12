@@ -112,6 +112,17 @@ kleinen Aufgaben der Prognose-Paare; die Prognose für die Roboter-Aufgaben wird
 Abschnitt „Prognose“). Bisher gemessen: mlp, cnn, vit, gru, attnmem, cvnn, bus, layer-/hier-Gitter mit Notizblock
 und Inhaltsadressierung.
 
+**Zwei Ebenen von Architektur (Nutzer, 2026-11-12):** (1) die Netz-Struktur INNERHALB eines Moduls und (2) die
+ANORDNUNG und VERSCHALTUNG der Module; im einfachsten Fall ein Modul mit Ein- und Ausgängen. Die Liste unten war
+zuerst zu sehr auf Bilderkennung in der Fovea ausgerichtet; beide Ebenen getrennt variieren:
+
+| Ebene | schon gemessen | Kandidaten |
+|---|---|---|
+| ein Modul allein | mlp, cnn, vit, gru, attnmem, cvnn; neu 2026-11-12: lstm, vitmem, esn | Zustandsraum-Netz, ConvGRU, Perceiver, drehäquivariantes cnn, Predictive-Coding-Netz |
+| Inneres des Moduls im Verbund | MLP-Zelle, mit Notizblock (`_sp`), mit Inhaltsadressierung (`_am`, `_ar`) | Vergleicher-Zelle (multiplikativ), GRU- / LSTM-Zelle als Modul, schnelle Gewichte als Modul-Gedächtnis, Reservoir-Zelle (nur Auslese lernt), verschiedenartige Module an verschiedenen Plätzen (Wahrnehmung / Gedächtnis / Vergleich) |
+| Verschaltung der Module | Bus (add / mul / gate / film), Schicht-Gitter, Hierarchie, Nachbarn lesen (`_sp4n`), per Adresse lesen (`_sp4a`), geteilte / individuelle Gewichte, Zeilen- und Spaltenzahl | Arbeitsbereich (wenige gemeinsame Slots, Schreiben im Wettbewerb), Hierarchie mit Rückweg (mehrere Durchläufe), gelernte Verdrahtung (Modul wählt per Adresse, von wem es liest: Routing), Zellautomat (gleiche Zelle, viele Schritte), Ring / kleine-Welt-Abkürzungen statt Gitter, Hypernetz schreibt Modul-Gewichte |
+| Kopplung an die Welt | Bild fest, Kommando-Eingang (`+cmd`, `+cell`), Adresse aus Bild (`+ref`), Vorschalt-Stufe (`+retN`) | Blick-Netz (wählt die Fovea selbst), innerer Blick vor dem Gitter, Objekt-Slots |
+
 | Prio | Kandidat | Art | Warum (welcher gemessene Engpass) | Zuerst prüfen auf |
 |---|---|---|---|---|
 | A | **Blick-Netz** (Recurrent Attention Model): das Netz wählt selbst, wohin die Fovea als Nächstes schaut | bekannt | „Nacheinander anschauen“ ist der Weg, der auf dem Roboter trägt; bisher gibt die Aufgabe die Blickfolge vor | `match_shift`, `robot_lookmem` mit freier Blickwahl |

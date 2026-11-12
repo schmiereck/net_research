@@ -3,7 +3,7 @@ from functools import partial
 
 import torch
 
-from .basic import CNN, CVNN, MLP, AttnMem, GRUNet, ViT
+from .basic import CNN, CVNN, MLP, AttnMem, GRUNet, LSTMNet, Reservoir, ViT, ViTMem
 from .bus import BusNet
 from .grid import HierGrid, LayerGrid
 from .scratchpad import BusScratch, MLPScratch
@@ -22,6 +22,9 @@ MODELS = {
     "vit": (ViT, (8, 256), 4),
     "gru": (GRUNet, (8, 512), 1),
     "attnmem": (AttnMem, (8, 256), 4),
+    "lstm": (LSTMNet, (8, 512), 1),
+    "vitmem": (ViTMem, (8, 256), 4),
+    "esn": (Reservoir, (64, 8192), 1),
     "subbus_i": (partial(_bus, "add", False, sub=True), (8, 512), 2),
     "layer_s": (partial(LayerGrid, shared=True), (4, 256), 1),
     "layer_i": (partial(LayerGrid, shared=False), (4, 256), 1),
@@ -90,7 +93,7 @@ for _sh in ("s", "i"):
         MODELS[f"layer_{_sh}_{_suf}"] = (partial(LayerGrid, shared=_sh == "s", **_kw), (4, 256), 1)
         SHAPE_ORDER.append(f"layer_{_sh}_{_suf}")
 
-MODEL_ORDER = ["mlp", "cnn", "cvnn", "vit", "gru", "attnmem",
+MODEL_ORDER = ["mlp", "cnn", "cvnn", "vit", "gru", "attnmem", "lstm", "vitmem", "esn",
                "bus_add_s", "bus_add_i", "bus_mul_s", "bus_mul_i", "bus_gate_s", "bus_gate_i",
                "bus_film_s", "bus_film_i", "subbus_i", "layer_s", "layer_i", "hier_s", "hier_i",
                "bus_add_iw", "bus_mul_iw", "bus_gate_iw", "bus_film_iw", "layer_iw", "hier_iw"]
