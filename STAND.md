@@ -6,6 +6,13 @@ Kurzfassung, Stand 2026-11-10. Details: [`AGENDA.md`](AGENDA.md) (alle Themen mi
 
 ## Ziel
 
+**Übergeordnet (festgehalten 2026-11-12): eine Benchmark-Pipeline, die früh sagt, ob sich eine Architektur lohnt.**
+Viele Netz-Architekturen werden auf kleinen, billigen Aufgaben verglichen; nur die interessanten gehen auf die
+teuren Roboter-Aufgaben. Dafür muss bekannt sein, welche kleine Aufgabe welche Roboter-Aufgabe vorhersagt. Jede
+neue Architektur läuft deshalb auf beiden Seiten der Paare unten, und die Prognose wird VOR dem Roboter-Lauf
+notiert und danach geprüft (`scripts/forecast.py`, Abschnitt „Prognose“ unten).
+
+Inhaltlich:
 Architekturen mit Gedächtnis, und ein Teacher-Netz, das einem trainierten Netz schnell Neues beibringt, ohne
 Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Schnittstelle (Bild 16×16×3 rein,
 64 Ausgaben raus), alle Netze haben etwa 100k Parameter.
@@ -106,6 +113,29 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
 - Der Vergleich über die Adresse aus dem Zeigebild („ist es das?“ in einem Blick) gelingt keinem Netz (0.50).
 - Plan: Stufe b MuJoCo-Regelkreis mit Teacher als Experten, Stufe c Lieferquote als End-Benchmark; dazu die
   Servo-Stufe in Gelenkwinkeln (Fernziel physischer Arm, Abgleich über die Kamera).
+
+## Prognose: welche kleine Aufgabe sagt welche Roboter-Aufgabe vorher?
+
+Stand 2026-11-12, `python scripts/forecast.py` (Rangübereinstimmung rho über die Architekturen, die beides
+gerechnet haben; 6–10 Architekturen je Paar, also eine Beschreibung, noch kein Beweis).
+
+| kleine Aufgabe | Roboter-Aufgabe | rho | Befund |
+|---|---|---|---|
+| `match_shift` | `robot_lookmem` (Kandidaten nacheinander vergleichen) | +0.88 | Dieselben zwei Netze kommen ohne Hilfe durch (attnmem, gru), alle anderen 0. Auch das Heilmittel (Vorstufe) übertrug sich. Aber: nach dem Roboter-Befund gebaut, keine blinde Prognose |
+| `push_easy` | `robot_findc` (Ziel per Kommando suchen) | +0.85 | Gleiche Rangfolge über cnn und acht Gitter-Varianten; vit fehlt auf `push_easy` |
+| `servo` | `robot_gaze` (Blick zentrieren) | +0.26 | Taugt als Sieb, nicht als Rangfolge: wer `servo` nicht löst (mlp, gru), löst `robot_gaze` nicht. 16 Spalten sind die Ausnahme (nur langsam auf `servo`) |
+| `servo` | `robot_reach` (Hand zum Würfel) | (+0.81) | Scheinbar: `robot_reach` löst niemand (0.05–0.13). `servo` ist als Vorhersage zu leicht |
+| `count`, `servo` | `robot_findc` | +0.2 | keine Vorhersage |
+| `cycle_mem`, `recall`, `keep_shift`, `same_shift` | `robot_lookmem` | −0.5 … +0.3 | **keine Vorhersage**: Die Gitter lösen die Gedächtnis-Batterie und scheitern am Vergleichen auf Roboter-Bildern |
+
+Erfahrungen, die in die Pipeline gehören:
+- **Das Trainingsprotokoll entscheidet mit.** Rangfolgen kippen zwischen 6000 und 24000 Updates und mit einer
+  Vorstufe (Hierarchie-Gitter auf `robot_lookmem`: 0.00 allein, bestes Netz mit Vorstufe). Ein „lohnt sich
+  nicht“ gilt erst, wenn auch die Variante mit Zwischenzielen gescheitert ist.
+- **Eine kleine Aufgabe sagt nur vorher, wenn sie denselben Engpass hat** wie die Roboter-Aufgabe. Die alte
+  Gedächtnis-Batterie prüft Wiedergeben, die Roboter-Aufgabe braucht Vergleichen.
+- **Für `robot_reach` und `robot_finds` gibt es noch keine kleine Entsprechung**, und beide löst bisher niemand:
+  Dort kann die Pipeline noch nichts unterscheiden.
 
 ## Wo wir stehen
 
