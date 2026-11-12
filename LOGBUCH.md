@@ -250,9 +250,26 @@ Abgrenzung zu den anderen Dokumenten:
   `push_easy` → `robot_findc` +0.76 (n = 17). `vitmem` ist ohne Vorstufe das beste Netz auf `robot_lookmem`.
 - **Belege:** 1d22f39, ebeba6e, 9eeaca8; `results/new3.jsonl`, `results/new3_lookmem.jsonl`.
 
+## 2026-11-12 — `vitmem` auf `robot_lookmem`: braucht keine Vorstufe
+
+- **Frage:** Wie gut wählt `vitmem` den richtigen Körper, auch beim nie gesehenen Y, und hilft ihm die Vorstufe?
+- **Ergebnis (Seeds 0–2; Anteil der Szenen mit richtig gewähltem Körper):**
+
+  | Training | trainierte Formen | Szenen mit Y, Y gesucht | Szenen mit Y, anderer gesucht |
+  |---|---|---|---|
+  | allein, 6000 Updates | 0.89 | 0.59 | 0.76 |
+  | allein, 12000 Updates | 0.93 | 0.64 | 0.80 |
+  | Vorstufe `keep_shift+same_shift:12000`, dann 12000 | 0.90 | 0.60 | 0.78 |
+
+  Zum Vergleich: `hier_s` mit Vorstufe 0.86 / Y 0.60, `attnmem` allein (24000 Updates) 0.82 / Y 0.56.
+- **Schluss:** `vitmem` ist das beste Netz auf dieser Aufgabe und braucht keine Vorstufe; sie schadet eher
+  (0.90 gegen 0.93). Das Y bleibt bei allen Netzen bei etwa 0.6: Die Verallgemeinerung auf eine neue Form ist
+  die gemeinsame Grenze, nicht das Vergleichen.
+- **Belege:** `results/curriculum.jsonl`, `results/robot_lookmem_eval.jsonl`,
+  `results/robot_lookmem_curV_eval.jsonl`, `results/robot_lookmem_aloneV_eval.jsonl`.
+
 ## 2026-11-12 — Laufend
 
-- `vitmem` auf `robot_lookmem`: feine Auswertung (richtiges Objekt, Y), mit und ohne Vorstufe (lokal).
 - Bestätigung `robot_reach` auf Seeds 0–2 mit vit, cnn, `layer_s`, `hier_s`, `vitmem` (Rechen-PC,
   Auftrag `reach_confirm`).
 - Danach: Form am Rand des Blickfelds.
