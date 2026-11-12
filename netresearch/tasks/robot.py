@@ -270,7 +270,7 @@ class RobotShape(SupervisedTask):
         robot_shape_z4   z4   16 x 16, zoomed in 4x
         robot_shape_f32  f32  32 x 32 over the field of view of obs (twice as dense); needs a net with a front
                               stage ("+retN", models.Retina)."""
-    name, VIEW = "robot_shape", "obs"
+    name, VIEW, FILE = "robot_shape", "obs", "shapeview"
 
     def __init__(self):
         self.spec = TaskSpec(self.name, "robot", "supervised", "class", 5, seq_len=1, chance=0.2,
@@ -279,9 +279,9 @@ class RobotShape(SupervisedTask):
 
     def sample(self, batch, rng, split="train"):
         if split not in self._data:
-            p = DATA / f"shapeview_{split}.npz"
+            p = DATA / f"{self.FILE}_{split}.npz"
             if not p.exists():
-                raise FileNotFoundError(f"{p} is missing: export it in the robot project (task shapeview)")
+                raise FileNotFoundError(f"{p} is missing: export it in the robot project (task {self.FILE})")
             d = np.load(p)
             self._data[split] = (d[self.VIEW], d["cells"][:, 0].astype(np.int64))
         obs, tgt = self._data[split]
@@ -300,6 +300,17 @@ class RobotShapeZ4(RobotShape):
 
 class RobotShapeF32(RobotShape):
     name, VIEW = "robot_shape_f32", "f32"
+
+
+class RobotShapeEdge(RobotShape):
+    """The body lies anywhere in the field of view, up to 7 cells from the centre (data shapeedge_*; cells[:, 1]
+    = ring = distance from the centre in cells; beyond 5 cells the fovea gets coarser). Scores by ring:
+    scripts/shape_ring_eval.py."""
+    name, FILE = "robot_shape_edge", "shapeedge"
+
+
+class RobotShapeEdgeF32(RobotShapeEdge):
+    name, VIEW = "robot_shape_edge_f32", "f32"
 
 
 class RobotGaze(_Robot):

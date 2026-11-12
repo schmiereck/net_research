@@ -13,7 +13,7 @@ from .memory import (CrossMem, Delay, KeepFixed, KeepShift, Match, MatchShift, R
 from .patterns import BitSeq, Count, Cycle, CycleMem, NumSeq
 from .robot import (RobotFind, RobotFindColor, RobotFindImage, RobotFindShape, RobotFindShapeParts, RobotGaze,
                     RobotLook, RobotLookMem, RobotReach, RobotReachBig, RobotReachParts,
-                    RobotReachPartsBig, RobotShape, RobotShapeF32, RobotShapeZ2, RobotShapeZ4)
+                    RobotReachPartsBig, RobotShape, RobotShapeEdge, RobotShapeEdgeF32, RobotShapeF32, RobotShapeZ2, RobotShapeZ4)
 from .servo import Servo
 from .text import CharNext
 
@@ -50,6 +50,8 @@ TASKS = {
     "robot_shape_z2": RobotShapeZ2,
     "robot_shape_z4": RobotShapeZ4,
     "robot_shape_f32": RobotShapeF32,
+    "robot_shape_edge": RobotShapeEdge,
+    "robot_shape_edge_f32": RobotShapeEdgeF32,
     "robot_look": RobotLook,
     "robot_lookmem": RobotLookMem,
     "shapes": Shapes,
