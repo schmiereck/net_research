@@ -44,6 +44,8 @@ class TaskSpec:
     needs_memory: bool = False
     description: str = ""
     role: str = ""             # output area (OUT_AREAS); default derived from kind/head
+    parts: dict = field(default_factory=dict)   # bits head: name -> (lo, hi) of the target bits; the
+    #                                             evaluation reports the exact-match share of each part
 
     def __post_init__(self):
         if not self.role:

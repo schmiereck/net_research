@@ -271,9 +271,22 @@ class RobotReach(_Robot):
     column, row of the hand and of the cube, which robot_reach_parts asks for)."""
     kind, text = "reachcells", "robot fovea image with hand and red cube -> step (dx, dy) in cells from hand to cube"
 
+    name = "robot_reach"
+
     def __init__(self):
         super().__init__()
-        self.spec.name = "robot_reach"
+        self.spec.name = self.name
+
+    def _load(self, split):
+        if split not in self._data:
+            d = np.load(DATA / f"{self.kind if split == 'train' else 'reachcells'}_{split}.npz")
+            self._data[split] = (d["obs"], command_bits(d["target"][:, 0], d["target"][:, 1]))
+        return self._data[split]
+
+
+class RobotReachBig(RobotReach):
+    """robot_reach with 48000 training images (reachcells48_train; its first 12000 are reachcells_train), same test set."""
+    kind, name = "reachcells48", "robot_reach_big"
 
 
 def _nibbles(v):
@@ -286,20 +299,27 @@ class RobotReachParts(SupervisedTask):
     hand and cell of the cube, 16 bits in the SYMBOL area, so that it can be trained together with robot_reach
     (bits area). robot_reach = cube - hand."""
 
+    name, train = "robot_reach_parts", "reachcells"
+
     def __init__(self):
-        self.spec = TaskSpec("robot_reach_parts", "robot", "supervised", "bits", 16, seq_len=1, chance=0.0,
-                             role="symbol", description="robot fovea image with hand and red cube -> cell of "
-                                                        "the hand and cell of the cube (auxiliary task)")
+        self.spec = TaskSpec(self.name, "robot", "supervised", "bits", 16, seq_len=1, chance=0.0,
+                             role="symbol", parts={"hand": (0, 8), "cube": (8, 16)},
+                             description="robot fovea image with hand and red cube -> cell of "
+                                         "the hand and cell of the cube (auxiliary task)")
         self._data = {}
 
     def sample(self, batch, rng, split="train"):
         if split not in self._data:
-            d = np.load(DATA / f"reachcells_{split}.npz")
+            d = np.load(DATA / f"{self.train if split == 'train' else 'reachcells'}_{split}.npz")
             self._data[split] = (d["obs"], _nibbles(d["cells"].astype(np.int64)))
         obs, tgt = self._data[split]
         i = rng.integers(0, len(obs), size=batch)
         return {"obs": (obs[i].astype(np.float32) / 255.0)[None], "target": tgt[i][None],
                 "mask": np.ones((1, batch), np.float32)}
+
+
+class RobotReachPartsBig(RobotReachParts):
+    name, train = "robot_reach_parts_big", "reachcells48"
 
 
 class RobotFindShapeParts(RobotFindShape):
@@ -311,7 +331,9 @@ class RobotFindShapeParts(RobotFindShape):
     def __init__(self):
         super().__init__()
         self.spec = TaskSpec("robot_finds_parts", "robot", "supervised", "bits", 36, seq_len=1, chance=0.0,
-                             role="symbol", description="robot_finds scene + picture -> step and shape of each "
+                             role="symbol", parts={"step1": (0, 8), "step2": (8, 16), "step3": (16, 24),
+                                                   "shape1": (24, 27), "shape2": (27, 30), "shape3": (30, 33),
+                                                   "shown": (33, 36)}, description="robot_finds scene + picture -> step and shape of each "
                                                         "of the three objects, shape in the picture (auxiliary)")
 
     def make(self, d, i, k, view=None):

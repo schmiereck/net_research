@@ -111,6 +111,7 @@ def evaluate_supervised(model, task, n_batches=None):
     was_training = model.training
     model.eval()
     correct = total = loss_sum = bit_correct = 0.0
+    part = {k: 0.0 for k in spec.parts}
     for b in eval_set(task)[:n_batches]:
         logits, _ = run_sequence(model, b["obs"].float(), cmd=b.get("cmd"), ref=b.get("ref"))
         lg, m = logits[..., spec.out_slice], b["mask"]
@@ -122,6 +123,8 @@ def evaluate_supervised(model, task, n_batches=None):
             eq = (pred == b["target"]).float()
             correct += (eq.min(-1).values * m).sum().item()
             bit_correct += (eq.mean(-1) * m).sum().item()
+            for k, (lo, hi) in spec.parts.items():
+                part[k] += (eq[..., lo:hi].min(-1).values * m).sum().item()
         total += m.sum().item()
     model.train(was_training)
     acc = correct / total
@@ -129,6 +132,8 @@ def evaluate_supervised(model, task, n_batches=None):
     res["score"] = (acc - spec.chance) / (1 - spec.chance)          # chance = 0 for multi-bit outputs
     if spec.head == "bits":
         res["bit_acc"] = bit_correct / total
+        if part:
+            res["parts"] = {k: round(v / total, 4) for k, v in part.items()}
     if spec.name == "charnext":
         res["bpc"] = res["loss"] / math.log(2)
     return res

@@ -35,6 +35,9 @@ def job(args):
     try:
         torch.manual_seed(seed)
         phases = parse(plan)
+        for names, _ in phases:
+            for t in names:
+                make_task(t)                   # fail early on a missing task or data set
         model = build_model(model_name, 100_000, seed=seed)
         watch = watch or phases[-1][0]
         wt = {t: make_task(t) for t in watch}
@@ -48,11 +51,13 @@ def job(args):
                     curve.append([done + i, {t: round(quick_score(model, task), 4) for t, task in wt.items()}])
             train_loop(model, learners, updates, 2e-3, 10 ** 9, on_eval, 250)
             done += updates
-        final = {t: round(final_metrics(model, task)["score"], 4) for t, task in wt.items()}
+        fm = {t: final_metrics(model, task) for t, task in wt.items()}
+        final = {t: round(m["score"], 4) for t, m in fm.items()}
+        parts = {t: m["parts"] for t, m in fm.items() if "parts" in m}
         curve.append([done, final])
         if name:
             save_checkpoint(model, model_name, name, seed, list(final.values())[-1])
-        return {"plan": plan, "task": plan, "model": model_name, "seed": seed, "updates": done, "final": final,
+        return {"plan": plan, "task": plan, "model": model_name, "seed": seed, "updates": done, "final": final, "parts": parts,
                 "time": round(time.time() - t0, 1), "curve": curve}
     except Exception:  # noqa: BLE001
         return {"plan": plan, "model": model_name, "seed": seed, "error": traceback.format_exc()}
