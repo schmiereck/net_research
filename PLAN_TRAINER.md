@@ -1300,8 +1300,45 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
       gegen allein 0.41 / 0.08 / 0.03; hier_s 0.92 / 0.83 / 0.87 gegen 0.88 / 0.74 / 0.84. Das Plateau wird kaum
       kuerzer (Score 0.5 nach 4500-6750 statt 6250-7500 Updates, Seeds 5 / 6), aber verlaesslicher verlassen.
       vit: read_shift+same_shift zugleich 0.84-0.86 statt Zufall. gru: 0.71 in jeder Variante.
-    - Offen: Bestaetigung des match_shift-Uebertrags auf Seeds 0-2 fuer sechs Netze (Lauf vom System wegen
-      Speichermangel beendet, nichts fertig).
+    - **Bestaetigt auf Seeds 0-2, acht Netze** (Rechen-PC, Nacht 2026-11-12; gleiche Gesamtzahl 24000 Updates):
+
+  | Netz | match_shift:24000 | keep_shift+same_shift:12000 -> match_shift:12000 |
+  |---|---|---|
+  | layer_s, layer_s_sp4, layer_i, hier_s | 0.00 | 0.99-1.00 |
+  | layer_s_am4 / layer_s_c16 | 0.00 / 0.00 | 0.99 (0.97-1.00) / 0.97 (0.95-0.98) |
+  | gru | 0.57 (0.42 / 0.88 / 0.42) | 0.99 |
+  | attnmem | 0.43 | 1.00 |
+
+    - **Was an der Vorstufe wird gebraucht? Nur das Merken, und kurz** (Seeds 5 / 6, Endwert match_shift;
+      dahinter Updates bis Score 0.5, von Beginn des Plans gezaehlt):
+
+  | Plan | layer_s | hier_s | gru |
+  |---|---|---|---|
+  | keep_shift+same_shift:6000 -> match_shift:6000 | 0.98 / 0.99 (7000) | 0.98 / 0.98 (7000) | 0.99 (6500) |
+  | keep_shift+same_shift:3000 -> match_shift:9000 | 0.99 / 0.99 (4250-4500) | 1.00 (3750-4000) | 0.99 / 0.98 (3500) |
+  | **keep_shift:3000 -> match_shift:9000** | 0.94 / 1.00 (4500-8000) | 1.00 (4000-4500) | 0.99 (3500) |
+  | same_fixed+keep_shift:6000 -> match_shift:6000 | 0.99 / 0.96 | 0.91 / 0.99 | 0.98 / 0.99 |
+  | keep_shift+same_shift+match_shift:24000 (alles zugleich) | 0.92 / 0.86 | 0.97 / 0.99 | 0.98 / 0.87 |
+
+      3000 Updates "ein wanderndes Wort merken" reichen; das Vergleichen muss NICHT vorgeuebt werden. Der
+      Engpass ist also: Solange im Speicher keine ortsunabhaengige Beschreibung liegt, gibt der Vergleich
+      keinen Gradienten. Mit keep_shift dabei geht es auch zugleich (ohne: 0.00).
+    - **same_shift bei den uebrigen Netzen** (Seeds 0-2, 12000 Updates insgesamt):
+
+  | Netz | allein | read_shift+same_shift zugleich | read_shift+same_fixed:2000 -> same_shift:10000 |
+  |---|---|---|---|
+  | cnn | 0.00 | **1.00 (Score 0.5 nach 500 Updates)** | 0.99 |
+  | vit | 0.01 | 0.66 (0.54-0.77) | 0.58 |
+  | attnmem | 0.04 | 0.36 | 0.71 (alle Seeds) |
+  | layer_s_sp4 | 0.05 | 0.60 | 0.93 (0.90-0.96) |
+  | layer_s_am4 | 0.32 | 0.62 | 0.92 (0.89-0.95) |
+  | layer_i | 0.74 | 0.71 | 0.69 |
+
+      Lesen als Nebenaufgabe hebt jedes Netz ausser layer_i vom Plateau; das cnn von 0.00 auf 1.00.
+      gru, attnmem (und layer_i mit Lehrplan) landen bei 0.71: eine gemeinsame Zwischenloesung, nicht untersucht.
+    - **Gesamtbild:** Die Plateaus dieser Aufgaben sind fehlende Zwischenziele. Eine Hilfsaufgabe, die die
+      Zwischengroesse (das gelesene / gemerkte Wort) als Ausgabe verlangt, beseitigt sie bei allen
+      Architekturen. Genau das waere die Rolle eines Teachers: Zwischenziele vorgeben.
 
 **Phase C – T3 Freeze & Route als Lehrplan-Test**
 - Über die Sieb-Stufen (4c), mit individuellen Modulen oder einer Fähigkeiten-Bibliothek am Bus.

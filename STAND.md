@@ -92,6 +92,12 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   Hierarchie-Gitter wählt danach in 86 % den richtigen Körper (nie gesehenes Y: 60 %) und ist damit das
   beste Netz auf dieser Aufgabe (Attention-Speicher 82 % / 56 %; Test-Seeds 0–2). Das flache Gitter-Netz
   schafft es in zwei von drei Seeds.
+- Bestätigt auf den Test-Seeds für acht Netze: Der Vergleich mit Gedächtnis (`match_shift`) geht allein bei
+  keinem Gitter-Netz (0.00) und mit Vorstufe bei allen (0.97–1.00), bei gleicher Gesamtzahl an Updates. Als
+  Vorstufe reichen 3000 Updates „ein wanderndes Muster merken“. Beim Vergleichen in einem Bild hebt Lesen als
+  Nebenaufgabe das cnn von 0.00 auf 1.00.
+- **Lesart:** Die langen Plateaus sind fehlende Zwischenziele. Verlangt eine Hilfsaufgabe die Zwischengröße als
+  Ausgabe, verschwinden sie bei allen Architekturen. Das ist die Rolle, die ein Teacher übernehmen soll.
 - Der Vergleich über die Adresse aus dem Zeigebild („ist es das?“ in einem Blick) gelingt keinem Netz (0.50).
 - Plan: Stufe b MuJoCo-Regelkreis mit Teacher als Experten, Stufe c Lieferquote als End-Benchmark; dazu die
   Servo-Stufe in Gelenkwinkeln (Fernziel physischer Arm, Abgleich über die Kamera).
