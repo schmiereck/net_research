@@ -267,4 +267,61 @@ class RobotGaze(_Robot):
 
 
 class RobotReach(_Robot):
-    kind, text = "reach", "robot fovea image with hand and red cube -> step (dx, dy) in cells from hand to cube"
+    """Data: reachcells_* (since 2026-11-12; the same generator as reach_*, other random scenes, plus "cells" =
+    column, row of the hand and of the cube, which robot_reach_parts asks for)."""
+    kind, text = "reachcells", "robot fovea image with hand and red cube -> step (dx, dy) in cells from hand to cube"
+
+    def __init__(self):
+        super().__init__()
+        self.spec.name = "robot_reach"
+
+
+def _nibbles(v):
+    """ints 0..15 [..., n] -> bits [..., 4n] (MSB first)."""
+    return ((v[..., None] >> np.arange(3, -1, -1)) & 1).reshape(*v.shape[:-1], -1).astype(np.float32)
+
+
+class RobotReachParts(SupervisedTask):
+    """Intermediate quantities of robot_reach as an auxiliary task: the same images -> cell (column, row) of the
+    hand and cell of the cube, 16 bits in the SYMBOL area, so that it can be trained together with robot_reach
+    (bits area). robot_reach = cube - hand."""
+
+    def __init__(self):
+        self.spec = TaskSpec("robot_reach_parts", "robot", "supervised", "bits", 16, seq_len=1, chance=0.0,
+                             role="symbol", description="robot fovea image with hand and red cube -> cell of "
+                                                        "the hand and cell of the cube (auxiliary task)")
+        self._data = {}
+
+    def sample(self, batch, rng, split="train"):
+        if split not in self._data:
+            d = np.load(DATA / f"reachcells_{split}.npz")
+            self._data[split] = (d["obs"], _nibbles(d["cells"].astype(np.int64)))
+        obs, tgt = self._data[split]
+        i = rng.integers(0, len(obs), size=batch)
+        return {"obs": (obs[i].astype(np.float32) / 255.0)[None], "target": tgt[i][None],
+                "mask": np.ones((1, batch), np.float32)}
+
+
+class RobotFindShapeParts(RobotFindShape):
+    """Intermediate quantities of robot_finds as an auxiliary task (same scenes, same picture of the wanted
+    object): for the three objects ordered from left to right (then top to bottom) the gaze step to each
+    (3 x 8 bits) and the shape of each (3 x 3 bits), then the shape shown in the picture (3 bits): 36 bits in
+    the SYMBOL area. robot_finds = the step of the object whose shape is the shown one."""
+
+    def __init__(self):
+        super().__init__()
+        self.spec = TaskSpec("robot_finds_parts", "robot", "supervised", "bits", 36, seq_len=1, chance=0.0,
+                             role="symbol", description="robot_finds scene + picture -> step and shape of each "
+                                                        "of the three objects, shape in the picture (auxiliary)")
+
+    def make(self, d, i, k, view=None):
+        b = super().make(d, i, k, view)
+        c = d["cells"][i].astype(np.int64)
+        r = np.arange(len(i))[:, None]
+        pos, shp = c[:, :6].reshape(-1, 3, 2), c[:, 9:12]
+        order = np.lexsort((pos[:, :, 1], pos[:, :, 0]), axis=1)                # by column, then row
+        pos, shp = pos[r, order], shp[r, order]
+        steps = np.concatenate([command_bits(pos[:, j, 0], pos[:, j, 1]) for j in range(3)], 1)
+        three = lambda v: ((v[..., None] >> np.arange(2, -1, -1)) & 1).reshape(len(i), -1).astype(np.float32)
+        b["target"] = np.concatenate([steps, three(shp), three(c[r[:, 0], 9 + k][:, None])], 1)[None]
+        return b
