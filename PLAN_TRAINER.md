@@ -1374,6 +1374,13 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
       Die kurze Nur-Merken-Vorstufe, die fuer match_shift reichte, reicht den Gittern auf Roboter-Bildern
       NICHT; die lange Vorstufe mit Vergleichen schon. Welcher Teil (Laenge oder das Vergleichen) noetig ist,
       ist offen. attnmem wird mit Vorstufe etwas besser und gleichmaessiger, das gru schlechter.
+    - **Fairer Bezug, dieselbe lange Vorstufe fuer attnmem und gru** (Seeds 0-2, keep_shift+same_shift:12000 ->
+      robot_lookmem:12000; results/robot_lookmem_curL_eval.jsonl): attnmem Score 0.76 / 0.76 / 0.76, richtig
+      gewaehlt 0.81, beim Y 0.51 (wie mit der kurzen Vorstufe). gru 0.52 / 0.00 / 0.00: die Vorstufe schadet
+      ihm. Damit bleibt hier_s vorn: richtig gewaehlt 0.86 gegen 0.81, beim Y 0.60 gegen 0.51.
+    - Laenge gegen Inhalt (Seeds 5 / 6), unvollstaendig (Lauf vom System wegen Speichermangel beendet, 3 von 20
+      Laeufen): keep_shift:12000 -> robot_lookmem:12000 gibt 0.00 (hier_s beide Seeds, layer_s Seed 5). Die
+      Laenge allein reicht also nicht; die Varianten mit Vergleichen fehlen noch.
 
 **Phase C – T3 Freeze & Route als Lehrplan-Test**
 - Über die Sieb-Stufen (4c), mit individuellen Modulen oder einer Fähigkeiten-Bibliothek am Bus.
