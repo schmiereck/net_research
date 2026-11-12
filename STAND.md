@@ -98,6 +98,11 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   Nebenaufgabe das cnn von 0.00 auf 1.00.
 - **Lesart:** Die langen Plateaus sind fehlende Zwischenziele. Verlangt eine Hilfsaufgabe die Zwischengröße als
   Ausgabe, verschwinden sie bei allen Architekturen. Das ist die Rolle, die ein Teacher übernehmen soll.
+- Auf den Roboter-Aufgaben trägt das Prinzip bisher nur teilweise: Bei „Hand zum Würfel“ hebt die Hilfsaufgabe
+  (Zelle der Hand, Zelle des Würfels) das vit von 0.12 auf 0.40; danach begrenzt das genaue Lesen, nicht mehr
+  das Verrechnen. Bei der Form-Suche in einem Blick hilft sie nicht (0.03–0.10). Und die kurze Vorstufe, die
+  bei den Pixel-Wörtern reichte, reicht den Gitter-Netzen auf Roboter-Bildern nicht; die lange schon.
+- `robot_reach` liest seit 2026-11-12 den Datensatz `reachcells_*` (gleicher Generator, andere Szenen).
 - Der Vergleich über die Adresse aus dem Zeigebild („ist es das?“ in einem Blick) gelingt keinem Netz (0.50).
 - Plan: Stufe b MuJoCo-Regelkreis mit Teacher als Experten, Stufe c Lieferquote als End-Benchmark; dazu die
   Servo-Stufe in Gelenkwinkeln (Fernziel physischer Arm, Abgleich über die Kamera).

@@ -1340,6 +1340,41 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
       Zwischengroesse (das gelesene / gemerkte Wort) als Ausgabe verlangt, beseitigt sie bei allen
       Architekturen. Genau das waere die Rolle eines Teachers: Zwischenziele vorgeben.
 
+  - **Zwischenziele auf den Roboter-Aufgaben: hilft bei reach etwas, bei der Form-Suche nicht; die kurze
+    Vorstufe reicht fuer robot_lookmem nicht** (lokal 2026-11-12, results/curriculum.jsonl). Hilfsaufgaben im
+    Symbol-Bereich der Ausgabe, also zugleich mit der Hauptaufgabe trainierbar: robot_reach_parts (Zelle der
+    Hand, Zelle des Wuerfels), robot_finds_parts (Schritt und Form der drei Koerper von links nach rechts, Form
+    im Zeigebild). robot_reach liest seitdem reachcells_* (gleicher Generator, andere Zufallsszenen).
+    - **robot_reach** (Seeds 5 / 6; Hauptaufgabe bekommt in jedem Plan 12000 Updates):
+
+  | Netz | allein | mit Hilfsaufgabe zugleich | erst Hilfsaufgabe 6000, dann beides | Hilfsaufgabe selbst (alle 16 Bits) |
+  |---|---|---|---|---|
+  | vit | 0.11 / 0.13 | 0.30 / 0.41 | 0.40 / 0.39 | 0.33-0.45 |
+  | layer_s | 0.11 / 0.11 | 0.19 / 0.18 | 0.20 / 0.19 | 0.35-0.40 |
+  | cnn | 0.07 / 0.09 | 0.15 / 0.13 | 0.15 / 0.12 | 0.23-0.30 |
+  | hier_s | 0.08 / 0.08 | 0.12 / 0.12 | 0.12 / 0.11 | 0.16-0.21 |
+
+      Die Hilfsaufgabe verdoppelt bis verdreifacht den Wert. Beim vit liegt reach danach fast auf der Hoehe
+      der Hilfsaufgabe (0.40 gegen 0.44): das Verrechnen ist dann kein Engpass mehr, das GENAUE LESEN beider
+      Positionen ist es (12000 Bilder). Die fruehere Diagnose "scheitert am Verrechnen" gilt also nur ohne
+      Zwischenziel.
+    - **robot_finds** (Seeds 5 / 6; cnn+ref, vit+ref, layer_s_sp4+cell+ref): **negativ.** Allein 0.03-0.06, mit
+      Hilfsaufgabe 0.03-0.10 (nur das Gitter-Netz steigt leicht, 0.055 -> 0.08-0.10). Die Hilfsaufgabe selbst
+      wird nicht geloest (0.00 bei "alle 36 Bits richtig"; Teilgenauigkeit nicht ausgewertet). Offen, ob die
+      Reihenfolge links-nach-rechts als Zwischenziel taugt oder ob Lesen der Formen in der Peripherie die Grenze ist.
+    - **robot_lookmem mit kurzer Vorstufe keep_shift:3000** (Seeds 0-2, Score; richtig gewaehlt / beim Y):
+
+  | Netz | keep_shift:3000 -> robot_lookmem:12000 | robot_lookmem:15000 | zum Vergleich: keep_shift+same_shift:12000 -> 12000 |
+  |---|---|---|---|
+  | hier_s | 0.00 / 0.00 / 0.00 | (0.00) | 0.81 / 0.85 / 0.79 (0.86 / Y 0.60) |
+  | layer_s | 0.00 / 0.00 / 0.00 | (0.00) | 0.00 / 0.70 / 0.56 |
+  | attnmem | 0.79 / 0.75 / 0.77 (0.81 / Y 0.51) | 0.75 / 0.71 / 0.51 | nicht gemessen |
+  | gru | 0.35 / 0.45 / 0.18 (0.44 / Y 0.26) | 0.73 / 0.55 / 0.48 | nicht gemessen |
+
+      Die kurze Nur-Merken-Vorstufe, die fuer match_shift reichte, reicht den Gittern auf Roboter-Bildern
+      NICHT; die lange Vorstufe mit Vergleichen schon. Welcher Teil (Laenge oder das Vergleichen) noetig ist,
+      ist offen. attnmem wird mit Vorstufe etwas besser und gleichmaessiger, das gru schlechter.
+
 **Phase C – T3 Freeze & Route als Lehrplan-Test**
 - Über die Sieb-Stufen (4c), mit individuellen Modulen oder einer Fähigkeiten-Bibliothek am Bus.
 
