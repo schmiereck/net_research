@@ -1378,9 +1378,21 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
       robot_lookmem:12000; results/robot_lookmem_curL_eval.jsonl): attnmem Score 0.76 / 0.76 / 0.76, richtig
       gewaehlt 0.81, beim Y 0.51 (wie mit der kurzen Vorstufe). gru 0.52 / 0.00 / 0.00: die Vorstufe schadet
       ihm. Damit bleibt hier_s vorn: richtig gewaehlt 0.86 gegen 0.81, beim Y 0.60 gegen 0.51.
-    - Laenge gegen Inhalt (Seeds 5 / 6), unvollstaendig (Lauf vom System wegen Speichermangel beendet, 3 von 20
-      Laeufen): keep_shift:12000 -> robot_lookmem:12000 gibt 0.00 (hier_s beide Seeds, layer_s Seed 5). Die
-      Laenge allein reicht also nicht; die Varianten mit Vergleichen fehlen noch.
+    - **Laenge gegen Inhalt der Vorstufe** (Seeds 5 / 6, Score auf robot_lookmem nach 12000 Updates; zwei Laeufe
+      vom System wegen Speichermangel beendet, 15 von 20 Laeufen fertig, der Bezug keep_shift:3000 auf diesen
+      Seeds fehlt):
+
+  | Vorstufe | hier_s | layer_s |
+  |---|---|---|
+  | keep_shift:12000 (nur merken) | 0.00 / 0.00 | 0.00 / 0.00 |
+  | same_shift:12000 (nur vergleichen) | 0.28 / 0.32 | 0.14 / 0.00 |
+  | keep_shift+same_shift:12000 | 0.77 / 0.80 | 0.68 / 0.56 |
+  | keep_shift+same_shift:6000 | 0.82 / 0.85 | 0.71 / 0.79 |
+  | keep_shift+same_shift:3000 | 0.00 / 0.00 | 0.69 / fehlt |
+
+      Es ist der INHALT: Merken allein reicht auch mit 12000 Updates nicht, Vergleichen allein kaum; erst
+      beides zusammen oeffnet die Roboter-Aufgabe. 6000 Updates reichen (eher besser als 12000), 3000 sind
+      fuer hier_s zu wenig. Anders als bei match_shift, wo Merken allein mit 3000 Updates reichte.
 
 **Phase C – T3 Freeze & Route als Lehrplan-Test**
 - Über die Sieb-Stufen (4c), mit individuellen Modulen oder einer Fähigkeiten-Bibliothek am Bus.
