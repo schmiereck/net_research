@@ -129,7 +129,7 @@ def split_size(name):
     differently sized nets are different model names everywhere (results, checkpoints). A '+cmd' suffix of the
     base name (command port, see attach_cmd) is removed here; has_cmd(name) tells whether it was there."""
     base, _, size = name.partition("@")
-    for suf in ("+cmd", "+cell", "+ref"):
+    for suf in ("+cmd", "+cell", "+ref", "+ret0", "+ret1", "+ret2", "+ret3"):
         base = base.replace(suf, "")
     return base, (int(float(size.rstrip("k")) * 1000) if size else None)
 
@@ -155,6 +155,29 @@ def attach_cmd(model):
         return (x + mod.cmd_in(mod.cmd).view(x.shape[0], 3, 1, 16),) + tuple(args[1:])
     model.register_forward_pre_hook(pre)
     return model
+
+
+class Retina(torch.nn.Module):
+    """Front stage for a finer fovea ("<net>+retN"): image 3 x 32 x 32 -> 3 x 16 x 16 in [0, 1], the standard
+    input of every net. N = number of learned layers:
+        0  no learning, 2 x 2 mean (the control: what plain down-sampling keeps)
+        1  one convolution 2 x 2, stride 2
+        2  convolution 3 x 3 (12 channels), then the strided one
+        3  two convolutions 3 x 3 (12 channels), then the strided one
+    At most about 2k parameters. Trained end to end with the net behind it."""
+
+    def __init__(self, layers):
+        super().__init__()
+        nn, ch, seq = torch.nn, 3, []
+        for _ in range(max(0, layers - 1)):
+            seq += [nn.Conv2d(ch, 12, 3, padding=1), nn.ReLU()]
+            ch = 12
+        self.body = nn.Sequential(*seq, nn.Conv2d(ch, 3, 2, stride=2)) if layers else None
+
+    def forward(self, x):
+        if self.body is None:
+            return torch.nn.functional.avg_pool2d(x, 2)
+        return torch.sigmoid(self.body(x))
 
 
 class AddressEncoder(torch.nn.Module):
@@ -187,6 +210,8 @@ def construct(name, width):
             attach_cmd(model)
     if "+ref" in name:                                         # '+ref' alone = '+cmd+ref'; '+cell+ref' for grids
         model.ref_enc = AddressEncoder()
+    if "+ret" in name:                                         # front stage for 32 x 32 images (Retina)
+        model.retina = Retina(int(name.split("+ret")[1][0]))
     return model
 
 

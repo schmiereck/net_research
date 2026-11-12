@@ -262,6 +262,46 @@ class RobotLookMem(RobotLook):
         return self.seq(d, np.arange(len(y)), w, rng.integers(0, 2, size=len(y)))
 
 
+class RobotShape(SupervisedTask):
+    """Resolution test: the fovea looks at one of three same-coloured bodies -> its shape (5 classes: cube, L, U,
+    T, cross). The same scenes in four samplings (data/robot/shapeview_*, key VIEW):
+        robot_shape      obs  16 x 16, the fovea as everywhere else (4 px per cell)
+        robot_shape_z2   z2   16 x 16, zoomed in 2x (half the field of view)
+        robot_shape_z4   z4   16 x 16, zoomed in 4x
+        robot_shape_f32  f32  32 x 32 over the field of view of obs (twice as dense); needs a net with a front
+                              stage ("+retN", models.Retina)."""
+    name, VIEW = "robot_shape", "obs"
+
+    def __init__(self):
+        self.spec = TaskSpec(self.name, "robot", "supervised", "class", 5, seq_len=1, chance=0.2,
+                             description=f"robot fovea ({self.VIEW}) on one of three same-coloured bodies -> its shape")
+        self._data = {}
+
+    def sample(self, batch, rng, split="train"):
+        if split not in self._data:
+            p = DATA / f"shapeview_{split}.npz"
+            if not p.exists():
+                raise FileNotFoundError(f"{p} is missing: export it in the robot project (task shapeview)")
+            d = np.load(p)
+            self._data[split] = (d[self.VIEW], d["cells"][:, 0].astype(np.int64))
+        obs, tgt = self._data[split]
+        i = rng.integers(0, len(obs), size=batch)
+        return {"obs": (obs[i].astype(np.float32) / 255.0)[None], "target": tgt[i][None],
+                "mask": np.ones((1, batch), np.float32)}
+
+
+class RobotShapeZ2(RobotShape):
+    name, VIEW = "robot_shape_z2", "z2"
+
+
+class RobotShapeZ4(RobotShape):
+    name, VIEW = "robot_shape_z4", "z4"
+
+
+class RobotShapeF32(RobotShape):
+    name, VIEW = "robot_shape_f32", "f32"
+
+
 class RobotGaze(_Robot):
     kind, text = "gaze", "robot fovea image -> gaze shift (dx, dy) in cells that centres the red cube"
 

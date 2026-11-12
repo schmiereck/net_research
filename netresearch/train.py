@@ -34,6 +34,8 @@ def run_sequence(model, obs, state=None, resets=None, cmd=None, ref=None):
     ref [T,B,3,16,16]: pictures of the wanted object; a model with an address encoder ("+ref") turns them into
     its command (and then ignores cmd)."""
     T, B = obs.shape[:2]
+    if obs.shape[-1] != 16:                                    # finer fovea: the model's front stage ("+retN")
+        obs = model.retina(obs.reshape(T * B, *obs.shape[2:]).float()).view(T, B, 3, 16, 16)
     if ref is not None and hasattr(model, "ref_enc"):
         cmd = model.ref_enc(ref.float())
     if cmd is None or not getattr(model, "takes_cmd", False):
