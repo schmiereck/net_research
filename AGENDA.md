@@ -105,6 +105,32 @@ Status: offen · läuft · erledigt.
 | P3 | T4 State-Critic: Langeweile, Lernfortschritt, Gefahr, Muster (Phase G) | offen | setzt RL-Schleife voraus |
 | P3 | Weight-Editing durch ein LLM | offen | |
 
+## Architektur-Kandidaten (Liste 2026-11-12, noch nichts davon gebaut)
+
+Jede läuft über dieselbe Schnittstelle (16×16×3 → 64 Ausgaben, ~100k Parameter), erst durch das Sieb und die
+kleinen Aufgaben der Prognose-Paare; die Prognose für die Roboter-Aufgaben wird vorher notiert (STAND.md,
+Abschnitt „Prognose“). Bisher gemessen: mlp, cnn, vit, gru, attnmem, cvnn, bus, layer-/hier-Gitter mit Notizblock
+und Inhaltsadressierung.
+
+| Prio | Kandidat | Art | Warum (welcher gemessene Engpass) | Zuerst prüfen auf |
+|---|---|---|---|---|
+| A | **Blick-Netz** (Recurrent Attention Model): das Netz wählt selbst, wohin die Fovea als Nächstes schaut | bekannt | „Nacheinander anschauen“ ist der Weg, der auf dem Roboter trägt; bisher gibt die Aufgabe die Blickfolge vor | `match_shift`, `robot_lookmem` mit freier Blickwahl |
+| A | **Vergleicher-Zelle**: Speicher und Eingabe multiplikativ verknüpft (bilinear) statt addiert | eigen | Additive Adresse reicht zum Auswählen, nicht zum Vergleichen; `same_shift` hat ein langes Plateau | `same_shift`, `match_shift` ohne Vorstufe |
+| A | **Transformer über die Zeit** (vit je Bild + Aufmerksamkeit über frühere Bilder) und **LSTM** | bekannt | fehlende Bezugsnetze: vit hat kein Gedächtnis, gru ist der einzige klassische Rekurrente | Gedächtnis-Batterie, `match_shift` |
+| A | **Reservoir mit RLS-Auslese** (Echo-State: festes Zufallsnetz mit Rückkopplung, nur der Kopf lernt) | bekannt | `rls_rf` (Zufallsmerkmale + RLS) ist die beste schnelle Lernregel; lernt ohne Backprop, passt zum Teacher | `cycle_mem`, `keep_shift`, Bibliothek-Suiten |
+| B | **Objekt-Slots** (Slot Attention): wenige Slots teilen das Bild unter sich auf | bekannt | drei gleichfarbige Körper werden in einem Blick nicht getrennt (`robot_finds_parts` 0.10–0.21) | neue kleine Aufgabe „mehrere Punkte lokalisieren“, `robot_finds` |
+| B | **Gitter mit Arbeitsbereich** (Global Workspace): wenige gemeinsame Slots, Zellen schreiben im Wettbewerb per Aufmerksamkeit statt gemittelt | eigen | der gemittelte gemeinsame Notizblock trägt beim Vergleichen nicht | `match_shift`, `crossmem` |
+| B | **Gitter mit innerem Blick**: die Zellen sehen ihren Bildstreifen relativ zu einem vom Netz gewählten Mittelpunkt (Spatial Transformer vor dem Gitter) | eigen | Ortsunabhängigkeit: jede Spalte sieht nur ihren Streifen | `read_shift`, `same_shift`, `match_shift` |
+| B | **Hypernetz**: ein Netz schreibt aus einer Adresse die Gewichte eines Moduls | bekannt | direkt das Teacher-Ziel („Netz schreibt Netz“); Bezug zur Bibliothek der schnellen Gewichte | Bibliothek-Suiten, `robot_findc` |
+| B | **Schnelle Gewichte als Gedächtnis** (Hebb'sche Fast Weights innerhalb der Folge) im Gitter-Modul | eigen / bekannt | vereint Notizblock und Bibliothek; Speicher ohne eigene Schreibköpfe | Gedächtnis-Batterie, `match_shift` |
+| C | **ConvGRU / ConvLSTM**: rekurrenter Zustand mit Ortsbezug | bekannt | Spiele ohne Ballspur, Objekt unter Verdeckung | `paddle_mem`, `bricks_mem`, `grid_follow` |
+| C | **Perceiver**: kleines latentes Feld liest das Bild per Aufmerksamkeit | bekannt | verträgt höhere Auflösung (32×32) ohne mehr Parameter | `robot_shape_f32` |
+| C | **Drehäquivariantes cnn** (Gruppenfaltung) | bekannt | Körper liegen beliebig gedreht; Y-Verallgemeinerung 0.60 | `robot_shape`, `robot_lookmem` (Y) |
+| C | **Zustandsraum-Netz** (lineare Rekurrenz, Mamba-artig) | bekannt | langes Gedächtnis billig; gru braucht 400k für `cycle_mem` | `delay`, `cycle_mem` |
+| C | **Hierarchie mit Rückweg**: 2–3 Durchläufe je Bild, obere Ebene steuert die untere | eigen | hier_s ist auf den Vergleichs-Aufgaben das beste Gitter, lernt aber am langsamsten | `same_shift`, `robot_lookmem` |
+| C | **Neuronaler Zellautomat**: gleiche Zelle, viele Schritte je Bild | bekannt | nah an den Gittern mit geteilten Modulen; prüft „Tiefe durch Wiederholung“ | `count`, `push_easy` |
+| C | **Predictive-Coding-Netz** (lokale Lernregel, aus dem Roboter-Projekt) | bekannt | lernt ohne Backprop; Vergleich mit der Brücke in die andere Richtung | Sieb A1, `servo` |
+
 ## Offene Grundsatzfragen
 
 * Welches Basisnetz für den Trainer? Hängt von den Gedächtnis-Ergebnissen ab.
