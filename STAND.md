@@ -156,7 +156,20 @@ Ergebnisse in results/new3.jsonl, Seeds 0–2):
 | lstm | `match_shift` 0.60, `push_easy` 0.09, `servo` 0.61 | deutlich über 0 (um 0.5) | um 0.1 | um 0.4–0.5 wie gru |
 | esn | `match_shift` 0.00, `push_easy` −0.03, `servo` 0.01 | 0.00 | um 0.1 | unter 0.4 |
 
-Für `robot_reach` gibt es keine kleine Entsprechung, also keine Prognose. Ergebnis: steht aus.
+Für `robot_reach` gibt es keine kleine Entsprechung, also keine Prognose.
+
+**Ergebnis** (2026-11-12, results/new3.jsonl und new3_lookmem.jsonl, Seeds 0–2): acht von neun Prognosen
+treffen, eine nur in der Richtung.
+
+| Netz | `robot_lookmem` (6000) | `robot_findc` (24000) | `robot_gaze` (6000) | `robot_reach` (6000) |
+|---|---|---|---|---|
+| vitmem | 0.87 (alle Seeds; Richtung richtig, Höhe unterschätzt) | 0.61 (trifft) | 0.97 (trifft) | 0.10 |
+| lstm | 0.21 (0.29 / 0.00 / 0.33; schwächer als vorhergesagt) | 0.09 (trifft) | 0.40 (trifft) | 0.04 |
+| esn | 0.00 (trifft) | 0.03 (trifft) | 0.09 (trifft) | 0.02 |
+
+Damit über 10 bzw. 17 Netze: `match_shift` → `robot_lookmem` rho +0.86, `push_easy` → `robot_findc` +0.76,
+`servo` → `robot_gaze` +0.43. **vitmem ist das beste Netz auf `robot_lookmem` ohne Vorstufe** (0.87 gegen
+attnmem / gru 0.48 bei gleichen Updates) und zugleich vorn auf `robot_findc` und `robot_gaze`.
 
 Erfahrungen, die in die Pipeline gehören:
 - **Das Trainingsprotokoll entscheidet mit.** Rangfolgen kippen zwischen 6000 und 24000 Updates und mit einer
