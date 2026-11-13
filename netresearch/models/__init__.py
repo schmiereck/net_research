@@ -29,6 +29,7 @@ MODELS = {
     "layer_s": (partial(LayerGrid, shared=True), (4, 256), 1),
     "layer_i": (partial(LayerGrid, shared=False), (4, 256), 1),
     "hier_s": (partial(HierGrid, shared=True), (4, 256), 1),
+    "hier_sz": (partial(HierGrid, shared=True, zero_init=True), (4, 256), 1),   # residual branch starts at zero
     "hier_i": (partial(HierGrid, shared=False), (4, 256), 1),
 }
 for _mode in ("add", "mul", "gate", "film"):
