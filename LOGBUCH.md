@@ -606,9 +606,44 @@ diesem Gitter. `hier_sz` bleibt als Modell im Code, wird aber nicht weiter verfo
 
 **Belege.** `results/hier_sz.jsonl` (Worker-Auftrag hier_sz).
 
+## 2026-11-13 — Vorlauf (Burn-in), Schritt 1: Welche Gitter profitieren?
+
+**Frage.** Der Vorlauf half layer_i_sp4 (+0,06 und +0,08 auf den Gedächtnis-Spielen), gru nicht. Gilt der
+Gewinn für alle Gitter, nur für die mit Notizblock, oder nur für dieses eine Netz?
+
+**Vorhersage vor dem Lauf (2026-11-13).** Netze mit Notizblock (layer_s_sp4, layer_s_am4) gewinnen wie
+layer_i_sp4 0,03–0,08 auf bricks_mem und paddle_mem; layer_s und hier_s ändern sich um höchstens 0,03.
+
+**Gemacht.** layer_s, hier_s, layer_s_sp4, layer_s_am4 auf bricks_mem, paddle_mem, maze; Vorlauf 0 gegen 16,
+Seeds 0–2, 1500 Updates (Worker-Aufträge burn_who_b0, burn_who_b16).
+
+**Ergebnis.** Wertung, Mittel über drei Seeds (ohne → mit Vorlauf).
+
+| Netz | bricks_mem | paddle_mem | maze |
+|---|---|---|---|
+| layer_s | 0,94 → 0,96 | 0,98 → 0,97 | 0,49 → 0,48 |
+| layer_s_sp4 | 0,93 → 0,93 | 0,97 → 0,98 | 0,45 → 0,50 |
+| layer_s_am4 | 0,83 → 0,85 | 0,96 → 0,98 | 0,46 → 0,48 |
+| hier_s | 0,90 → 0,82 | 0,97 → 0,98 | 0,44 → 0,46 |
+| layer_i_sp4 (früher) | 0,85 → 0,91 | 0,91 → 0,98 | 0,42 → 0,45 |
+
+hier_s auf bricks_mem je Seed: 0,92 / 0,88 / 0,90 → 0,87 / 0,70 / 0,88. layer_s_sp4 auf maze: 0,45 / 0,47 /
+0,44 → 0,50 / 0,50 / 0,48 (alle drei Seeds besser).
+
+**Schluss.** Vorhersage für die Notizblock-Netze verfehlt: Auf bricks_mem und paddle_mem gewinnen
+layer_s_sp4 und layer_s_am4 nur 0,00–0,02, das liegt in der Seed-Streuung. Für layer_s trifft sie zu. hier_s
+verliert auf bricks_mem 0,08, getragen von einem Seed; ob das ein Effekt ist, entscheiden drei Seeds nicht.
+Der Gewinn von layer_i_sp4 ist also kein Merkmal des Notizblocks, sondern dieses einen Netzes (einzelne
+Gewichte je Zelle und Notizblock); die Netze mit geteilten Gewichten waren ohne Vorlauf schon stabil und nahe
+an der Decke. Einziger weiterer Hinweis: layer_s_sp4 auf maze +0,04 in allen drei Seeds. Die Rangfolge der
+Netze ändert sich auf keinem der drei Spiele so, dass ein Schluss kippt. Der Vorlauf ist damit kein
+allgemeiner Fehler der bisherigen Zahlen; die Option bleibt aus.
+
+**Belege.** `results/burnin_b0.jsonl`, `results/burnin_b16.jsonl`.
+
 ## Laufend / offen
 
-- Vorlauf (Burn-in), Schritt 1: Welche Gitter profitieren? layer_s, hier_s, layer_s_sp4, layer_s_am4 auf
-  bricks_mem, paddle_mem, maze, Vorlauf 0 gegen 16 (Worker-Aufträge burn_who_b0 / burn_who_b16).
-  **Vorhersage (2026-11-13):** Netze mit Notizblock (layer_s_sp4, layer_s_am4) gewinnen wie layer_i_sp4
-  0,03–0,08 auf bricks_mem und paddle_mem; layer_s und hier_s ohne Notizblock ändern sich um höchstens 0,03.
+- Vorlauf, Schritt 2: `push_easy` mit Vorlauf 0 und 16 für layer_i_sp4, layer_s_sp4, layer_s (Seeds 0–2,
+  1500 Updates). **Vorhersage (2026-11-13):** layer_i_sp4 bleibt mit und ohne Vorlauf unter 0,2 (wie layer_i);
+  layer_s und layer_s_sp4 ändern sich im Mittel um höchstens 0,1, und ihre Reihenfolge gegenüber den anderen
+  Netzen bleibt. Dann entfällt Schritt 3 (alle Spiele neu rechnen).
