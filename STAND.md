@@ -141,6 +141,13 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
 - **In der Suchszene wird die Form kaum gelesen** (`robot_shape_at`: Ort eines Körpers als Kommando ->
   Form, Seeds 0–2): 0,22–0,41 bei Zufall 0,2. Die Fehler sind blind, keine Verwechslung der Körper.
   70 % der Körper liegen außerhalb von Ring 5; innen liest nur cnn brauchbar (0,63).
+- **Liegen alle Körper im scharfen Bereich, wird die Suchszene gelesen** (`gazeshapein`, Seeds 0–2): Form an
+  genannter Stelle 0,88–0,95 mit `+rez3` und 48000 Szenen (vit 0,69). Die Form-Suche steigt von 0,07–0,09
+  auf 0,63–0,70 (layer_s 0,70). Zwischen Lesen und Suchen bleiben etwa 0,25; gelöst ist die Suche nicht.
+- **Die Greif-Decke von 0,62 ist großteils Wertung:** Die besten Netze liegen in 0,79–0,87 der Fälle
+  höchstens eine Zelle daneben (`results/step_error.jsonl`).
+- **Null-Start des Restpfads hilft dem Hierarchie-Gitter nicht** (`hier_sz`, cycle_mem 0,03 gegen 0,80);
+  der Einbruch von `hier_s@400k` bleibt ungeklärt.
 - **`vitmem` (vit je Bild, dann Aufmerksamkeit über die letzten Bilder) löst „Anschauen und vergleichen“ ohne
   Vorstufe am besten:** richtiger Körper in 93 % (12000 Updates, Seeds 0–2), beim nie gesehenen Y 64 %. Die
   Vorstufe bringt ihm nichts (90 %). Das Y bleibt bei allen Netzen um 60 %.

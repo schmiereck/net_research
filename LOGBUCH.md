@@ -486,13 +486,129 @@ bleiben; ob sie Standard wird, ist offen.
 
 **Belege.** `results/burnin_b0.jsonl`, `results/burnin_b16.jsonl`.
 
+## 2026-11-13 — Suchszenen mit allen Körpern im scharfen Bereich (`gazeshapein`)
+
+**Frage.** In den alten Suchszenen liegen 70 % der Körper außerhalb von Ring 5 und werden dort kaum gelesen.
+Was bleibt von den beiden Aufgaben (Form an genannter Stelle, Form-Suche) übrig, wenn alle drei Körper
+höchstens 5 Zellen neben der Bildmitte liegen? Scheitern die Netze an drei Körpern im Bild oder am Rand?
+
+**Vorhersage vor dem Lauf (2026-11-13).** Form an genannter Stelle: mit 12000 Szenen cnn 0,6–0,7, Gitter
+0,35–0,5, vit unter 0,3; mit 48000 Szenen und `+rez3` cnn und Gitter 0,75–0,9, vit unter 0,5. Form-Suche mit
+48000 Szenen und `+rez3`: bestes Netz 0,5–0,7, nicht gelöst (unter 0,8).
+
+**Gemacht.** Export im Roboter-Projekt erweitert (`gazeshapein`: Blick auf den Schwerpunkt der drei Körper
+± 3 Zellen, Szenen mit einem Körper jenseits von Ring 5 verworfen; 48000 Trainingsszenen). Aufgaben
+`robot_shape_at_in*` und `robot_finds_in*` (`_in12` = die ersten 12000 Szenen), jeweils Standard-Fovea und
+32×32 mit `+rez3`. Seeds 0–2; Form an genannter Stelle 12000 Updates, Suche 24000 Updates.
+
+**Ergebnis.** Form an genannter Stelle, Trefferquote (Zufall 0,2):
+
+| Netz | alte Szenen, bis Ring 5 | innen 12000 | innen 48000 | innen 12000 `+rez3` | innen 48000 `+rez3` |
+|---|---|---|---|---|---|
+| cnn | 0,63 | 0,81 | 0,90 | 0,85 | 0,95 |
+| layer_s | 0,35 | 0,74 | 0,78 | 0,91 | 0,94 |
+| hier_s | 0,39 | 0,71 | 0,76 | 0,84 | 0,88 |
+| vit | 0,27 | 0,56 | 0,56 | 0,52 | 0,69 |
+
+Der Anteil der Fehler, die einen anderen Körper der Szene nennen, bleibt überall bei 0,47–0,51 (Raten 0,5).
+vit `+rez3` streut stark (48000: 0,62 / 0,66 / 0,80).
+
+Form-Suche, Wertung (exakter Blickschritt, Zufall 0):
+
+| Netz | alte Szenen | alte Szenen `+rez3` | innen 12000 | innen 48000 | innen 12000 `+rez3` | innen 48000 `+rez3` |
+|---|---|---|---|---|---|---|
+| layer_s+cell+ref | 0,09 | 0,30 | 0,38 | 0,47 | 0,62 | 0,70 |
+| cnn+ref | 0,07 | 0,21 | 0,31 | 0,45 | 0,52 | 0,66 |
+| vit+ref | 0,07 | 0,35 | 0,25 | 0,30 | 0,54 | 0,65 |
+| hier_s+cell+ref | 0,07 | 0,23 | 0,32 | 0,38 | 0,53 | 0,63 |
+
+Die drei Seeds liegen bei der Suche je Netz höchstens 0,04 auseinander.
+
+**Schluss.** Vorhersage für das Lesen verfehlt, in die pessimistische Richtung: Schon mit 12000 Szenen und
+Standard-Fovea lesen cnn und Gitter 0,71–0,81, vit 0,56. Mit 48000 Szenen und `+rez3` liegen cnn und layer_s
+über dem vorhergesagten Band (0,94–0,95), vit über 0,5 (0,69). Die Vorhersage für die Suche trifft: bestes
+Netz 0,70, nicht gelöst. Daraus folgt: (1) Drei Körper im Bild sind nicht das Hindernis. In den alten Szenen
+lasen Gitter und vit auch innen schlecht, weil die meisten Trainingsbeispiele im unlesbaren Rand lagen.
+(2) Die Suche steigt von 0,07–0,09 auf 0,63–0,70, wenn Rand, Auflösung und Datenmenge stimmen; alle drei
+Hebel wirken und addieren sich. (3) Zwischen Lesen (0,88–0,95) und Suchen (0,63–0,70) bleibt eine Lücke von
+etwa 0,25. Sie steckt im Vergleich mit dem Zeigebild und im exakten Blickschritt; welcher Teil wie viel
+kostet, ist nicht getrennt. (4) Die Rangfolge kippt mit der Auflösung: vit ist bei der Suche mit Standard-
+Fovea letzter und mit `+rez3` gleichauf mit cnn, liest aber die Form an genannter Stelle am schlechtesten.
+Einschränkung: Die inneren Szenen sind eine leichtere Aufgabe, kein Ersatz für die alten; der Roboter sieht
+Körper auch am Rand.
+
+**Belege.** `results/shape_at_runs.jsonl`, `results/shape_at.jsonl`, `results/finds_res.jsonl`
+(Worker-Aufträge at_in_f32b, finds_in, finds_in_f32b; Standard-Läufe der Form-Aufgabe lokal).
+
+## 2026-11-13 — Review von agy, Punkt 3.4: Schritt als zwei 4-Bit-Zahlen, Wertung nur bei exaktem Treffer
+
+**Frage.** agy vermutet zwei Schwächen der Schritt-Ausgabe (dx, dy als Zweierkomplement, alle 8 Bits müssen
+stimmen): (a) Knapp-daneben zählt wie völlig falsch, die Wertung unterschätzt die Netze; (b) zwischen −1 und
+0 kippen alle vier Bits, dort sollten die Netze schlechter sein. Gemessen an vorhandenen Netzen, ohne neues
+Training der Blick-Aufgaben. Keine Vorhersage notiert (Messung an fertigen Netzen).
+
+**Gemacht.** `scripts/step_error_eval.py`: für alle gespeicherten Netze einer Aufgabe exakte Treffer, Anteil
+höchstens eine Zelle je Achse daneben, mittlerer Abstand in Zellen, Anteil der Fehler mit höchstens einer
+Zelle Abstand, Achsen-Trefferquote bei wahrem Wert −1/0 gegen sonst. Für `robot_reach_big` die besten Netze
+mit Hilfsaufgabe neu trainiert (48000 Updates), weil ihre Gewichte nicht gespeichert waren.
+
+**Ergebnis.** `robot_reach_big`, Mittel über die Seeds:
+
+| Netz | exakt | höchstens 1 Zelle | mittlerer Fehler (Zellen) | Achse bei −1/0 | Achse sonst |
+|---|---|---|---|---|---|
+| vit | 0,62 | 0,87 | 0,69 | 0,69 | 0,78 |
+| vitmem | 0,60 | 0,86 | 0,75 | 0,69 | 0,76 |
+| layer_s | 0,45 | 0,79 | 1,05 | 0,59 | 0,66 |
+| cnn | 0,41 | 0,79 | 1,10 | 0,50 | 0,65 |
+
+Bei `robot_find` und `robot_findc` liegt etwa die Hälfte der falschen Antworten eine Zelle daneben, und bei
+−1/0 sind die Netze nicht schlechter als sonst. Bei `robot_finds` (alte Szenen) sind die Fehler groß (5–6
+Zellen): Dort wird nicht knapp verfehlt, sondern der falsche Körper oder gar keiner gewählt.
+
+**Schluss.** (a) trifft für das Greifen zu: Zwei Drittel der Fehler der besten Netze liegen eine Zelle
+daneben; „höchstens eine Zelle“ ergibt 0,79–0,87 statt 0,41–0,62. Die Decke bei 0,62 ist also zum großen
+Teil Wertung. Für die Form-Suche auf den alten Szenen gilt das nicht. (b) ist nur beim Greifen zu sehen
+(−0,07 bis −0,15) und dort nicht von einer zweiten Ursache getrennt: Bei −1/0 liegen Hand und Würfel fast
+übereinander. Bei den Blick-Aufgaben gibt es keinen Nachteil; die Kodierung allein erklärt ihn also nicht.
+Die exakte Wertung bleibt die Hauptzahl (alte Ergebnisse bleiben vergleichbar); mittlerer Fehler und
+„höchstens eine Zelle“ stehen als Nebenzahlen über das Skript bereit.
+
+**Belege.** `results/step_error.jsonl`, `results/reach_ckpt.jsonl`.
+
+## 2026-11-13 — Review von agy, Punkt 3.5: Null-Start des Restpfads im Hierarchie-Gitter (`hier_sz`)
+
+**Frage.** `hier_s@400k` bricht auf cycle_mem ein (0,01 gegen 0,80 bei 100k). agy schlägt vor, den Restpfad
+bei null starten zu lassen (letzte Schicht der Zelle mit Null-Gewichten), wie bei tiefen Restnetzen üblich.
+
+**Vorhersage vor dem Lauf (2026-11-13).** Der Einbruch verschwindet; `hier_sz@400k` erreicht mindestens 0,5.
+
+**Gemacht.** Modell `hier_sz` (HierGrid mit `zero_init=True`). cycle_mem, 1500 Updates, Seeds 0–2: `hier_sz`,
+`hier_sz@400k`, zum Vergleich `hier_s@400k` neu.
+
+**Ergebnis.**
+
+| Netz | Wertung (Seeds 0 / 1 / 2) | Mittel |
+|---|---|---|
+| hier_s (100k, früher) | 0,78 / 0,70 / 0,92 | 0,80 |
+| hier_sz (100k) | 0,00 / 0,01 / 0,07 | 0,03 |
+| hier_s@400k | 0,02 / 0,00 / 0,01 | 0,01 |
+| hier_sz@400k | 0,00 / 0,00 / 0,01 | 0,00 |
+
+Der Trainingsverlust von `hier_sz` bleibt 500 bis 1100 Updates beim Ratewert 0,693 stehen; ein Seed fängt ab
+Update 600 an zu lernen (0,41 am Ende), `hier_sz@400k` bis Update 1500 gar nicht.
+
+**Schluss.** Vorhersage klar verfehlt. Der Null-Start behebt den Einbruch nicht und zerstört zusätzlich das
+Netz in Standardgröße (0,80 → 0,03). Vermutete Ursache, nicht geprüft: Im Gitter ist die genullte Schicht
+der einzige Weg des Signals von Reihe zu Reihe; solange sie null ist, erhalten die Schichten davor keinen
+Gradienten, das Lernen startet spät. Der Vorschlag passt zu Restnetzen mit eigenem Durchgangspfad, nicht zu
+diesem Gitter. `hier_sz` bleibt als Modell im Code, wird aber nicht weiter verfolgt. Der Einbruch von
+`hier_s@400k` bleibt ungeklärt.
+
+**Belege.** `results/hier_sz.jsonl` (Worker-Auftrag hier_sz).
+
 ## Laufend / offen
 
-- Suchszenen, in denen alle drei Körper höchstens 5 Zellen neben der Mitte liegen (`gazeshapein`, 48000
-  Szenen; `_in12` = die ersten 12000): `robot_shape_at_in*` und `robot_finds_in*`, Standard gegen 32×32.
-  **Vorhersage vor dem Lauf (2026-11-13):** Form an genannter Stelle: mit 12000 Szenen cnn 0,6–0,7, Gitter
-  0,35–0,5, vit unter 0,3 (wie „innen“ im alten Satz); mit 48000 Szenen und `+rez3` cnn und Gitter 0,75–0,9,
-  vit unter 0,5. Form-Suche mit 48000 Szenen und `+rez3`: bestes Netz 0,5–0,7, also deutlich über den 0,35
-  der alten Szenen, aber nicht gelöst (unter 0,8).
-- Review Punkt 3.5: `hier_s@400k` mit Null-Start des Restpfads (`hier_sz`) auf cycle_mem.
-  **Vorhersage:** Der Einbruch (0,01) verschwindet; `hier_sz@400k` erreicht mindestens 0,5.
+- Vorlauf (Burn-in), Schritt 1: Welche Gitter profitieren? layer_s, hier_s, layer_s_sp4, layer_s_am4 auf
+  bricks_mem, paddle_mem, maze, Vorlauf 0 gegen 16 (Worker-Aufträge burn_who_b0 / burn_who_b16).
+  **Vorhersage (2026-11-13):** Netze mit Notizblock (layer_s_sp4, layer_s_am4) gewinnen wie layer_i_sp4
+  0,03–0,08 auf bricks_mem und paddle_mem; layer_s und hier_s ohne Notizblock ändern sich um höchstens 0,03.
