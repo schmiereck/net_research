@@ -92,3 +92,15 @@
 {"task": "robot_reach", "model": "layer_s_sp4", "seed": 0, "exact": 0.0967, "near": 0.5087, "err": 2.1814, "wrong_le1": 0.4561, "ax_cliff": 0.3237, "ax_else": 0.3138}
 {"task": "robot_reach", "model": "mlp", "seed": 0, "exact": 0.0407, "near": 0.274, "err": 3.2731, "wrong_le1": 0.2432, "ax_cliff": 0.1167, "ax_else": 0.2161}
 {"task": "robot_reach", "model": "vit", "seed": 0, "exact": 0.116, "near": 0.56, "err": 1.912, "wrong_le1": 0.5023, "ax_cliff": 0.4368, "ax_else": 0.3177}
+{"task": "robot_reach_big", "model": "cnn", "seed": 0, "exact": 0.442, "near": 0.8023, "err": 1.0249, "wrong_le1": 0.6458, "ax_cliff": 0.5572, "ax_else": 0.6725}
+{"task": "robot_reach_big", "model": "cnn", "seed": 1, "exact": 0.3363, "near": 0.784, "err": 1.1863, "wrong_le1": 0.6745, "ax_cliff": 0.42, "ax_else": 0.6082}
+{"task": "robot_reach_big", "model": "cnn", "seed": 2, "exact": 0.443, "near": 0.77, "err": 1.0982, "wrong_le1": 0.5871, "ax_cliff": 0.5211, "ax_else": 0.6709}
+{"task": "robot_reach_big", "model": "layer_s", "seed": 0, "exact": 0.4553, "near": 0.8003, "err": 1.0383, "wrong_le1": 0.6334, "ax_cliff": 0.6185, "ax_else": 0.6599}
+{"task": "robot_reach_big", "model": "layer_s", "seed": 1, "exact": 0.4357, "near": 0.7853, "err": 1.0781, "wrong_le1": 0.6196, "ax_cliff": 0.5776, "ax_else": 0.6653}
+{"task": "robot_reach_big", "model": "layer_s", "seed": 2, "exact": 0.452, "near": 0.7793, "err": 1.0266, "wrong_le1": 0.5973, "ax_cliff": 0.5632, "ax_else": 0.6674}
+{"task": "robot_reach_big", "model": "vit", "seed": 0, "exact": 0.609, "near": 0.8603, "err": 0.7047, "wrong_le1": 0.6428, "ax_cliff": 0.7016, "ax_else": 0.7737}
+{"task": "robot_reach_big", "model": "vit", "seed": 1, "exact": 0.641, "near": 0.8857, "err": 0.6283, "wrong_le1": 0.6815, "ax_cliff": 0.704, "ax_else": 0.7924}
+{"task": "robot_reach_big", "model": "vit", "seed": 2, "exact": 0.6097, "near": 0.8607, "err": 0.7398, "wrong_le1": 0.643, "ax_cliff": 0.6727, "ax_else": 0.774}
+{"task": "robot_reach_big", "model": "vitmem", "seed": 0, "exact": 0.636, "near": 0.8777, "err": 0.6455, "wrong_le1": 0.6639, "ax_cliff": 0.7292, "ax_else": 0.7862}
+{"task": "robot_reach_big", "model": "vitmem", "seed": 1, "exact": 0.5497, "near": 0.8277, "err": 0.8886, "wrong_le1": 0.6173, "ax_cliff": 0.6149, "ax_else": 0.7305}
+{"task": "robot_reach_big", "model": "vitmem", "seed": 2, "exact": 0.618, "near": 0.8673, "err": 0.7264, "wrong_le1": 0.6527, "ax_cliff": 0.7124, "ax_else": 0.7611}
