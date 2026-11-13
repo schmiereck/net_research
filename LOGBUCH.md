@@ -327,6 +327,26 @@ Abgrenzung zu den anderen Dokumenten:
   die Lücke an der Auflösung oder an der Datenmenge liegt, ist noch nicht getrennt.
 - **Belege:** `results/resolution.jsonl`, `results/shape_ring.jsonl`; Roboter-Projekt f866d7a.
 
+## 2026-11-13 — Vorschalt-Stufe stabilisiert (`+rezN`)
+
+- **Problem:** Vier von zwölf `+ret3`-Läufen lernten nichts (Ausgabe über eine Sigmoid-Funktion, Start beliebig).
+- **Gemacht:** `+rezN`: Ausgabe = 2×2-Mittel + gelernte Korrektur, deren letzte Schicht bei null startet. Das
+  Training beginnt also genau als `+ret0`.
+- **Ergebnis** (`robot_shape_edge_f32`, 12000 Bilder, Seeds 0–2, 6000 Updates; Trefferquote):
+
+  | Netz | Ringe 1–5 | Ring 6 | Ring 7 | gesamt | Standard-Fovea gesamt |
+  |---|---|---|---|---|---|
+  | layer_s+rez3 | 0.92–0.96 | 0.80 | 0.68 | 0.84 | 0.62 |
+  | hier_s+rez3 | 0.89–0.96 | 0.76 | 0.63 | 0.80 | 0.58 |
+  | cnn+rez3 | 0.82–0.88 | 0.66 | 0.59 | 0.73 | 0.58 |
+  | vit+rez3 | 0.60–0.67 | 0.54 | 0.47 | 0.58 | 0.55 |
+
+  Alle zwölf Läufe lernen. Streuung je Seed: cnn 0.67–0.81, vit 0.43–0.70, Gitter 0.77–0.85.
+- **Schluss:** Mit stabiler Vorstufe ist der Gewinn der doppelten Auflösung größer als im ersten Durchgang:
+  +0.22 bei beiden Gittern, +0.15 beim cnn, beim vit kaum. In den Ringen mit voller Auflösung erreichen die
+  Gitter über 0.9. Das vit profitiert nicht und streut stark.
+- **Belege:** f6c4d62; `results/resolution.jsonl`, `results/shape_ring.jsonl`.
+
 ## Laufend / offen
 
-- Vorschalt-Stufe stabilisieren (4 von 12 Läufen tot); `robot_shape_edge` mit mehr Bildern.
+- `robot_shape_edge` mit 48000 Bildern (Export läuft, etwa 4,5 Stunden), Standard-Fovea gegen `+rez3`.
