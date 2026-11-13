@@ -454,6 +454,38 @@ Nicht getrennt: ob Gitter und vit an drei Körpern im Bild oder an der Ortsangab
 
 **Belege.** `results/shape_at_runs.jsonl`, `results/shape_at.jsonl` (Worker-Aufträge shape_at, shape_at_f32).
 
+## 2026-11-13 — Review von agy, Punkt 3.1: Trainingsfenster der Spiele starten bei Zustand null
+
+**Frage.** Google agy fand im Review (REVIEW-2026-11-13.md): `ControlLearner._sample` setzt den Zustand zu Beginn
+jedes 16-Schritte-Fensters zurück, die Auswertung läuft dagegen hunderte Schritte ohne Reset. Erklärt das
+schwache oder unruhige Gedächtnis-Netze in den Spielen? (Fundstelle von Claude bestätigt; die Wirkung war
+Vermutung.)
+
+**Vorhersage vor dem Lauf (2026-11-13, Commit 914a58a).** Auf bricks_mem und paddle_mem ändert sich wenig
+(±0,05). Auf crossing, racer und maze gewinnt gru höchstens 0,2 und bleibt unter cnn.
+
+**Gemacht.** Option `NETRESEARCH_BURN` (Standard 0 = wie bisher): Ein Netz mit Zustand läuft erst die letzten
+16 Schritte des vorangehenden Fensters ohne Gradient und geht mit diesem Zustand und den echten Resets ins
+Trainingsfenster. Vergleich 0 gegen 16, Seeds 0–2, 1500 Updates, lokal.
+
+**Ergebnis.** Wertung, Mittel über drei Seeds (ohne → mit Vorlauf).
+
+| Netz | bricks_mem | paddle_mem | maze | crossing | racer |
+|---|---|---|---|---|---|
+| gru | 0,87 → 0,87 | 0,99 → 0,98 | 0,46 → 0,43 | 0,00 → 0,04 | 0,21 → 0,23 |
+| layer_i_sp4 | 0,85 → 0,91 | 0,91 → 0,98 | 0,42 → 0,45 | – | – |
+
+layer_i_sp4 je Seed: bricks_mem 0,93 / 0,82 / 0,81 → 0,94 / 0,90 / 0,90; paddle_mem 0,98 / 0,87 / 0,86 →
+0,99 / 0,97 / 0,98. In allen neun Paaren ist der Lauf mit Vorlauf mindestens so gut.
+
+**Schluss.** Für gru trifft die Vorhersage zu: kein Effekt, der Rückstand auf crossing, racer und maze hat
+eine andere Ursache. Für das Gitter mit Notizblock hat agy recht: Der Vorlauf hebt die schwachen Seeds und
+halbiert die Streuung (+0,06 und +0,08 auf den Gedächtnis-Spielen). Das erklärt einen Teil der Unruhe von
+layer_i_sp4, nicht aber das Niveau auf maze. Die Option bleibt vorerst aus, damit alte Zahlen vergleichbar
+bleiben; ob sie Standard wird, ist offen.
+
+**Belege.** `results/burnin_b0.jsonl`, `results/burnin_b16.jsonl`.
+
 ## Laufend / offen
 
 - Suchszenen, in denen alle drei Körper höchstens 5 Zellen neben der Mitte liegen (`gazeshapein`, 48000
@@ -462,11 +494,5 @@ Nicht getrennt: ob Gitter und vit an drei Körpern im Bild oder an der Ortsangab
   0,35–0,5, vit unter 0,3 (wie „innen“ im alten Satz); mit 48000 Szenen und `+rez3` cnn und Gitter 0,75–0,9,
   vit unter 0,5. Form-Suche mit 48000 Szenen und `+rez3`: bestes Netz 0,5–0,7, also deutlich über den 0,35
   der alten Szenen, aber nicht gelöst (unter 0,8).
-- Review von agy (REVIEW-2026-11-13.md), Punkt 3.1: Trainingsfenster der Spiele starten immer bei Zustand null,
-  die Auswertung nie. Vergleich ohne / mit Vorlauf über die 16 Schritte davor (`NETRESEARCH_BURN=16`), gru auf
-  crossing, racer, maze, bricks_mem, paddle_mem, Seeds 0–2, 1500 Updates.
-  **Vorhersage vor dem Lauf (2026-11-13):** Auf bricks_mem und paddle_mem ändert sich wenig (±0,05). Auf
-  crossing, racer und maze gewinnt gru höchstens 0,2 und bleibt unter cnn (0,75 / 0,52 / 0,74). Der Fehlstart
-  bei null ist also nicht die Hauptursache.
 - Review Punkt 3.5: `hier_s@400k` mit Null-Start des Restpfads (`hier_sz`) auf cycle_mem.
   **Vorhersage:** Der Einbruch (0,01) verschwindet; `hier_sz@400k` erreicht mindestens 0,5.
