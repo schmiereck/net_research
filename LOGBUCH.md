@@ -347,9 +347,38 @@ Abgrenzung zu den anderen Dokumenten:
   Gitter über 0.9. Das vit profitiert nicht und streut stark.
 - **Belege:** f6c4d62; `results/resolution.jsonl`, `results/shape_ring.jsonl`.
 
+## 2026-11-13 — Form abseits der Mitte mit 48000 Bildern: Daten gegen Auflösung
+
+**Frage.** Mit 12000 Bildern lernten die Netze die Trainingsbilder auswendig. Liegt der Gewinn der doppelten
+Auflösung nur daran, oder bleibt er mit viermal so vielen Bildern?
+
+**Gemacht.** 48000 Trainingsbilder exportiert (`shapeedge48_train`, gleicher Testsatz), cnn, vit, layer_s, hier_s
+mit Standard-Fovea (`robot_shape_edge_big`) und mit `+rez3` auf 32×32 (`robot_shape_edge_f32_big`), Seeds 0–2,
+6000 Updates. Auswertung nach Ring mit `scripts/shape_ring_eval.py --suffix _big`.
+
+**Ergebnis.** Trefferquote (Zufall 0,2), Mittel über drei Seeds; innen = Ringe 1–5, außen = Ringe 6–7.
+
+| Netz | Standard 12000 | Standard 48000 | `+rez3` 12000 | `+rez3` 48000 | `+rez3` 48000 innen / außen |
+|---|---|---|---|---|---|
+| cnn | 0,58 | 0,73 | 0,73 | 0,89 | 0,97 / 0,81 |
+| vit | 0,55 | 0,58 | 0,58 | 0,78 | 0,88 / 0,70 |
+| layer_s | 0,62 | 0,65 | 0,84 | 0,89 | 0,98 / 0,81 |
+| hier_s | 0,58 | 0,62 | 0,80 | 0,89 | 0,97 / 0,82 |
+
+Standard 48000 innen / außen: cnn 0,87 / 0,61, vit 0,66 / 0,51, layer_s 0,76 / 0,56, hier_s 0,71 / 0,53.
+Der Testverlust liegt mit 48000 Bildern bei 0,27–0,54 (`+rez3`) und 0,64–0,97 (Standard); mit 12000 Bildern
+lag er bei 0,66–2,0.
+
+**Schluss.** Beides zählt, aber die Auflösung mehr. Mehr Bilder allein heben die Standard-Fovea nur um 0,03–0,04
+(cnn um 0,15); die doppelte Auflösung bringt bei gleicher Bildzahl 0,16–0,27 dazu. Mit beidem zusammen sind
+innerhalb von Ring 5 alle Gitter-Netze und cnn bei 0,97–0,98, im vergröberten Rand bei 0,81. Die Standard-Fovea
+verliert also schon im voll aufgelösten Teil Forminformation, sobald der Körper nicht in der Mitte liegt.
+Einschränkung: Die Standard-Läufe waren nach 6000 Updates noch nicht ausgelernt (Trainingsverlust fiel noch).
+
+**Belege.** `results/resolution.jsonl`, `results/shape_ring.jsonl`.
+
 ## Laufend / offen
 
-- `robot_shape_edge` mit 48000 Bildern (Export läuft, etwa 4,5 Stunden), Standard-Fovea gegen `+rez3`.
 - `robot_finds` mit 32×32 und Vorschalt-Stufe (`robot_finds_f32`, `+rez3`), Seeds 0–2, allein (24000 Updates)
   und mit Hilfsaufgabe (48000), gegen dieselben Netze mit Standard-Fovea auf denselben Szenen.
   **Vorhersage vor dem Lauf (2026-11-13):** Die Auflösung ist nicht der Engpass. Standard bleibt bei 0,03–0,10;
