@@ -46,7 +46,11 @@ def main():
     ap.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 2) - 2))
     ap.add_argument("--out", default=None)
     ap.add_argument("--multitask", action="store_true", help="one job per model, trained on all tasks at once")
+    ap.add_argument("--burn", type=int, default=None, help="games, nets with state: burn-in steps before each "
+                    "training chunk (train.ControlLearner; sets $NETRESEARCH_BURN, result rows get a field burn)")
     a = ap.parse_args()
+    if a.burn is not None:
+        os.environ["NETRESEARCH_BURN"] = str(a.burn)                 # inherited by the worker processes
     if a.out is None:
         a.out = str(ROOT / "results" / ("multitask.jsonl" if a.multitask else "runs.jsonl"))
 
@@ -87,6 +91,8 @@ def main():
     t0 = time.time()
     with mp.get_context("spawn").Pool(a.workers, initializer=_init_worker) as pool, out.open("a") as f:
         for k, r in enumerate(pool.imap_unordered(_job, jobs), 1):
+            if a.burn is not None:
+                r["burn"] = a.burn
             f.write(json.dumps(r) + "\n")
             f.flush()
             el = time.time() - t0
