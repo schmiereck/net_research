@@ -462,3 +462,11 @@ Nicht getrennt: ob Gitter und vit an drei Körpern im Bild oder an der Ortsangab
   0,35–0,5, vit unter 0,3 (wie „innen“ im alten Satz); mit 48000 Szenen und `+rez3` cnn und Gitter 0,75–0,9,
   vit unter 0,5. Form-Suche mit 48000 Szenen und `+rez3`: bestes Netz 0,5–0,7, also deutlich über den 0,35
   der alten Szenen, aber nicht gelöst (unter 0,8).
+- Review von agy (REVIEW-2026-11-13.md), Punkt 3.1: Trainingsfenster der Spiele starten immer bei Zustand null,
+  die Auswertung nie. Vergleich ohne / mit Vorlauf über die 16 Schritte davor (`NETRESEARCH_BURN=16`), gru auf
+  crossing, racer, maze, bricks_mem, paddle_mem, Seeds 0–2, 1500 Updates.
+  **Vorhersage vor dem Lauf (2026-11-13):** Auf bricks_mem und paddle_mem ändert sich wenig (±0,05). Auf
+  crossing, racer und maze gewinnt gru höchstens 0,2 und bleibt unter cnn (0,75 / 0,52 / 0,74). Der Fehlstart
+  bei null ist also nicht die Hauptursache.
+- Review Punkt 3.5: `hier_s@400k` mit Null-Start des Restpfads (`hier_sz`) auf cycle_mem.
+  **Vorhersage:** Der Einbruch (0,01) verschwindet; `hier_sz@400k` erreicht mindestens 0,5.

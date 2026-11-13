@@ -214,7 +214,11 @@ def game_baselines(task):
 class ControlLearner:
     """DAgger: the expert labels the states the learner visits; the expert-mixing probability beta goes
     1 -> 0 over the first half of the chunks. One chunk (T steps x n_envs) is collected every upd_per_chunk
-    updates into a replay buffer of chunks."""
+    updates into a replay buffer of chunks.
+    burn (default $NETRESEARCH_BURN or 0): a training chunk normally starts from a zero state, although the
+    episode it was cut from had been running for many steps; evaluation never resets within an episode. With
+    burn > 0 a stateful model first runs the last `burn` steps of the PRECEDING chunk without gradient (from a
+    zero state) and enters the training chunk with that state and the true episode resets."""
 
     def __init__(self, model, task, updates, batch, seed, n_envs=16, upd_per_chunk=4, buffer_chunks=96):
         self.task, self.spec = task, task.spec
@@ -224,6 +228,7 @@ class ControlLearner:
         self.env = task.make_env(n_envs, seed)
         self.n_envs, self.upd_per_chunk = n_envs, upd_per_chunk
         self.rng = np.random.default_rng(seed)
+        self.burn = min(self.T, int(os.environ.get("NETRESEARCH_BURN", "0"))) if model.stateful else 0
         self.buf = deque(maxlen=buffer_chunks)
         self.state = model.init_state(n_envs)
         self.keep = np.ones(n_envs, dtype=np.float32)
@@ -256,12 +261,18 @@ class ControlLearner:
         self.c += 1
 
     def _sample(self, rng):
-        idx = rng.integers(len(self.buf), size=self.chunks_per_batch)
+        burn = self.burn if len(self.buf) > 1 else 0
+        idx = rng.integers(1 if burn else 0, len(self.buf), size=self.chunks_per_batch)
         obs = torch.from_numpy(np.concatenate([self.buf[j][0] for j in idx], 1)).float()
         lab = torch.from_numpy(np.concatenate([self.buf[j][1] for j in idx], 1))
         res = torch.from_numpy(np.concatenate([self.buf[j][2] for j in idx], 1))
-        res[0] = 1.0                                       # every chunk starts from a zero state
-        return {"obs": obs, "lab": lab, "res": res}
+        if not burn:
+            res[0] = 1.0                                   # every chunk starts from a zero state
+            return {"obs": obs, "lab": lab, "res": res}
+        pre = torch.from_numpy(np.concatenate([self.buf[j - 1][0][-burn:] for j in idx], 1)).float()
+        pre_res = torch.from_numpy(np.concatenate([self.buf[j - 1][2][-burn:] for j in idx], 1))
+        pre_res[0] = 1.0                                   # the burn-in itself starts from a zero state
+        return {"obs": obs, "lab": lab, "res": res, "pre_obs": pre, "pre_res": pre_res}
 
     def next_batch(self, model):
         if self.k % self.upd_per_chunk == 0:
@@ -275,7 +286,11 @@ class ControlLearner:
         return self._sample(np.random.default_rng(self.k + 7777))
 
     def loss_on(self, model, b):
-        logits, _ = run_sequence(model, b["obs"], resets=b["res"])
+        state = None
+        if "pre_obs" in b:
+            with torch.no_grad():
+                _, state = run_sequence(model, b["pre_obs"], resets=b["pre_res"])
+        logits, _ = run_sequence(model, b["obs"], state=state, resets=b["res"])
         return F.cross_entropy(logits[..., self.valid].reshape(-1, len(self.valid)),
                                self.label_map[b["lab"]].reshape(-1))
 
