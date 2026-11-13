@@ -146,6 +146,9 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   auf 0,63–0,70 (layer_s 0,70). Zwischen Lesen und Suchen bleiben etwa 0,25; gelöst ist die Suche nicht.
 - **Die Greif-Decke von 0,62 ist großteils Wertung:** Die besten Netze liegen in 0,79–0,87 der Fälle
   höchstens eine Zelle daneben (`results/step_error.jsonl`).
+- **Vorlauf im Spiele-Training (Review agy 3.1) ändert die Rangfolgen nicht:** Nur layer_i_sp4 gewinnt auf den
+  Gedächtnis-Spielen (+0,06 / +0,08); die Gitter mit geteilten Gewichten und `push_easy` bleiben innerhalb der
+  Streuung. Die Option `--burn` ist aus; alte Zahlen gelten weiter.
 - **Null-Start des Restpfads hilft dem Hierarchie-Gitter nicht** (`hier_sz`, cycle_mem 0,03 gegen 0,80);
   der Einbruch von `hier_s@400k` bleibt ungeklärt.
 - **`vitmem` (vit je Bild, dann Aufmerksamkeit über die letzten Bilder) löst „Anschauen und vergleichen“ ohne

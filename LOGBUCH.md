@@ -641,9 +641,38 @@ allgemeiner Fehler der bisherigen Zahlen; die Option bleibt aus.
 
 **Belege.** `results/burnin_b0.jsonl`, `results/burnin_b16.jsonl`.
 
+## 2026-11-13 — Vorlauf (Burn-in), Schritt 2: `push_easy`
+
+**Frage.** Ändert der Vorlauf die Zahlen auf `push_easy`, dem Spiel, das die Roboter-Aufgaben vorhersagen
+soll? Davon hängt ab, ob alle Spiele neu gerechnet werden müssen (Schritt 3).
+
+**Vorhersage vor dem Lauf (2026-11-13, Commit d2c537a).** layer_i_sp4 bleibt mit und ohne Vorlauf unter 0,2;
+layer_s und layer_s_sp4 ändern sich im Mittel um höchstens 0,1, ihre Reihenfolge gegenüber den anderen
+Netzen bleibt.
+
+**Gemacht.** layer_i_sp4, layer_s_sp4, layer_s auf `push_easy`, Vorlauf 0 gegen 16, Seeds 0–2, 1500 Updates
+(Worker-Aufträge burn_push_b0, burn_push_b16).
+
+**Ergebnis.** Wertung (Seeds 0 / 1 / 2, Mittel).
+
+| Netz | ohne Vorlauf | mit Vorlauf |
+|---|---|---|
+| layer_s_sp4 | 0,61 / 0,58 / 0,77 → 0,66 | 0,61 / 0,61 / 0,71 → 0,65 |
+| layer_s | 0,68 / 0,52 / 0,68 → 0,62 | 0,58 / 0,61 / 0,61 → 0,60 |
+| layer_i_sp4 | −0,03 / 0,00 / 0,03 → 0,00 | 0,00 / 0,06 / −0,03 → 0,01 |
+
+Nebenbefund: layer_s ohne Vorlauf, Seed 0, ergab hier 0,68, im früheren Lauf 0,48. Gleicher Seed heißt auf
+`push_easy` also nicht gleiche Zahl (anderer Rechner oder Code-Stand); die Streuung eines Einzellaufs liegt
+bei etwa 0,1–0,2.
+
+**Schluss.** Vorhersage trifft in allen Teilen. Der Vorlauf ändert auf `push_easy` nichts: Die Unterschiede
+(−0,01 und −0,02) sind viel kleiner als die Streuung, und layer_i_sp4 bleibt bei null. Schritt 3 entfällt;
+die bisherigen Spiel-Zahlen und die Prognose-Rangfolgen gelten weiter. Review-Punkt 3.1 ist damit
+abgeschlossen: Die Fundstelle stimmt, die Wirkung beschränkt sich auf layer_i_sp4 in den Gedächtnis-Spielen.
+Die Option `--burn` bleibt im Code und ist standardmäßig aus.
+
+**Belege.** `results/burnin_b0.jsonl`, `results/burnin_b16.jsonl`.
+
 ## Laufend / offen
 
-- Vorlauf, Schritt 2: `push_easy` mit Vorlauf 0 und 16 für layer_i_sp4, layer_s_sp4, layer_s (Seeds 0–2,
-  1500 Updates). **Vorhersage (2026-11-13):** layer_i_sp4 bleibt mit und ohne Vorlauf unter 0,2 (wie layer_i);
-  layer_s und layer_s_sp4 ändern sich im Mittel um höchstens 0,1, und ihre Reihenfolge gegenüber den anderen
-  Netzen bleibt. Dann entfällt Schritt 3 (alle Spiele neu rechnen).
+- Zurzeit keine laufenden Aufträge.
