@@ -24,14 +24,17 @@ DATA = Path(__file__).resolve().parents[2] / "data" / "robot"
 def data_path(name):
     """A robot data file: in the repository (data/robot), else in the shared folder of the workers
     (<share>/data/robot; large sets that are not committed, e.g. gazeshape*). The share is $NETRESEARCH_SHARE or
-    the usual OneDrive place."""
+    the usual place in one of the OneDrive folders of this machine."""
     import os
-    for root in (DATA, *(Path(r) / "data" / "robot" for r in (
-            os.environ.get("NETRESEARCH_SHARE", ""),
-            Path.home() / "OneDrive" / "Dokumente" / "#Projekte" / "NetResearch") if str(r))):
+    drives = [Path.home() / "OneDrive", *(Path(os.environ[k]) for k in
+                                          ("OneDrive", "OneDriveConsumer", "OneDriveCommercial") if os.environ.get(k))]
+    shares = [Path(os.environ["NETRESEARCH_SHARE"])] if os.environ.get("NETRESEARCH_SHARE") else []
+    shares += [d / docs / "#Projekte" / "NetResearch" for d in drives for docs in ("Dokumente", "Documents")]
+    roots = list(dict.fromkeys([DATA, *(r / "data" / "robot" for r in shares)]))
+    for root in roots:
         if (root / name).exists():
             return root / name
-    return DATA / name
+    raise FileNotFoundError(f"{name} not found in: " + ", ".join(str(r) for r in roots))
 
 
 class _Robot(SupervisedTask):
