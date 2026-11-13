@@ -412,4 +412,10 @@ Die Streuung über die Seeds ist außer bei vit klein (±0,01–0,02).
 
 ## Laufend / offen
 
-- (nichts)
+- `robot_shape_at` / `robot_shape_at_f32`: Suchszene (drei gleichfarbige Körper) plus Ort eines Körpers als
+  Kommando -> seine Form. Kein Zeigebild, kein Vergleich, kein Blickschritt. Seeds 0–2, 12000 Updates,
+  cnn, vit, layer_s, hier_s, Standard-Fovea gegen 32×32 mit `+rez3`.
+  **Vorhersage vor dem Lauf (2026-11-13):** Die Form wird in der Suchszene deutlich schlechter gelesen als bei
+  einem Körper allein (`robot_shape_edge`, 12000 Bilder: Standard 0,55–0,62, `+rez3` 0,58–0,84). Erwartet:
+  Standard 0,40–0,55, 32×32 0,45–0,65. Von den Fehlern nennen mindestens 70 % die Form eines der beiden
+  anderen Körper der Szene (Zufall wäre 50 %): Verwechslung der Körper, nicht blindes Raten.

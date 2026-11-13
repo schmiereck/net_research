@@ -418,6 +418,47 @@ class RobotReachPartsBig(RobotReachParts):
     name, train = "robot_reach_parts_big", "reachcells48"
 
 
+def place_code(dx, dy):
+    """A place in the field of view (dx, dy in cells, -8..7) as a command: per axis 8 values, each a bump
+    around one of 8 evenly spaced centres (a population code), so that near places get similar commands."""
+    from ..models import N_CMD
+    ctr = np.arange(-7, 8, 2)[None]
+    bump = lambda v: np.exp(-0.5 * ((np.asarray(v, np.float32)[:, None] - ctr) / 1.5) ** 2)
+    out = np.concatenate([bump(dx), bump(dy)], 1).astype(np.float32)
+    assert out.shape[1] == N_CMD
+    return out
+
+
+class RobotShapeAt(RobotFindColor):
+    """Diagnosis for robot_finds: the search scene itself (three bodies of one colour and different shape) and,
+    as the command, the PLACE of one of them (its step from the centre in cells, place_code) -> the shape of
+    that body (5 classes). No picture, no comparison, no gaze step: only "read the shape at a named place" in
+    the scene the search runs on. Reference: robot_shape_edge (one body alone, same field of view)."""
+    files = ("gazeshape", "gazeshapeheld_test")
+    name, VIEW = "robot_shape_at", "obs"
+
+    def __init__(self):
+        self.spec = TaskSpec(self.name, "robot", "supervised", "class", 5, seq_len=1, chance=0.2,
+                             description=f"search scene ({self.VIEW}) + place of one of the three bodies -> its shape")
+        self._data = {}
+
+    def make(self, d, i, k):
+        if self.VIEW not in d:
+            raise FileNotFoundError(f"gazeshape*.npz without the view {self.VIEW}: export it again")
+        c = d["cells"][i].astype(np.int64)
+        r = np.arange(len(i))
+        return {"obs": (d[self.VIEW][i].astype(np.float32) / 255.0)[None],
+                "cmd": place_code(c[r, 2 * k], c[r, 2 * k + 1])[None],
+                "target": c[r, 9 + k][None], "mask": np.ones((1, len(i)), np.float32)}
+
+    def held_out(self, other=False):
+        raise NotImplementedError("the Y has no class here")
+
+
+class RobotShapeAtF32(RobotShapeAt):
+    name, VIEW = "robot_shape_at_f32", "f32"
+
+
 class RobotFindShapeParts(RobotFindShape):
     """Intermediate quantities of robot_finds as an auxiliary task (same scenes, same picture of the wanted
     object): for the three objects ordered from left to right (then top to bottom) the gaze step to each

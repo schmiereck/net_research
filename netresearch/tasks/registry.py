@@ -12,7 +12,7 @@ from .memory import (CrossMem, Delay, KeepFixed, KeepShift, Match, MatchShift, R
                      SameShift)
 from .patterns import BitSeq, Count, Cycle, CycleMem, NumSeq
 from .robot import (RobotFind, RobotFindColor, RobotFindImage, RobotFindShape, RobotFindShapeF32,
-                    RobotFindShapeParts, RobotFindShapePartsF32, RobotGaze,
+                    RobotFindShapeParts, RobotFindShapePartsF32, RobotGaze, RobotShapeAt, RobotShapeAtF32,
                     RobotLook, RobotLookMem, RobotReach, RobotReachBig, RobotReachParts,
                     RobotReachPartsBig, RobotShape, RobotShapeEdge, RobotShapeEdgeBig,
                     RobotShapeEdgeF32, RobotShapeEdgeF32Big, RobotShapeF32, RobotShapeZ2, RobotShapeZ4)
@@ -47,6 +47,8 @@ TASKS = {
     "robot_finds_parts": RobotFindShapeParts,
     "robot_finds_f32": RobotFindShapeF32,
     "robot_finds_parts_f32": RobotFindShapePartsF32,
+    "robot_shape_at": RobotShapeAt,
+    "robot_shape_at_f32": RobotShapeAtF32,
     "robot_reach_parts": RobotReachParts,
     "robot_reach_big": RobotReachBig,
     "robot_reach_parts_big": RobotReachPartsBig,
