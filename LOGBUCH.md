@@ -350,3 +350,9 @@ Abgrenzung zu den anderen Dokumenten:
 ## Laufend / offen
 
 - `robot_shape_edge` mit 48000 Bildern (Export läuft, etwa 4,5 Stunden), Standard-Fovea gegen `+rez3`.
+- `robot_finds` mit 32×32 und Vorschalt-Stufe (`robot_finds_f32`, `+rez3`), Seeds 0–2, allein (24000 Updates)
+  und mit Hilfsaufgabe (48000), gegen dieselben Netze mit Standard-Fovea auf denselben Szenen.
+  **Vorhersage vor dem Lauf (2026-11-13):** Die Auflösung ist nicht der Engpass. Standard bleibt bei 0,03–0,10;
+  32×32 hebt kein Netz über 0,25, der Gewinn liegt unter 0,10. Begründung: Form erkennen gelingt abseits der
+  Mitte schon mit Standard-Fovea zu 0,6 und mit 32×32 zu 0,8; die Suche scheitert aber fast vollständig, also
+  am Vergleich mit dem Zeigebild und nicht am Sehen.
