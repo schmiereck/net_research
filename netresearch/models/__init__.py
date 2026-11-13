@@ -139,7 +139,7 @@ def split_size(name):
     differently sized nets are different model names everywhere (results, checkpoints). A '+cmd' suffix of the
     base name (command port, see attach_cmd) is removed here; has_cmd(name) tells whether it was there."""
     base, _, size = name.partition("@")
-    for suf in ("+cmd", "+cell", "+ref", "+ret0", "+ret1", "+ret2", "+ret3"):
+    for suf in ("+cmd", "+cell", "+ref", "+ret0", "+ret1", "+ret2", "+ret3", "+rez1", "+rez2", "+rez3"):
         base = base.replace(suf, "")
     return base, (int(float(size.rstrip("k")) * 1000) if size else None)
 
@@ -176,17 +176,23 @@ class Retina(torch.nn.Module):
         3  two convolutions 3 x 3 (12 channels), then the strided one
     At most about 2k parameters. Trained end to end with the net behind it."""
 
-    def __init__(self, layers):
+    def __init__(self, layers, residual=False):
         super().__init__()
-        nn, ch, seq = torch.nn, 3, []
+        self.residual = residual                               # "+rezN": 2 x 2 mean + learned correction that
+        nn, ch, seq = torch.nn, 3, []                          # starts at zero, so training starts as "+ret0"
         for _ in range(max(0, layers - 1)):
             seq += [nn.Conv2d(ch, 12, 3, padding=1), nn.ReLU()]
             ch = 12
         self.body = nn.Sequential(*seq, nn.Conv2d(ch, 3, 2, stride=2)) if layers else None
+        if residual:
+            nn.init.zeros_(self.body[-1].weight)
+            nn.init.zeros_(self.body[-1].bias)
 
     def forward(self, x):
         if self.body is None:
             return torch.nn.functional.avg_pool2d(x, 2)
+        if self.residual:
+            return torch.nn.functional.avg_pool2d(x, 2) + self.body(x)
         return torch.sigmoid(self.body(x))
 
 
@@ -222,6 +228,8 @@ def construct(name, width):
         model.ref_enc = AddressEncoder()
     if "+ret" in name:                                         # front stage for 32 x 32 images (Retina)
         model.retina = Retina(int(name.split("+ret")[1][0]))
+    if "+rez" in name:                                         # the same, as a correction to the 2 x 2 mean
+        model.retina = Retina(int(name.split("+rez")[1][0]), residual=True)
     return model
 
 

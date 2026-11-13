@@ -21,7 +21,7 @@ def test_task_shapes(name):
         except FileNotFoundError as e:              # large robot data sets are not in the repository
             pytest.skip(str(e))
         T = spec.seq_len
-        assert b["obs"].shape == (T, 4) + ((3, 32, 32) if name.endswith("_f32") else OBS_SHAPE)
+        assert b["obs"].shape == (T, 4) + ((3, 32, 32) if "_f32" in name else OBS_SHAPE)
         if spec.group == "robot":                 # real-valued camera images (tasks/robot.py)
             assert b["obs"].min() >= 0.0 and b["obs"].max() <= 1.0
         else:

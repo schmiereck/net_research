@@ -28,6 +28,7 @@ def main():
                                                     "cnn+ret0", "vit+ret0", "layer_s+ret0", "hier_s+ret0",
                                                     "cnn+ret3", "vit+ret3", "layer_s+ret3", "hier_s+ret3"])
     ap.add_argument("--seeds", nargs="+", type=int, default=[0, 1, 2])
+    ap.add_argument("--suffix", default="", help='"_big" for the nets trained on 48000 images')
     a = ap.parse_args()
     d = np.load(ROOT / "data" / "robot" / "shapeedge_test.npz")
     tgt, ring = d["cells"][:, 0].astype(np.int64), d["cells"][:, 1]
@@ -36,8 +37,9 @@ def main():
           + " ".join(str(int((ring == r).sum())) for r in rings))
     out = open(ROOT / "results" / "shape_ring.jsonl", "a")
     for name in a.models:
-        task = "robot_shape_edge_f32" if "+ret" in name else "robot_shape_edge"
-        spec, key = make_task(task).spec, "f32" if "+ret" in name else "obs"
+        fine = "+ret" in name or "+rez" in name
+        task = ("robot_shape_edge_f32" if fine else "robot_shape_edge") + a.suffix
+        spec, key = make_task(task).spec, "f32" if fine else "obs"
         obs = torch.tensor(d[key].astype(np.float32) / 255.0)[None]
         acc = []
         for s in a.seeds:

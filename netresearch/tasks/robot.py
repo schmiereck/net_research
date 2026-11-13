@@ -270,7 +270,7 @@ class RobotShape(SupervisedTask):
         robot_shape_z4   z4   16 x 16, zoomed in 4x
         robot_shape_f32  f32  32 x 32 over the field of view of obs (twice as dense); needs a net with a front
                               stage ("+retN", models.Retina)."""
-    name, VIEW, FILE = "robot_shape", "obs", "shapeview"
+    name, VIEW, FILE, TRAIN = "robot_shape", "obs", "shapeview", None
 
     def __init__(self):
         self.spec = TaskSpec(self.name, "robot", "supervised", "class", 5, seq_len=1, chance=0.2,
@@ -279,7 +279,7 @@ class RobotShape(SupervisedTask):
 
     def sample(self, batch, rng, split="train"):
         if split not in self._data:
-            p = DATA / f"{self.FILE}_{split}.npz"
+            p = DATA / f"{self.TRAIN if split == 'train' and self.TRAIN else self.FILE + '_' + split}.npz"
             if not p.exists():
                 raise FileNotFoundError(f"{p} is missing: export it in the robot project (task {self.FILE})")
             d = np.load(p)
@@ -311,6 +311,15 @@ class RobotShapeEdge(RobotShape):
 
 class RobotShapeEdgeF32(RobotShapeEdge):
     name, VIEW = "robot_shape_edge_f32", "f32"
+
+
+class RobotShapeEdgeBig(RobotShapeEdge):
+    """48000 training images in place of 12000, same test set."""
+    name, TRAIN = "robot_shape_edge_big", "shapeedge48_train"
+
+
+class RobotShapeEdgeF32Big(RobotShapeEdgeF32):
+    name, TRAIN = "robot_shape_edge_f32_big", "shapeedge48_train"
 
 
 class RobotGaze(_Robot):
