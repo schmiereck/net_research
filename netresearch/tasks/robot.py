@@ -21,6 +21,19 @@ from .servo import command_bits
 DATA = Path(__file__).resolve().parents[2] / "data" / "robot"
 
 
+def data_path(name):
+    """A robot data file: in the repository (data/robot), else in the shared folder of the workers
+    (<share>/data/robot; large sets that are not committed, e.g. gazeshape*). The share is $NETRESEARCH_SHARE or
+    the usual OneDrive place."""
+    import os
+    for root in (DATA, *(Path(r) / "data" / "robot" for r in (
+            os.environ.get("NETRESEARCH_SHARE", ""),
+            Path.home() / "OneDrive" / "Dokumente" / "#Projekte" / "NetResearch") if str(r))):
+        if (root / name).exists():
+            return root / name
+    return DATA / name
+
+
 class _Robot(SupervisedTask):
     kind, text = "", ""
 
@@ -31,7 +44,7 @@ class _Robot(SupervisedTask):
 
     def _load(self, split):
         if split not in self._data:
-            p = DATA / f"{self.kind}_{split}.npz"
+            p = data_path(f"{self.kind}_{split}.npz")
             if not p.exists():
                 raise FileNotFoundError(f"{p} is missing: export it in the robot project with "
                                         f"src/pc_cvnn/export_netresearch.py --out <NetResearch>/data/robot")
@@ -62,7 +75,7 @@ class RobotFind(SupervisedTask):
 
     def _load(self, split):
         if split not in self._data:
-            self._data[split] = dict(np.load(DATA / f"gazemulti_{split}.npz"))
+            self._data[split] = dict(np.load(data_path(f"gazemulti_{split}.npz")))
         return self._data[split]
 
     def _batch(self, d, i, k):
@@ -100,7 +113,7 @@ class RobotFindColor(SupervisedTask):
 
     def _load(self, name):
         if name not in self._data:
-            self._data[name] = dict(np.load(DATA / f"{name}.npz"))
+            self._data[name] = dict(np.load(data_path(f"{name}.npz")))
         return self._data[name]
 
     @staticmethod
@@ -185,6 +198,26 @@ class RobotFindShape(RobotFindColor):
         return self.make(d, np.arange(len(k)), (k + 1) % 3 if other else k, view)
 
 
+def _fine(d):
+    if "f32" not in d:
+        raise FileNotFoundError("gazeshape*.npz without the dense view (f32): export it again in the robot project")
+    return d["f32"]
+
+
+class RobotFindShapeF32(RobotFindShape):
+    """robot_finds with the search scene sampled twice as densely (32 x 32 over the same field of view, key
+    "f32"); the picture of the wanted object stays 16 x 16. Needs a net with a front stage ("+rezN")."""
+
+    def __init__(self):
+        super().__init__()
+        self.spec.name = "robot_finds_f32"
+
+    def make(self, d, i, k, view=None):
+        b = super().make(d, i, k, view)
+        b["obs"] = (_fine(d)[i].astype(np.float32) / 255.0)[None]
+        return b
+
+
 class RobotLook(SupervisedTask):
     """Look and compare, stage 1: "is it this one?". The image is the fovea centred on ONE of the three
     same-coloured shapes of a search scene (the others around it); "ref" is a picture of an object (alone, other
@@ -202,7 +235,7 @@ class RobotLook(SupervisedTask):
 
     def _load(self, name):
         if name not in self._data:
-            self._data[name] = dict(np.load(DATA / f"{name}.npz"))
+            self._data[name] = dict(np.load(data_path(f"{name}.npz")))
         return self._data[name]
 
     @staticmethod
@@ -279,7 +312,7 @@ class RobotShape(SupervisedTask):
 
     def sample(self, batch, rng, split="train"):
         if split not in self._data:
-            p = DATA / f"{self.TRAIN if split == 'train' and self.TRAIN else self.FILE + '_' + split}.npz"
+            p = data_path(f"{self.TRAIN if split == 'train' and self.TRAIN else self.FILE + '_' + split}.npz")
             if not p.exists():
                 raise FileNotFoundError(f"{p} is missing: export it in the robot project (task {self.FILE})")
             d = np.load(p)
@@ -339,7 +372,7 @@ class RobotReach(_Robot):
 
     def _load(self, split):
         if split not in self._data:
-            d = np.load(DATA / f"{self.kind if split == 'train' else 'reachcells'}_{split}.npz")
+            d = np.load(data_path(f"{self.kind if split == 'train' else 'reachcells'}_{split}.npz"))
             self._data[split] = (d["obs"], command_bits(d["target"][:, 0], d["target"][:, 1]))
         return self._data[split]
 
@@ -370,7 +403,7 @@ class RobotReachParts(SupervisedTask):
 
     def sample(self, batch, rng, split="train"):
         if split not in self._data:
-            d = np.load(DATA / f"{self.train if split == 'train' else 'reachcells'}_{split}.npz")
+            d = np.load(data_path(f"{self.train if split == 'train' else 'reachcells'}_{split}.npz"))
             self._data[split] = (d["obs"], _nibbles(d["cells"].astype(np.int64)))
         obs, tgt = self._data[split]
         i = rng.integers(0, len(obs), size=batch)
@@ -406,4 +439,15 @@ class RobotFindShapeParts(RobotFindShape):
         steps = np.concatenate([command_bits(pos[:, j, 0], pos[:, j, 1]) for j in range(3)], 1)
         three = lambda v: ((v[..., None] >> np.arange(2, -1, -1)) & 1).reshape(len(i), -1).astype(np.float32)
         b["target"] = np.concatenate([steps, three(shp), three(c[r[:, 0], 9 + k][:, None])], 1)[None]
+        return b
+
+
+class RobotFindShapePartsF32(RobotFindShapeParts):
+    def __init__(self):
+        super().__init__()
+        self.spec.name = "robot_finds_parts_f32"
+
+    def make(self, d, i, k, view=None):
+        b = super().make(d, i, k, view)
+        b["obs"] = (_fine(d)[i].astype(np.float32) / 255.0)[None]
         return b
