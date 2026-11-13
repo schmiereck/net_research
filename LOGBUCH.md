@@ -377,11 +377,39 @@ Einschränkung: Die Standard-Läufe waren nach 6000 Updates noch nicht ausgelern
 
 **Belege.** `results/resolution.jsonl`, `results/shape_ring.jsonl`.
 
+## 2026-11-13 — Form-Suche (`robot_finds`) mit 32×32 und Vorschalt-Stufe
+
+**Frage.** Scheitert die Form-Suche (0,03–0,10) am Sehen oder am Vergleichen mit dem Zeigebild?
+
+**Vorhersage vor dem Lauf (2026-11-13, Commit 6f4480c).** Die Auflösung ist nicht der Engpass. Standard bleibt
+bei 0,03–0,10; 32×32 hebt kein Netz über 0,25, der Gewinn liegt unter 0,10.
+
+**Gemacht.** Suchszenen neu exportiert, zeichengleich zu den alten, dazu die Szene in 32×32 über dasselbe
+Blickfeld (Zeigebild bleibt 16×16). Aufgaben `robot_finds_f32`, `robot_finds_parts_f32`. Auf dem Worker, Seeds
+0–2: fünf Netze mit Standard-Fovea und dieselben mit `+rez3`, jeweils allein (24000 Updates) und mit
+Hilfsaufgabe (48000 Updates).
+
+**Ergebnis.** Wertung der Suche, Mittel über drei Seeds.
+
+| Netz | Standard | Standard + Hilfsaufgabe | 32×32 | 32×32 + Hilfsaufgabe |
+|---|---|---|---|---|
+| vit+ref | 0,07 | 0,08 | 0,35 (0,25 / 0,33 / 0,46) | 0,24 |
+| layer_s_sp4+cell+ref | 0,09 | 0,10 | 0,32 | 0,27 |
+| layer_s+cell+ref | 0,09 | 0,12 | 0,30 | 0,27 |
+| hier_s+cell+ref | 0,07 | 0,06 | 0,23 | 0,17 |
+| cnn+ref | 0,07 | 0,04 | 0,21 | 0,12 |
+
+Teile der Hilfsaufgabe (Mittel über Netze, Standard → 32×32): erster Blickschritt 0,17–0,26 → 0,30–0,45;
+Form der Kandidaten 0,20–0,34 → 0,24–0,45; Form im Zeigebild bei beiden 0,93–0,98 (cnn 0,61 → 0,93).
+
+**Schluss.** Die Vorhersage war falsch. Die doppelte Auflösung verdrei- bis verfünffacht die Wertung
+(Gewinn 0,14–0,28), drei Netze liegen über 0,25. Die Auflösung ist also ein echter Engpass der Form-Suche,
+aber nicht der einzige: Auch mit 32×32 bleibt die Suche bei 0,2–0,35, und die Form der Kandidaten wird nur zu
+0,24–0,45 gelesen. Die Hilfsaufgabe schadet mit 32×32 bei jedem Netz (bei gleicher Zahl von Updates je Aufgabe).
+Die Streuung über die Seeds ist außer bei vit klein (±0,01–0,02).
+
+**Belege.** `results/finds_res.jsonl` (Worker-Aufträge finds_std2, finds_f32b; Commit d0c5ff0).
+
 ## Laufend / offen
 
-- `robot_finds` mit 32×32 und Vorschalt-Stufe (`robot_finds_f32`, `+rez3`), Seeds 0–2, allein (24000 Updates)
-  und mit Hilfsaufgabe (48000), gegen dieselben Netze mit Standard-Fovea auf denselben Szenen.
-  **Vorhersage vor dem Lauf (2026-11-13):** Die Auflösung ist nicht der Engpass. Standard bleibt bei 0,03–0,10;
-  32×32 hebt kein Netz über 0,25, der Gewinn liegt unter 0,10. Begründung: Form erkennen gelingt abseits der
-  Mitte schon mit Standard-Fovea zu 0,6 und mit 32×32 zu 0,8; die Suche scheitert aber fast vollständig, also
-  am Vergleich mit dem Zeigebild und nicht am Sehen.
+- (nichts)

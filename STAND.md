@@ -135,6 +135,9 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   Vorschalt-Stufe lernen gar nicht, und die Netze lernen die 12000 Bilder auswendig.
   Mit 48000 statt 12000 Bildern: Standard-Fovea 0,58–0,73, 32×32 mit `+rez3` 0,78–0,89 (innerhalb Ring 5
   0,88–0,98). Mehr Bilder allein helfen der Standard-Fovea kaum; der Engpass ist die Auflösung.
+- **Die Form-Suche gewinnt deutlich durch doppelte Auflösung** (`robot_finds_f32`, Seeds 0–2): von 0,07–0,09
+  auf 0,21–0,35 (vit 0,35, Gitter 0,23–0,32, cnn 0,21). Meine Vorhersage vor dem Lauf (kein Netz über
+  0,25) war falsch. Gelöst ist die Aufgabe damit nicht; die Hilfsaufgabe schadet mit 32×32.
 - **`vitmem` (vit je Bild, dann Aufmerksamkeit über die letzten Bilder) löst „Anschauen und vergleichen“ ohne
   Vorstufe am besten:** richtiger Körper in 93 % (12000 Updates, Seeds 0–2), beim nie gesehenen Y 64 %. Die
   Vorstufe bringt ihm nichts (90 %). Das Y bleibt bei allen Netzen um 60 %.
