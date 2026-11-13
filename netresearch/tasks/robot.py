@@ -131,13 +131,15 @@ class RobotFindColor(SupervisedTask):
                 "mask": np.ones((1, len(i)), np.float32)}
 
     files = ("gazecolor", "gazecolorheld_test")
+    TRAIN_N = None                               # use only the first TRAIN_N training scenes (None: all)
 
     def make(self, d, i, k):
         return self._batch(d, i, k)
 
     def sample(self, batch, rng, split="train"):
         d = self._load(f"{self.files[0]}_{split}")
-        return self.make(d, rng.integers(0, len(d["obs"]), size=batch), rng.integers(0, 3, size=batch))
+        n = self.TRAIN_N if split == "train" and self.TRAIN_N else len(d["obs"])
+        return self.make(d, rng.integers(0, n, size=batch), rng.integers(0, 3, size=batch))
 
     def held_out(self, other=False):
         """Test scenes with one cube in a held-out hue; the command names that cube (other=True: a cube with a
@@ -457,6 +459,31 @@ class RobotShapeAt(RobotFindColor):
 
 class RobotShapeAtF32(RobotShapeAt):
     name, VIEW = "robot_shape_at_f32", "f32"
+
+
+IN_FILES = ("gazeshapein", "gazeshapeinheld_test")
+
+
+def _variant(base, name, **attrs):
+    """A task class like `base` under another name with other class attributes (data files, number of scenes)."""
+    def __init__(self):
+        base.__init__(self)
+        self.spec.name = name
+    return type(name, (base,), {"__init__": __init__, "name": name, **attrs})
+
+
+# Search scenes in which all three bodies lie in the fully resolved part of the fovea (at most 5 cells from the
+# centre; data gazeshapein_*, 48000 training scenes). "_in12": only the first 12000 scenes, as many as gazeshape.
+RobotShapeAtIn = _variant(RobotShapeAt, "robot_shape_at_in", files=IN_FILES)
+RobotShapeAtIn12 = _variant(RobotShapeAt, "robot_shape_at_in12", files=IN_FILES, TRAIN_N=12000)
+RobotShapeAtInF32 = _variant(RobotShapeAtF32, "robot_shape_at_in_f32", files=IN_FILES)
+RobotShapeAtIn12F32 = _variant(RobotShapeAtF32, "robot_shape_at_in12_f32", files=IN_FILES, TRAIN_N=12000)
+RobotFindShapeIn = _variant(RobotFindShape, "robot_finds_in", files=IN_FILES)
+RobotFindShapeIn12 = _variant(RobotFindShape, "robot_finds_in12", files=IN_FILES, TRAIN_N=12000)
+RobotFindShapeInF32 = _variant(RobotFindShapeF32, "robot_finds_in_f32", files=IN_FILES)
+RobotFindShapeIn12F32 = _variant(RobotFindShapeF32, "robot_finds_in12_f32", files=IN_FILES, TRAIN_N=12000)
+IN_TASKS = {c.name: c for c in (RobotShapeAtIn, RobotShapeAtIn12, RobotShapeAtInF32, RobotShapeAtIn12F32,
+                                RobotFindShapeIn, RobotFindShapeIn12, RobotFindShapeInF32, RobotFindShapeIn12F32)}
 
 
 class RobotFindShapeParts(RobotFindShape):

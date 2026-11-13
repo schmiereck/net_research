@@ -456,4 +456,9 @@ Nicht getrennt: ob Gitter und vit an drei Körpern im Bild oder an der Ortsangab
 
 ## Laufend / offen
 
-- (nichts)
+- Suchszenen, in denen alle drei Körper höchstens 5 Zellen neben der Mitte liegen (`gazeshapein`, 48000
+  Szenen; `_in12` = die ersten 12000): `robot_shape_at_in*` und `robot_finds_in*`, Standard gegen 32×32.
+  **Vorhersage vor dem Lauf (2026-11-13):** Form an genannter Stelle: mit 12000 Szenen cnn 0,6–0,7, Gitter
+  0,35–0,5, vit unter 0,3 (wie „innen“ im alten Satz); mit 48000 Szenen und `+rez3` cnn und Gitter 0,75–0,9,
+  vit unter 0,5. Form-Suche mit 48000 Szenen und `+rez3`: bestes Netz 0,5–0,7, also deutlich über den 0,35
+  der alten Szenen, aber nicht gelöst (unter 0,8).

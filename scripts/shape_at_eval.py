@@ -33,13 +33,14 @@ def main():
                                                     "cnn+cmd+rez3", "vit+cmd+rez3", "layer_s+cell+rez3",
                                                     "hier_s+cell+rez3"])
     ap.add_argument("--seeds", nargs="+", type=int, default=[0, 1, 2])
+    ap.add_argument("--suffix", default="", help='"_in" / "_in12": scenes with all bodies up to ring 5')
     a = ap.parse_args()
     out = open(ROOT / "results" / "shape_at.jsonl", "a")
     print(f"{'model':<20}  all    in   out  near   far  other     (near: next body < {NEAR} cells)")
     for name in a.models:
-        tname = "robot_shape_at_f32" if "+rez" in name or "+ret" in name else "robot_shape_at"
+        tname = "robot_shape_at" + a.suffix + ("_f32" if "+rez" in name or "+ret" in name else "")
         task = make_task(tname)
-        d = task._load("gazeshape_test")
+        d = task._load(task.files[0] + "_test")
         n = len(d["obs"])
         c = d["cells"].astype(np.int64)
         pos, shp = c[:, :6].reshape(n, 3, 2), c[:, 9:12]
@@ -60,7 +61,7 @@ def main():
                 ring.append(np.abs(pos[:, k]).max(1))
                 gap.append(np.abs(np.delete(pos, k, axis=1) - pos[:, k:k + 1]).max(2).min(1))
             ok, oth, ring, gap = (np.concatenate(v) for v in (ok, oth, ring, gap))
-            row = [ok.mean(), ok[ring <= 5].mean(), ok[ring > 5].mean(), ok[gap < NEAR].mean(),
+            row = [ok.mean(), ok[ring <= 5].mean(), ok[ring > 5].mean() if (ring > 5).any() else float("nan"), ok[gap < NEAR].mean(),
                    ok[gap >= NEAR].mean(), oth[~ok].mean()]
             rows.append(row)
             out.write(json.dumps({"model": name, "task": tname, "seed": s, **{
