@@ -295,6 +295,38 @@ Abgrenzung zu den anderen Dokumenten:
 - **Behoben:** Der Export verwirft jetzt Szenen mit einem zweiten Körper im Blickfeld; Lauf wiederholt.
 - **Belege:** `results/edge_ambiguous/` (der fehlerhafte Lauf, nur zur Nachvollziehbarkeit).
 
-## 2026-11-12 — Laufend
+## 2026-11-13 — Form am Rand des Blickfelds (zweiter Lauf)
 
-- Form am Rand des Blickfelds, zweiter Lauf mit nur einem Körper im Blickfeld (lokal).
+- **Frage:** Reicht die Auflösung auch, wenn der Körper nicht in der Mitte des Blickfelds liegt?
+- **Gemacht:** `robot_shape_edge`: ein einzelner Körper bis 7 Zellen neben der Mitte (bis 5 Zellen volle
+  Auflösung, außen gröber); Standard-Fovea, 32×32 gemittelt (`+ret0`) und 32×32 mit drei gelernten Schichten
+  (`+ret3`). Seeds 0–2, 6000 Updates, 12000 Bilder. Auswertung je Ring (`scripts/shape_ring_eval.py`).
+- **Ergebnis** (Trefferquote, Zufall 0.2; bei `+ret3` nur die Läufe, die gelernt haben):
+
+  | Netz | Ringe 1–3 | Ringe 4–5 | Ring 6 | Ring 7 | gesamt |
+  |---|---|---|---|---|---|
+  | cnn | 0.72 | 0.69 | 0.52 | 0.43 | 0.58 |
+  | cnn+ret3 (1 von 3 Seeds) | 0.88 | 0.82 | 0.66 | 0.54 | 0.72 |
+  | layer_s | 0.76 | 0.71 | 0.55 | 0.47 | 0.62 |
+  | layer_s+ret3 (2 von 3) | 0.89 | 0.86 | 0.72 | 0.61 | 0.77 |
+  | hier_s | 0.66 | 0.67 | 0.53 | 0.45 | 0.58 |
+  | hier_s+ret3 (3 von 3) | 0.88 | 0.85 | 0.71 | 0.61 | 0.76 |
+  | vit | 0.64 | 0.60 | 0.53 | 0.43 | 0.55 |
+  | vit+ret3 (2 von 3) | 0.74 | 0.70 | 0.61 | 0.54 | 0.65 |
+
+  `+ret0` liegt überall auf der Höhe der Standard-Fovea (0.54–0.59 gesamt).
+- **Beobachtungen:**
+  1. Abseits der Mitte fällt die Erkennung schon bei voller Auflösung von 0.93–0.99 auf 0.60–0.76 und in den
+     groben Ringen weiter auf 0.43–0.55.
+  2. Die doppelte Auflösung mit gelernter Vorstufe bringt hier 0.10–0.18, in allen Ringen.
+  3. Vier der zwölf `+ret3`-Läufe lernen gar nicht (Verlust bleibt beim Zufallswert): Die Vorstufe ist im
+     Training instabil.
+  4. Die Netze lernen die 12000 Trainingsbilder auswendig (cnn: Verlust im Training 0.06, im Test etwa 2).
+     Ein Teil der Lücke zur Mitte ist also Datenmangel, nicht Auflösung.
+- **Schluss:** Die Vermutung des Nutzers trifft abseits der Mitte zu, auf dem angeblickten Körper nicht. Ob
+  die Lücke an der Auflösung oder an der Datenmenge liegt, ist noch nicht getrennt.
+- **Belege:** `results/resolution.jsonl`, `results/shape_ring.jsonl`; Roboter-Projekt f866d7a.
+
+## Laufend / offen
+
+- Vorschalt-Stufe stabilisieren (4 von 12 Läufen tot); `robot_shape_edge` mit mehr Bildern.

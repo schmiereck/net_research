@@ -128,8 +128,11 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   Schichten davor 0.98–1.00, mit bloßem Mitteln 0.93–0.98 (wie Standard), mit nur einer Schicht schlechter
   (0.76–0.94). Der Gewinn durch doppelte Auflösung ist also klein (rund ein Prozentpunkt beim cnn, fünf beim
   vit und beim Hierarchie-Gitter). Einschränkung: Der Blick liegt hier höchstens eine Zelle neben dem Körper;
-  Körper am Rand des Blickfelds (grobe Zellen) sind damit nicht geprüft, und die Netze können die Form auch
-  an der Fläche statt am Umriss erkennen.
+  die Netze können die Form auch an der Fläche statt am Umriss erkennen.
+- **Abseits der Mitte lohnt die doppelte Auflösung** (`robot_shape_edge`, ein Körper bis 7 Zellen neben der
+  Mitte, Seeds 0–2): Standard-Fovea 0.55–0.62, 32 × 32 mit drei gelernten Schichten davor 0.65–0.77. In den
+  zwei groben Außenringen fallen beide ab (0.43–0.55 gegen 0.54–0.72). Vorbehalte: Vier von zwölf Läufen mit
+  Vorschalt-Stufe lernen gar nicht, und die Netze lernen die 12000 Bilder auswendig.
 - **`vitmem` (vit je Bild, dann Aufmerksamkeit über die letzten Bilder) löst „Anschauen und vergleichen“ ohne
   Vorstufe am besten:** richtiger Körper in 93 % (12000 Updates, Seeds 0–2), beim nie gesehenen Y 64 %. Die
   Vorstufe bringt ihm nichts (90 %). Das Y bleibt bei allen Netzen um 60 %.
