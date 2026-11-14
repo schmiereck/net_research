@@ -146,6 +146,8 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   auf 0,63–0,70 (layer_s 0,70). Der richtige Körper wird dabei in 0,87–0,90 der Fälle gefunden; was zur
   exakten Wertung fehlt, ist fast nur eine Zelle Schrittgenauigkeit. Der Vergleich mit dem Zeigebild kostet
   0,00–0,07, ein falscher Körper wird in 0,02–0,03 gewählt.
+  Die fehlende Zelle hat zwei Ursachen: die Zellgrenze (dort ist der Schritt ein Münzwurf; ein Fünftel der
+  Körper liegt weniger als 0,5 px daneben) und die Form (T und L 0,15–0,29 schlechter als der Würfel).
 - **Die Greif-Decke von 0,62 ist großteils Wertung:** Die besten Netze liegen in 0,79–0,87 der Fälle
   höchstens eine Zelle daneben (`results/step_error.jsonl`).
 - **Vorlauf im Spiele-Training (Review agy 3.1) ändert die Rangfolgen nicht:** Nur layer_i_sp4 gewinnt auf den

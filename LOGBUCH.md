@@ -716,12 +716,55 @@ oder Grenze der Netze).
 
 **Belege.** `results/finds_gap.jsonl`, `results/finds_error.jsonl` (Worker-Auftrag finds_in_gap2).
 
+## 2026-11-14 — Innere Suchszenen: Woher kommt die eine Zelle Fehler beim Blickschritt?
+
+**Frage.** Die Netze finden den richtigen Körper in 0,87–0,93 der Fälle, treffen den Schritt aber in 0,20–0,25
+nur auf eine Zelle genau. Liegt das an der Zellgrenze (die „richtige“ Zelle hängt an einem Bruchteil eines
+Pixels) oder an den Netzen?
+
+**Vorhersage vor der Messung (2026-11-14, Commit 3a563f1).** Überwiegend die Zellgrenze: bei Rand unter
+0,25 px höchstens 0,6 exakt, bei Rand ab 2 px mindestens 0,9. L, U und T höchstens 0,05 schlechter als Würfel
+und Kreuz.
+
+**Gemacht.** Export im Roboter-Projekt speichert den Pixelort jedes Körpers (`pos`); Testsatz neu erzeugt, mit
+dem alten Bild für Bild gleich, alle gespeicherten Schritte stimmen mit der nächsten Zelle überein. Rand =
+Abstand des Körperorts zur zweitnächsten minus zur nächsten Abtastzelle (Zelle 4 px, ein Bildpunkt der
+32×32-Ansicht 2 px). `scripts/finds_cell_eval.py` auf den Netzen von `robot_finds_in_f32`, 9000 Testpaare,
+Seeds 0–2. Alle Zahlen: Anteil exakter Schritte unter den Antworten beim richtigen Körper.
+
+**Ergebnis.** Der Rand liegt bei 11 % der Körper unter 0,25 px, bei 21 % unter 0,5 px, bei 31 % über 2 px.
+
+| Netz (Form gezeigt) | Rand < 0,25 | 0,25–0,5 | 0,5–1 | 1–2 | ≥ 2 px |
+|---|---|---|---|---|---|
+| layer_s | 0,53 | 0,61 | 0,69 | 0,81 | 0,91 |
+| cnn | 0,51 | 0,60 | 0,69 | 0,79 | 0,86 |
+| vit | 0,52 | 0,61 | 0,68 | 0,77 | 0,87 |
+| hier_s | 0,50 | 0,59 | 0,63 | 0,74 | 0,85 |
+
+| Netz (Form gezeigt) | Würfel | Kreuz | U | L | T |
+|---|---|---|---|---|---|
+| layer_s | 0,87 | 0,82 | 0,79 | 0,72 | 0,62 |
+| cnn | 0,88 | 0,82 | 0,75 | 0,67 | 0,59 |
+| vit | 0,85 | 0,82 | 0,74 | 0,66 | 0,60 |
+| hier_s | 0,82 | 0,78 | 0,73 | 0,63 | 0,57 |
+
+Die Netze mit genannter Form liegen überall 0,00–0,06 darüber, mit demselben Muster. Der Fehler liegt etwa
+gleich oft in dx (0,42–0,48) und dy (0,38–0,43), in 0,13–0,15 in beiden Achsen.
+
+**Schluss.** Zwei Ursachen, nicht eine. (1) Die Zellgrenze: Direkt an der Grenze ist der Schritt ein Münzwurf
+(0,50–0,54), mit wachsendem Rand steigt die Quote stetig; dieser Teil der Vorhersage trifft. Ab 2 px erreichen
+aber nur layer_s (0,91) und vit mit genannter Form (0,90) die vorhergesagten 0,9, cnn und hier_s bleiben bei
+0,85–0,86. (2) Die Form: T und L sind 0,15–0,29 schlechter als der Würfel; vorhergesagt waren höchstens 0,05,
+klar verfehlt. Vermutung, nicht geprüft: Bei den unsymmetrischen Körpern fällt der Bezugspunkt, dessen Zelle
+verlangt wird, nicht mit der sichtbaren Mitte zusammen und wandert mit der Drehung. Für die Wertung heißt
+das: Bei rund einem Fünftel der Körper (Rand unter 0,5 px, ein Viertel eines Bildpunkts der 32×32-Ansicht)
+ist „exakt“ aus dem Bild kaum entscheidbar; die exakte Wertung hat hier eine Decke unter 1. „Höchstens eine
+Zelle daneben“ misst, ob der Körper gefunden wurde, und sollte bei Blick- und Greifschritten als zweite Zahl
+neben der exakten stehen. Der Formeffekt ist dagegen echte, lernbare Ungenauigkeit der Netze oder eine
+Eigenschaft der Zielgröße; das ist offen.
+
+**Belege.** `results/finds_cell.jsonl`; `data/robot/gazeshapein_test_pos.npz` (nicht im Repository).
+
 ## Laufend / offen
 
-- Woher kommt die eine Zelle Fehler beim Blickschritt (`robot_finds_in_f32`)? Der Testsatz wird mit dem
-  Pixelort jedes Körpers neu exportiert; `scripts/finds_cell_eval.py` trägt den Anteil exakter Schritte (unter
-  den Antworten beim richtigen Körper) gegen den Abstand zur Zellgrenze auf (Rand = Abstand zur zweitnächsten
-  minus Abstand zur nächsten Zelle, in Pixeln), dazu nach Form und Achse.
-  **Vorhersage vor der Messung (2026-11-14):** Es ist überwiegend die Zellgrenze: bei Rand unter 0,25 px
-  höchstens 0,6 exakt (nahe Münzwurf), bei Rand ab 2 px mindestens 0,9. Die unsymmetrischen Formen (L, U, T)
-  sind höchstens 0,05 schlechter als Würfel und Kreuz.
+- Zurzeit keine laufenden Aufträge.
