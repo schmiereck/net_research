@@ -156,6 +156,7 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   die Aufgaben der Leiter sind nicht umgestellt (Entscheidung offen).
 - **Blickziel am Flächenschwerpunkt** (`robot_finds_c_f32`, 2026-11-14): exakt +0,04–0,05 (layer_s 0,74), der
   Formeffekt schrumpft von bis zu 0,29 auf bis zu 0,18, verschwindet aber nicht (L und U bleiben zurück).
+  Zusammen mit einem Ausgang je Wert addiert sich beides: Formsuche exakt 0,76–0,81 (layer_s 0,81).
 - **Die Greif-Decke von 0,62 ist großteils Wertung:** Die besten Netze liegen in 0,79–0,87 der Fälle
   höchstens eine Zelle daneben (`results/step_error.jsonl`).
 - **Vorlauf im Spiele-Training (Review agy 3.1) ändert die Rangfolgen nicht:** Nur layer_i_sp4 gewinnt auf den

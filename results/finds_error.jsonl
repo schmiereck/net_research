@@ -58,3 +58,15 @@
 {"task": "robot_finds_c_f32", "model": "vit+ref+rez3", "seed": 0, "exact": 0.6831, "close": 0.1853, "other": 0.0459, "lost": 0.0857, "right": 0.8684}
 {"task": "robot_finds_c_f32", "model": "vit+ref+rez3", "seed": 1, "exact": 0.7258, "close": 0.1699, "other": 0.0373, "lost": 0.067, "right": 0.8957}
 {"task": "robot_finds_c_f32", "model": "vit+ref+rez3", "seed": 2, "exact": 0.6573, "close": 0.2024, "other": 0.0476, "lost": 0.0927, "right": 0.8598}
+{"task": "robot_finds_c_f32_hot", "model": "cnn+ref+rez3", "seed": 0, "exact": 0.7954, "close": 0.1442, "other": 0.0352, "lost": 0.0251, "right": 0.9397}
+{"task": "robot_finds_c_f32_hot", "model": "cnn+ref+rez3", "seed": 1, "exact": 0.8044, "close": 0.1419, "other": 0.0308, "lost": 0.0229, "right": 0.9463}
+{"task": "robot_finds_c_f32_hot", "model": "cnn+ref+rez3", "seed": 2, "exact": 0.8054, "close": 0.1434, "other": 0.0254, "lost": 0.0257, "right": 0.9489}
+{"task": "robot_finds_c_f32_hot", "model": "hier_s+cell+ref+rez3", "seed": 0, "exact": 0.7647, "close": 0.1763, "other": 0.0324, "lost": 0.0266, "right": 0.941}
+{"task": "robot_finds_c_f32_hot", "model": "hier_s+cell+ref+rez3", "seed": 1, "exact": 0.7543, "close": 0.1742, "other": 0.0411, "lost": 0.0303, "right": 0.9286}
+{"task": "robot_finds_c_f32_hot", "model": "hier_s+cell+ref+rez3", "seed": 2, "exact": 0.7619, "close": 0.1731, "other": 0.0382, "lost": 0.0268, "right": 0.935}
+{"task": "robot_finds_c_f32_hot", "model": "layer_s+cell+ref+rez3", "seed": 0, "exact": 0.8119, "close": 0.1467, "other": 0.0229, "lost": 0.0186, "right": 0.9586}
+{"task": "robot_finds_c_f32_hot", "model": "layer_s+cell+ref+rez3", "seed": 1, "exact": 0.81, "close": 0.1458, "other": 0.0228, "lost": 0.0214, "right": 0.9558}
+{"task": "robot_finds_c_f32_hot", "model": "layer_s+cell+ref+rez3", "seed": 2, "exact": 0.8164, "close": 0.1404, "other": 0.0218, "lost": 0.0213, "right": 0.9569}
+{"task": "robot_finds_c_f32_hot", "model": "vit+ref+rez3", "seed": 0, "exact": 0.7804, "close": 0.1567, "other": 0.0371, "lost": 0.0258, "right": 0.9371}
+{"task": "robot_finds_c_f32_hot", "model": "vit+ref+rez3", "seed": 1, "exact": 0.7896, "close": 0.1543, "other": 0.0336, "lost": 0.0226, "right": 0.9439}
+{"task": "robot_finds_c_f32_hot", "model": "vit+ref+rez3", "seed": 2, "exact": 0.781, "close": 0.1676, "other": 0.0267, "lost": 0.0248, "right": 0.9486}

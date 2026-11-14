@@ -941,13 +941,45 @@ alt / neu ist nicht szenengleich. Zusammen mit dem Eintrag zum Populations-Code:
 **Belege.** `results/finds_c.jsonl`, `results/finds_error.jsonl`, `results/finds_cell.jsonl`; Worker-Job
 `finds_c` (Commit 08efb9d); `data/robot/gazeshapec_*.npz` (nicht im Repo).
 
+## 2026-11-14 — Schwerpunkt und ein Ausgang je Wert zusammen (`robot_finds_c_f32_hot`)
+
+**Frage.** Addieren sich die Gewinne aus der Kodierung (+0,07–0,13) und aus dem Bezugspunkt (+0,04–0,05)?
+
+**Gemacht.** `robot_finds_c_f32_hot`, 24000 Updates, vier Netze mit Zeigebild, Seeds 0–2. Vorhersage vor dem
+Lauf (wörtlich aus „Laufend / offen“):
+
+> - Schwerpunkt-Szenen mit einem Ausgang je Wert (`robot_finds_c_f32_hot`, Netze und Seeds wie oben): Addieren
+> sich Kodierung (+0,07–0,13) und Bezugspunkt (+0,04–0,05)?
+> **Vorhersage vor dem Lauf (2026-11-14):** Ungefähr additiv: exakt 0,75–0,84 über die vier Netze, layer_s
+> 0,80–0,84; richtiger Körper 0,93–0,97; verloren höchstens 0,03. L und U bleiben mindestens 0,08 unter dem
+> Würfel, an der Zellgrenze (< 0,25 px) bleibt es bei 0,50–0,60.
+
+**Ergebnis.** Exakt in den vier Kombinationen (`scripts/finds_error_eval.py`):
+
+| Netz | Ursprung, Bits | Ursprung, `_hot` | Schwerpunkt, Bits | Schwerpunkt, `_hot` | richtiger Körper | verloren |
+|---|---|---|---|---|---|---|
+| layer_s+cell | 0,70 | 0,77 | 0,74 | 0,81 | 0,96 | 0,02 |
+| cnn | 0,66 | 0,79 | 0,71 | 0,80 | 0,94 | 0,02 |
+| vit | 0,65 | 0,72 | 0,69 | 0,78 | 0,94 | 0,02 |
+| hier_s+cell | 0,63 | 0,71 | 0,68 | 0,76 | 0,93 | 0,03 |
+
+Exakt unter „gefunden“ (`scripts/finds_cell_eval.py`): Würfel 0,86–0,90, Kreuz 0,86–0,89, T 0,81–0,84,
+L 0,77–0,81, U 0,76–0,81; Abstand zur Zellgrenze < 0,25 px 0,54–0,57, ≥ 2 px 0,96–0,98. Der falsche Körper
+wird in 0,02–0,04 gewählt.
+
+**Vergleich mit der Vorhersage.** Alle Punkte getroffen: exakt 0,76–0,81 (Spanne 0,75–0,84), layer_s 0,81,
+richtiger Körper 0,93–0,96, verloren 0,02–0,03, L und U 0,08–0,11 unter dem Würfel, Zellgrenze 0,54–0,57.
+
+**Schluss.** Die beiden Anteile addieren sich ungefähr (cnn etwas weniger). Die Formsuche auf den inneren
+Szenen liegt damit bei 0,76–0,81 exakt statt 0,63–0,70. Was übrig bleibt, ist benannt: die Zellgrenze (weit
+weg von ihr trifft das Netz in 0,96–0,98 die richtige Zelle), ein Rest Formeffekt bei L und U und 0,02–0,04
+falscher Körper.
+
+**Belege.** `results/finds_c.jsonl`, `results/finds_error.jsonl`, `results/finds_cell.jsonl`; Worker-Job
+`finds_c_hot` (Commit a322c18).
+
 ## Laufend / offen
 
-- Schwerpunkt-Szenen mit einem Ausgang je Wert (`robot_finds_c_f32_hot`, Netze und Seeds wie oben): Addieren
-  sich Kodierung (+0,07–0,13) und Bezugspunkt (+0,04–0,05)?
-  **Vorhersage vor dem Lauf (2026-11-14):** Ungefähr additiv: exakt 0,75–0,84 über die vier Netze, layer_s
-  0,80–0,84; richtiger Körper 0,93–0,97; verloren höchstens 0,03. L und U bleiben mindestens 0,08 unter dem
-  Würfel, an der Zellgrenze (< 0,25 px) bleibt es bei 0,50–0,60.
 - Auftrag des Nutzers (2026-11-14): Schritt-Aufgaben auf die neue Kodierung umstellen. Vorher Wahl der
   Kodierung auf den Abstimm-Seeds 5 und 6: `_pop` (Glocke, Breite 1 Zelle), `_p05` (Breite 0,5: Nachbar 0,14
   statt 0,61) und `_hot` auf servo (5 Netze, 1500 Updates), robot_findc (4 Netze) und robot_finds_in_f32
