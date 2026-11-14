@@ -1032,16 +1032,74 @@ Servo-Geräte). Auswerteskripte und GUI lesen beide Kodierungen über `decode_st
 **Belege.** `results/step_code_tune.jsonl`, `results/step_code_tune_finds.jsonl`; Worker-Jobs `tune_servo`,
 `tune_findc`, `tune_finds` (Commit 1316b69).
 
+## 2026-11-14 — Neuberechnung der Schritt-Aufgaben im Populations-Code
+
+**Frage.** Wie sehen die Schritt-Aufgaben der Leiter nach der Umstellung aus, Netz für Netz gegen die
+Bit-Werte?
+
+**Gemacht.** 13 Worker-Jobs (Commit dd11d68), Seeds 0–2, gleiche Netze und Update-Zahlen wie die Bezugsläufe.
+Vorhersage vor dem Lauf (wörtlich aus „Laufend / offen“):
+
+> - Neuberechnung der Schritt-Aufgaben im Populations-Code, Seeds 0–2, gleiche Netze und Update-Zahlen wie die
+> Bezugsläufe in Bits: servo, robot_gaze, robot_reach (je 6000), robot_find (6000), robot_findc, robot_findi
+> (24000); als Lehrplan mit gespeicherten Netzen robot_reach, robot_reach_big, robot_finds, robot_finds_f32,
+> robot_finds_in, robot_finds_in_f32, robot_finds_c_f32 (je 24000). Nicht neu gerechnet: Größen-Studie,
+> langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
+> **Vorhersage vor dem Lauf (2026-11-14):** (1) Kein Netz fällt auf einer Aufgabe exakt um mehr als 0,03
+> unter seinen Bit-Wert. (2) servo nach 6000 Updates: alle Netze außer cnn mindestens 0,95; cnn unter 0,6.
+> (3) Roboter-Aufgaben: `near` steigt bei jedem Netz, das in Bits exakt über 0,2 lag, um mindestens 0,05;
+> exakt steigt im Mittel über die Netze um 0,03–0,12. (4) Gitter-Netze (layer_s, hier_s) gewinnen exakt mehr
+> als cnn und vit. (5) robot_reach_big bleibt exakt unter 0,75 (die Greif-Decke war großteils Zellgrenze,
+> nicht Kodierung).
+
+**Ergebnis.** Exakt neu (in Klammern Bits), dann `near` neu. Vollständige Tabelle mit allen Netzen:
+`results/step_pop_compare.json`.
+
+| Aufgabe (Updates) | cnn | vit | layer_s | hier_s | `near` neu |
+|---|---|---|---|---|---|
+| servo (6000) | 1,00 (0,99) | 1,00 (1,00) | 1,00 (0,99) | 1,00 (0,92) | 1,00 |
+| robot_gaze (6000) | 0,99 (0,98) | 0,96 (0,97) | 0,97 (0,98) | 0,94 (0,93) | 0,99–1,00 |
+| robot_reach (24000) | 0,29 (0,09) | 0,29 (0,15) | 0,31 (0,12) | 0,25 (0,08) | 0,80–0,87 |
+| robot_reach_big (24000) | 0,52 (0,21) | 0,51 (0,33) | 0,49 (0,25) | 0,41 (0,18) | 0,94–0,97 |
+| robot_find (6000; +cmd / +cell) | 0,74 (0,72) | 0,58 (0,54) | 0,66 (0,53) | 0,52 (0,34) | 0,91–0,99 |
+| robot_findc (24000; +cmd / +cell) | 0,68 (0,63) | 0,63 (0,65) | 0,59 (0,45) | 0,42 (0,26) | 0,82–0,94 |
+| robot_findi (24000; +ref) | 0,67 (0,52) | 0,56 (0,58) | – | – | 0,88–0,93 |
+| robot_finds (24000; +ref) | 0,17 (0,07) | 0,16 (0,06) | 0,26 (0,09) | 0,19 (0,07) | 0,46–0,59 |
+| robot_finds_f32 (+ref+rez3) | 0,37 (0,20) | 0,36 (0,35) | 0,43 (0,30) | 0,33 (0,23) | 0,67–0,75 |
+| robot_finds_in (+ref) | 0,57 (0,45) | 0,43 (0,30) | 0,54 (0,47) | 0,47 (0,38) | 0,80–0,91 |
+| robot_finds_in_f32 (+ref+rez3) | 0,72 (0,66) | 0,61 (0,65) | 0,70 (0,70) | 0,62 (0,63) | 0,94–0,97 |
+| robot_finds_c_f32 (+ref+rez3) | 0,76 (0,72) | 0,64 (0,69) | 0,74 (0,73) | 0,68 (0,69) | 0,94–0,97 |
+
+Weitere Netze: servo mlp 1,00 (0,25), lstm 1,00 (0,61), layer_i 1,00 (0,75), gru 1,00 (0,87), esn 0,01
+(0,01). robot_gaze mlp 0,57 (0,36), esn 0,40 (0,09), vitmem 0,93 (0,97). robot_findc mlp+cmd 0,21 (0,09),
+vitmem+cmd 0,56 (0,61). Einige Bit-Bezugswerte bei 6000 Updates haben nur einen Seed (cnn, vit auf servo
+und robot_gaze; fast alle auf robot_reach). `near` in Bits liegt nur für wenige alte Läufe vor (robot_findc
+hier_s 0,62 → 0,82; robot_finds_c_f32 0,88–0,90 → 0,94–0,97; robot_reach_big aus `results/step_error.jsonl`
+0,79–0,87 → 0,94–0,97).
+
+**Vergleich mit der Vorhersage.** (1) Verfehlt: vier Fälle fallen um 0,04–0,05 (vitmem+cmd auf robot_findc,
+vit auf robot_finds_c_f32 und robot_finds_in_f32, vitmem auf robot_gaze). (2) Verfehlt: Auf servo erreichen
+alle Netze 1,00, auch cnn; nur esn bleibt bei 0,01. (3) Exakt im Mittel je Aufgabe: +0,05 bis +0,14 auf den
+meisten, +0,22 auf robot_reach_big, ±0,00 auf robot_finds_in_f32 und robot_finds_c_f32; die Spanne 0,03–0,12
+trifft also nur teilweise. `near` war mangels alter Werte nur in drei Fällen prüfbar, dort +0,06 bis +0,20.
+(4) Teilweise: Gitter gewinnen auf robot_find und robot_findc mehr als cnn und vit, auf robot_reach und
+robot_findi gewinnt cnn am meisten. (5) Getroffen: robot_reach_big exakt 0,41–0,52.
+
+**Schluss.** (a) Die Umstellung hebt fast überall die exakte Wertung, am stärksten dort, wo Netze in Bits
+schwach waren (Greifen, alte Suchszenen, mlp / lstm / gru). (b) vit und vitmem sind die Ausnahme: Sie kamen
+mit den Bits gut zurecht und verlieren mit der breiten Glocke bis 0,05; die Reihenfolge der Netze verschiebt
+sich damit zugunsten von cnn und den Gittern. Ein Teil der früheren „vit vorn“-Befunde auf Schritt-Aufgaben
+war also ein Vorteil beim Bit-Kodieren, nicht beim Sehen. (c) servo trennt bei 6000 Updates nicht mehr: alle
+lernenden Netze stehen auf 1,00. Als Stufe der Leiter taugt servo nur noch mit weniger Updates (bei 1500
+trennt es: cnn 0,22, mlp 0,96) oder als Tempo-Maß. (d) Greifen: `near` 0,94–0,97 bei exakt 0,41–0,52 auf
+robot_reach_big; der richtige Bereich wird fast immer getroffen, es fehlt die eine Zelle (Zellgrenze, zwei
+Körper im Spiel). (e) Auf den inneren Szenen mit feinem Bild ändert die breite Glocke exakt nichts (dort
+hatte `_hot` +0,07–0,13 gebracht); das ist der Preis der Wahl von Breite 1.
+
+**Belege.** `results/step_pop.jsonl`, `results/step_pop_cur.jsonl`, `results/step_pop_compare.json`;
+Bezugsläufe in `results/servo_arch.jsonl`, `gap.jsonl`, `new3.jsonl`, `robot.jsonl`, `reach_read.jsonl`,
+`finds_res.jsonl`, `finds_c.jsonl`, `grid_slow.jsonl`, `pop_findc.jsonl`.
+
 ## Laufend / offen
 
-- Neuberechnung der Schritt-Aufgaben im Populations-Code, Seeds 0–2, gleiche Netze und Update-Zahlen wie die
-  Bezugsläufe in Bits: servo, robot_gaze, robot_reach (je 6000), robot_find (6000), robot_findc, robot_findi
-  (24000); als Lehrplan mit gespeicherten Netzen robot_reach, robot_reach_big, robot_finds, robot_finds_f32,
-  robot_finds_in, robot_finds_in_f32, robot_finds_c_f32 (je 24000). Nicht neu gerechnet: Größen-Studie,
-  langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
-  **Vorhersage vor dem Lauf (2026-11-14):** (1) Kein Netz fällt auf einer Aufgabe exakt um mehr als 0,03
-  unter seinen Bit-Wert. (2) servo nach 6000 Updates: alle Netze außer cnn mindestens 0,95; cnn unter 0,6.
-  (3) Roboter-Aufgaben: `near` steigt bei jedem Netz, das in Bits exakt über 0,2 lag, um mindestens 0,05;
-  exakt steigt im Mittel über die Netze um 0,03–0,12. (4) Gitter-Netze (layer_s, hier_s) gewinnen exakt mehr
-  als cnn und vit. (5) robot_reach_big bleibt exakt unter 0,75 (die Greif-Decke war großteils Zellgrenze,
-  nicht Kodierung).
+- (derzeit nichts)
