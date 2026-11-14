@@ -718,4 +718,10 @@ oder Grenze der Netze).
 
 ## Laufend / offen
 
-- Zurzeit keine laufenden Aufträge.
+- Woher kommt die eine Zelle Fehler beim Blickschritt (`robot_finds_in_f32`)? Der Testsatz wird mit dem
+  Pixelort jedes Körpers neu exportiert; `scripts/finds_cell_eval.py` trägt den Anteil exakter Schritte (unter
+  den Antworten beim richtigen Körper) gegen den Abstand zur Zellgrenze auf (Rand = Abstand zur zweitnächsten
+  minus Abstand zur nächsten Zelle, in Pixeln), dazu nach Form und Achse.
+  **Vorhersage vor der Messung (2026-11-14):** Es ist überwiegend die Zellgrenze: bei Rand unter 0,25 px
+  höchstens 0,6 exakt (nahe Münzwurf), bei Rand ab 2 px mindestens 0,9. Die unsymmetrischen Formen (L, U, T)
+  sind höchstens 0,05 schlechter als Würfel und Kreuz.
