@@ -90,6 +90,41 @@ def command_bits(cx, cy):
     return ((v[:, :, None] >> np.arange(3, -1, -1)) & 1).reshape(len(v), 8).astype(np.float32)
 
 
+def bits_steps(bits):
+    """Inverse of command_bits: [n, 8] bits -> [n, 2] signed steps."""
+    v = (np.asarray(bits).reshape(-1, 2, 4).astype(np.int64) * np.array([8, 4, 2, 1])).sum(-1)
+    return np.where(v > 7, v - 16, v)
+
+
+def pop_code(steps, sigma=1.0):
+    """[n, 2] signed steps -> [n, 32] population code: per axis 16 units for the values -8..7, each a Gaussian bump
+    of the distance to the true value (width sigma in cells; sigma = 0: one-hot)."""
+    d = np.arange(-8, 8)[None, None, :] - np.asarray(steps)[:, :, None]
+    c = (d == 0).astype(np.float32) if sigma == 0 else np.exp(-0.5 * (d / sigma) ** 2).astype(np.float32)
+    return c.reshape(len(c), 32)
+
+
+def pop_variant(base, name, sigma):
+    """The step task `base` with the step given as a population code (32 outputs in the symbol area) instead of
+    8 bits. Same images, same steps; only the output code differs."""
+    from dataclasses import replace
+
+    class Pop(base):
+        def __init__(self):
+            super().__init__()
+            assert self.spec.step, base
+            self.spec = replace(self.spec, name=name, n_out=32, role="symbol", step=False, pop=True)
+
+        def sample(self, batch, rng, split="train"):
+            b = super().sample(batch, rng, split)
+            t = b["target"]
+            b["target"] = pop_code(bits_steps(t.reshape(-1, 8)), sigma).reshape(*t.shape[:-1], 32)
+            return b
+
+    Pop.__name__ = Pop.name = name
+    return Pop
+
+
 def servo_batch(device, n, rng, split="train"):
     p, t = situations(n, rng, split)
     d = t - p

@@ -127,6 +127,14 @@ def evaluate_supervised(model, task, n_batches=None):
         if spec.head == "class":
             correct += ((lg.argmax(-1) == b["target"]).float() * m).sum().item()
         else:
+            if spec.pop:                                             # population code: strongest unit per axis
+                d = (lg.reshape(*lg.shape[:-1], 2, 16).argmax(-1)
+                     - b["target"].reshape(*lg.shape[:-1], 2, 16).argmax(-1)).abs().float()
+                correct += ((d.max(-1).values == 0).float() * m).sum().item()
+                near += ((d.max(-1).values <= 1).float() * m).sum().item()
+                step_err += (d.pow(2).sum(-1).sqrt() * m).sum().item()
+                total += m.sum().item()
+                continue
             pred = (lg > 0).float()
             eq = (pred == b["target"]).float()
             correct += (eq.min(-1).values * m).sum().item()
@@ -143,8 +151,9 @@ def evaluate_supervised(model, task, n_batches=None):
     res = {"acc": acc, "loss": loss_sum / total}
     res["score"] = (acc - spec.chance) / (1 - spec.chance)          # chance = 0 for multi-bit outputs
     if spec.head == "bits":
-        res["bit_acc"] = bit_correct / total
-        if spec.step:
+        if not spec.pop:
+            res["bit_acc"] = bit_correct / total
+        if spec.step or spec.pop:
             res["near"], res["step_err"] = near / total, step_err / total
         if part:
             res["parts"] = {k: round(v / total, 4) for k, v in part.items()}

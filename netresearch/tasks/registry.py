@@ -16,7 +16,7 @@ from .robot import (RobotFind, RobotFindColor, RobotFindImage, RobotFindShape, R
                     RobotLook, RobotLookMem, RobotReach, RobotReachBig, RobotReachParts,
                     RobotReachPartsBig, RobotShape, RobotShapeEdge, RobotShapeEdgeBig,
                     RobotShapeEdgeF32, RobotShapeEdgeF32Big, RobotShapeF32, RobotShapeZ2, RobotShapeZ4)
-from .servo import Servo
+from .servo import Servo, pop_variant
 from .text import CharNext
 
 
@@ -30,6 +30,14 @@ def _game_task(name, cls, desc, memory=False, seq_len=16):
     _T.__name__ = cls.__name__ + "Task"
     return _T
 
+
+# Step tasks with the step as a population code instead of 8 bits ("_pop": Gaussian bumps, width one cell;
+# "_hot": one unit per value, no neighbourhood). Same images and steps as the base task.
+POP_TASKS = {f"{n}_{tag}": pop_variant(c, f"{n}_{tag}", sigma)
+             for n, c in (("servo", Servo), ("robot_findc", RobotFindColor),
+                          ("robot_finds_in_f32", IN_TASKS["robot_finds_in_f32"]),
+                          ("robot_finds_c_f32", IN_TASKS["robot_finds_c_f32"]))
+             for tag, sigma in (("pop", 1.0), ("hot", 0.0))}
 
 TASKS = {
     "cycle": Cycle,
@@ -50,6 +58,7 @@ TASKS = {
     "robot_shape_at": RobotShapeAt,
     "robot_shape_at_f32": RobotShapeAtF32,
     **IN_TASKS,
+    **POP_TASKS,
     "robot_reach_parts": RobotReachParts,
     "robot_reach_big": RobotReachBig,
     "robot_reach_parts_big": RobotReachPartsBig,

@@ -50,6 +50,10 @@ class TaskSpec:
     #                            the evaluation then also reports "near" (at most one cell off in each axis, the
     #                            exact answers included) and "step_err" (mean Euclidean error in cells)
 
+    pop: bool = False          # bits head: the 32 targets are a POPULATION CODE of one step, 16 units per axis for
+    #                            the values -8..7 (tasks.servo.pop_code); decoded by the strongest unit per axis.
+    #                            score = both axes right; "near" and "step_err" as for step
+
     def __post_init__(self):
         if not self.role:
             self.role = "motor" if self.kind == "control" else "bits" if self.head == "bits" else "classify"
