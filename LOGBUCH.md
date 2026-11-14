@@ -885,12 +885,66 @@ getroffen; die alten Aufgaben sind unverändert.
 `results/finds_error.jsonl`, `results/finds_cell.jsonl`; Worker-Jobs `pop_servo`, `pop_findc`, `pop_finds`,
 `hot_finds` (Commit 08efb9d).
 
+## 2026-11-14 — Innere Suchszenen mit dem Flächenschwerpunkt als Ort (`gazeshapec`)
+
+**Frage.** Auftrag des Nutzers: Blickziel auf den Flächenschwerpunkt statt auf den Körper-Ursprung, als neue
+Variante der inneren Szenen. Verschwindet damit der Formeffekt beim Blickschritt? (Hinweis des Nutzers: Hier
+geht es um das Erkennen; fürs Greifen werden später andere Punkte der Form wichtig, etwa gut greifbare Zinken.)
+
+**Gemacht.** Export `gazeshapec` im Roboter-Projekt (Commit 3650f5d): wie `gazeshapein`, aber alle Orte
+(Schritte, Blick, Ausschnitte, Zeigebilder) am Flächenschwerpunkt der Vereinigung der Quader; 48000
+Trainings- und 3000 Testszenen, neu gewürfelt (also andere Szenen als `gazeshapein`). Aufgabe
+`robot_finds_c_f32`, 24000 Updates, vier Netze mit Zeigebild (`+ref+rez3`), Seeds 0–2, Bit-Kodierung wie
+bisher. Vorhersage vor dem Lauf (wörtlich aus „Laufend / offen“):
+
+> - Innere Suchszenen mit dem Flächenschwerpunkt als Ort jedes Körpers (`gazeshapec`, 48000 Szenen neu
+> exportiert; `robot_finds_c_f32`, Netze wie bei `robot_finds_in_f32`, Seeds 0–2). Genauer gemessen (Vereinigung
+> der Quader, ohne Doppelzählung) liegt der Ursprung bei L / U / T 3,3 / 2,2 / 1,6 px neben dem Schwerpunkt.
+> **Vorhersage vor dem Lauf (2026-11-14):** Der Formeffekt schrumpft, verschwindet aber nicht: exakt unter
+> „gefunden“ liegen L, U, T höchstens 0,10 unter dem Würfel (bisher bis 0,29). Die exakte Wertung von layer_s
+> mit Zeigebild steigt von 0,70 auf 0,74–0,80; `near` bleibt bei 0,88–0,93. An der Zellgrenze bleibt es beim
+> Münzwurf.
+
+**Ergebnis.** Exakt / richtiger Körper / verloren (`scripts/finds_error_eval.py`), in Klammern der alte Ort:
+
+| Netz | exakt | richtiger Körper | verloren |
+|---|---|---|---|
+| layer_s+cell | 0,74 (0,70) | 0,90 | 0,07 |
+| cnn | 0,71 (0,66) | 0,89 | 0,08 |
+| vit | 0,69 (0,65) | 0,87 | 0,08 |
+| hier_s+cell | 0,68 (0,63) | 0,88 | 0,09 |
+
+`near` aus dem Lauf 0,88–0,90, `step_err` 0,69–0,90. Exakt unter „gefunden“ nach Form
+(`scripts/finds_cell_eval.py`), Spanne über die vier Netze, in Klammern der alte Ort (Eintrag „Woher kommt
+die eine Zelle Fehler“):
+
+| Würfel | Kreuz | T | L | U |
+|---|---|---|---|---|
+| 0,84–0,89 (0,82–0,88) | 0,83–0,87 (0,78–0,82) | 0,76–0,81 (0,57–0,62) | 0,71–0,76 (0,63–0,72) | 0,71–0,76 (0,73–0,79) |
+
+Nach Abstand zur Zellgrenze: < 0,25 px 0,52–0,54, ≥ 2 px 0,92–0,95 (alt 0,85–0,91).
+
+**Vergleich mit der Vorhersage.** Exakt layer_s 0,73 (Lauf) / 0,74 (Auswertung): unterer Rand der Spanne
+0,74–0,80, knapp. `near` 0,88–0,90: getroffen. Münzwurf an der Grenze: getroffen. Formeffekt „höchstens 0,10
+unter dem Würfel“: verfehlt; T liegt 0,07–0,12 darunter, L 0,11–0,18, U 0,12–0,16.
+
+**Schluss.** Der Schwerpunkt als Ziel hilft allen vier Netzen um 0,04–0,05 exakt, und der Formeffekt
+schrumpft von bis zu 0,29 auf bis zu 0,18. Er verschwindet nicht. Das Bild je Form ist uneinheitlich: T
+gewinnt am meisten (+0,19), obwohl sein Ursprung am wenigsten neben dem Schwerpunkt lag; L gewinnt wenig, U
+gar nicht. Der Abstand Ursprung → Schwerpunkt erklärt den Formeffekt also nur zum Teil; bei L und U ist auch
+der Schwerpunkt ein Punkt, der aus dem Bild schwer genau zu lesen ist (er liegt neben oder außerhalb des
+Materials). Geprüft ist diese Deutung nicht. Einschränkung: Die Szenen sind neu gewürfelt, der Vergleich
+alt / neu ist nicht szenengleich. Zusammen mit dem Eintrag zum Populations-Code: Kodierung (+0,07–0,13 mit
+`_hot`) und Bezugspunkt (+0,04–0,05) sind zwei getrennte Anteile; ob sie sich addieren, ist nicht gemessen
+(`robot_finds_c_f32_hot` gibt es, ist aber nicht gelaufen).
+
+**Belege.** `results/finds_c.jsonl`, `results/finds_error.jsonl`, `results/finds_cell.jsonl`; Worker-Job
+`finds_c` (Commit 08efb9d); `data/robot/gazeshapec_*.npz` (nicht im Repo).
+
 ## Laufend / offen
 
-- Innere Suchszenen mit dem Flächenschwerpunkt als Ort jedes Körpers (`gazeshapec`, 48000 Szenen neu
-  exportiert; `robot_finds_c_f32`, Netze wie bei `robot_finds_in_f32`, Seeds 0–2). Genauer gemessen (Vereinigung
-  der Quader, ohne Doppelzählung) liegt der Ursprung bei L / U / T 3,3 / 2,2 / 1,6 px neben dem Schwerpunkt.
-  **Vorhersage vor dem Lauf (2026-11-14):** Der Formeffekt schrumpft, verschwindet aber nicht: exakt unter
-  „gefunden“ liegen L, U, T höchstens 0,10 unter dem Würfel (bisher bis 0,29). Die exakte Wertung von layer_s
-  mit Zeigebild steigt von 0,70 auf 0,74–0,80; `near` bleibt bei 0,88–0,93. An der Zellgrenze bleibt es beim
-  Münzwurf.
+- Schwerpunkt-Szenen mit einem Ausgang je Wert (`robot_finds_c_f32_hot`, Netze und Seeds wie oben): Addieren
+  sich Kodierung (+0,07–0,13) und Bezugspunkt (+0,04–0,05)?
+  **Vorhersage vor dem Lauf (2026-11-14):** Ungefähr additiv: exakt 0,75–0,84 über die vier Netze, layer_s
+  0,80–0,84; richtiger Körper 0,93–0,97; verloren höchstens 0,03. L und U bleiben mindestens 0,08 unter dem
+  Würfel, an der Zellgrenze (< 0,25 px) bleibt es bei 0,50–0,60.

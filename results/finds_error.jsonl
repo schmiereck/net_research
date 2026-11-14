@@ -46,3 +46,15 @@
 {"task": "robot_finds_in_f32_hot", "model": "vit+ref+rez3", "seed": 0, "exact": 0.7251, "close": 0.2129, "other": 0.032, "lost": 0.03, "right": 0.938}
 {"task": "robot_finds_in_f32_hot", "model": "vit+ref+rez3", "seed": 1, "exact": 0.7643, "close": 0.1932, "other": 0.0203, "lost": 0.0221, "right": 0.9576}
 {"task": "robot_finds_in_f32_hot", "model": "vit+ref+rez3", "seed": 2, "exact": 0.6853, "close": 0.2121, "other": 0.0668, "lost": 0.0358, "right": 0.8974}
+{"task": "robot_finds_c_f32", "model": "cnn+ref+rez3", "seed": 0, "exact": 0.7002, "close": 0.193, "other": 0.0278, "lost": 0.079, "right": 0.8932}
+{"task": "robot_finds_c_f32", "model": "cnn+ref+rez3", "seed": 1, "exact": 0.7024, "close": 0.1843, "other": 0.0331, "lost": 0.0801, "right": 0.8868}
+{"task": "robot_finds_c_f32", "model": "cnn+ref+rez3", "seed": 2, "exact": 0.739, "close": 0.1617, "other": 0.0293, "lost": 0.07, "right": 0.9007}
+{"task": "robot_finds_c_f32", "model": "hier_s+cell+ref+rez3", "seed": 0, "exact": 0.6947, "close": 0.1879, "other": 0.0347, "lost": 0.0828, "right": 0.8826}
+{"task": "robot_finds_c_f32", "model": "hier_s+cell+ref+rez3", "seed": 1, "exact": 0.666, "close": 0.1986, "other": 0.0392, "lost": 0.0962, "right": 0.8646}
+{"task": "robot_finds_c_f32", "model": "hier_s+cell+ref+rez3", "seed": 2, "exact": 0.6817, "close": 0.2003, "other": 0.0349, "lost": 0.0831, "right": 0.882}
+{"task": "robot_finds_c_f32", "model": "layer_s+cell+ref+rez3", "seed": 0, "exact": 0.7453, "close": 0.163, "other": 0.0249, "lost": 0.0668, "right": 0.9083}
+{"task": "robot_finds_c_f32", "model": "layer_s+cell+ref+rez3", "seed": 1, "exact": 0.7317, "close": 0.1678, "other": 0.028, "lost": 0.0726, "right": 0.8994}
+{"task": "robot_finds_c_f32", "model": "layer_s+cell+ref+rez3", "seed": 2, "exact": 0.7296, "close": 0.1673, "other": 0.0259, "lost": 0.0772, "right": 0.8969}
+{"task": "robot_finds_c_f32", "model": "vit+ref+rez3", "seed": 0, "exact": 0.6831, "close": 0.1853, "other": 0.0459, "lost": 0.0857, "right": 0.8684}
+{"task": "robot_finds_c_f32", "model": "vit+ref+rez3", "seed": 1, "exact": 0.7258, "close": 0.1699, "other": 0.0373, "lost": 0.067, "right": 0.8957}
+{"task": "robot_finds_c_f32", "model": "vit+ref+rez3", "seed": 2, "exact": 0.6573, "close": 0.2024, "other": 0.0476, "lost": 0.0927, "right": 0.8598}
