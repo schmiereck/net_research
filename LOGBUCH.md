@@ -948,3 +948,12 @@ alt / neu ist nicht szenengleich. Zusammen mit dem Eintrag zum Populations-Code:
   **Vorhersage vor dem Lauf (2026-11-14):** Ungefähr additiv: exakt 0,75–0,84 über die vier Netze, layer_s
   0,80–0,84; richtiger Körper 0,93–0,97; verloren höchstens 0,03. L und U bleiben mindestens 0,08 unter dem
   Würfel, an der Zellgrenze (< 0,25 px) bleibt es bei 0,50–0,60.
+- Auftrag des Nutzers (2026-11-14): Schritt-Aufgaben auf die neue Kodierung umstellen. Vorher Wahl der
+  Kodierung auf den Abstimm-Seeds 5 und 6: `_pop` (Glocke, Breite 1 Zelle), `_p05` (Breite 0,5: Nachbar 0,14
+  statt 0,61) und `_hot` auf servo (5 Netze, 1500 Updates), robot_findc (4 Netze) und robot_finds_in_f32
+  (4 Netze, je 24000 Updates). **Regel, vorab festgelegt:** Es gewinnt die Kodierung mit der höchsten exakten
+  Wertung, gemittelt erst über die Netze je Aufgabe, dann über die drei Aufgaben. Liegen zwei innerhalb 0,02,
+  entscheidet `near` im selben Mittel.
+  **Vorhersage vor dem Lauf (2026-11-14):** `_p05` gewinnt: auf den Roboter-Aufgaben exakt innerhalb ±0,03
+  von `_hot`, auf servo wie `_pop` (layer_s, hier_s, mlp mindestens 0,85; `_hot` dort im Mittel mindestens
+  0,15 darunter).

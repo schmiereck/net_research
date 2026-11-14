@@ -37,7 +37,7 @@ POP_TASKS = {f"{n}_{tag}": pop_variant(c, f"{n}_{tag}", sigma)
              for n, c in (("servo", Servo), ("robot_findc", RobotFindColor),
                           ("robot_finds_in_f32", IN_TASKS["robot_finds_in_f32"]),
                           ("robot_finds_c_f32", IN_TASKS["robot_finds_c_f32"]))
-             for tag, sigma in (("pop", 1.0), ("hot", 0.0))}
+             for tag, sigma in (("pop", 1.0), ("hot", 0.0), ("p05", 0.5))}
 
 TASKS = {
     "cycle": Cycle,
