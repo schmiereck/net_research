@@ -36,6 +36,14 @@ def steps(bits):
     return np.where(v > 7, v - 16, v)
 
 
+def decode(x, spec):
+    """Logits or targets of a step task -> [n, 2] signed steps (8 bits, or for *_pop / *_hot the strongest of 16
+    units per axis)."""
+    if spec.pop:
+        return x.reshape(len(x), 2, 16).argmax(-1).astype(np.int64) - 8
+    return steps(x > 0)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--task", default="robot_finds_in_f32")
@@ -50,7 +58,7 @@ def main():
     c = d["cells"][i].astype(np.int64)
     pos = c[:, :6].reshape(-1, 3, 2)                                 # steps to the three bodies
     r = np.arange(len(i))
-    assert (steps(b["target"][0]) == pos[r, k]).all()
+    assert (steps(b["target"][0]) == pos[r, k]).all()                # make() gives the 8 bits for *_pop too
     keys = ("exact", "close", "other", "lost", "right")
     per = defaultdict(list)
     out = open(ROOT / "results" / "finds_error.jsonl", "a")
@@ -65,7 +73,7 @@ def main():
             for s in range(0, len(i), 1000):
                 e = {q: v[:, s:s + 1000] for q, v in extra.items()}
                 lg.append(run_sequence(model, torch.tensor(b["obs"][:, s:s + 1000]), **e)[0][0])
-        pred = steps((torch.cat(lg)[:, task.spec.out_slice] > 0).numpy())
+        pred = decode(torch.cat(lg)[:, task.spec.out_slice].numpy(), task.spec)
         dist = np.abs(pred[:, None] - pos).max(-1)                   # [N, 3] distance to each body (cells)
         own = dist[r, k]
         oth = np.where(np.arange(3)[None] == k[:, None], 99, dist).min(1)

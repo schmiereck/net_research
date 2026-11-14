@@ -150,6 +150,10 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   Körper liegt weniger als 0,5 px daneben) und die Form (T und L 0,15–0,29 schlechter als der Würfel).
   Der Formeffekt kommt aus der Zielgröße: Der Körper-Ursprung liegt bei U, T, L 1,8–3,5 px neben dem
   Schwerpunkt. Schritt-Aufgaben melden seit 2026-11-14 neben der exakten Wertung `near` und `step_err`.
+- **Die Bit-Kodierung des Schritts ist selbst ein Hindernis** (2026-11-14): Mit 16 Ausgängen je Achse statt
+  4 Bits lernen vier von fünf Netzen servo in 1500 Updates (0,96–1,00 statt 0,03–0,84); die Formsuche steigt
+  exakt auf 0,71–0,79 (`_hot`), der richtige Körper wird in 0,93–0,97 gefunden. Varianten `*_pop` / `*_hot`;
+  die Aufgaben der Leiter sind nicht umgestellt (Entscheidung offen).
 - **Die Greif-Decke von 0,62 ist großteils Wertung:** Die besten Netze liegen in 0,79–0,87 der Fälle
   höchstens eine Zelle daneben (`results/step_error.jsonl`).
 - **Vorlauf im Spiele-Training (Review agy 3.1) ändert die Rangfolgen nicht:** Nur layer_i_sp4 gewinnt auf den

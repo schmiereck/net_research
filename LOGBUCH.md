@@ -803,6 +803,88 @@ Einschränkung: Der Flächenschwerpunkt zählt überlappende Quader doppelt, die
 
 **Belege.** `scripts/robot_body_origin.py` (Ausgabe oben), `netresearch/spec.py`, `netresearch/train.py`.
 
+## 2026-11-14 — Schritt als Populations-Code statt 8 Bits
+
+**Frage.** Idee von agy (IDEAS-agy-2026-11-14.md), Auftrag des Nutzers: Lernt ein Netz den Blick- oder
+Greifschritt schneller oder genauer, wenn er nicht als zwei 4-Bit-Zahlen, sondern je Achse über 16 Ausgänge
+(einer je Wert −8..7) ausgegeben wird?
+
+**Gemacht.** `TaskSpec.pop`, `pop_variant` (`netresearch/tasks/servo.py`): Ziel je Achse entweder eine Glocke
+um den wahren Wert (`_pop`, Breite eine Zelle) oder ein einzelner Ausgang (`_hot`); gelesen wird der stärkste
+Ausgang je Achse; Wertung = beide Achsen richtig. Gleiche Bilder, gleiche Schritte, gleicher Verlust (BCE).
+servo 1500 Updates; robot_findc und robot_finds_in_f32 24000 Updates; Seeds 0–2.
+Vorhersage vor dem Lauf (wörtlich aus „Laufend / offen“):
+
+> - Schritt als Populations-Code statt 8 Bits (Idee agy, IDEAS-agy-2026-11-14.md; Auftrag Nutzer 2026-11-14):
+> je Achse 16 Ausgänge für −8..7 im Symbol-Bereich, Ziel = Glocke um den wahren Wert (`_pop`, Breite eine
+> Zelle) oder ein einzelner Ausgang (`_hot`, ohne Nachbarschaft), gelesen wird der stärkste Ausgang je Achse.
+> Gleiche Bilder, gleiche Schritte, gleicher Verlust (BCE). Aufgaben: servo, robot_findc, robot_finds_in_f32,
+> jeweils Bits / `_pop` / `_hot`, Seeds 0–2.
+> **Vorhersage vor dem Lauf (2026-11-14):** (1) servo: kein großer Tempogewinn; `_pop` braucht bis Wertung 0,5
+> mindestens halb so viele Updates wie Bits (kein Faktor 2, schon gar nicht 50), Endwert nach 1500 Updates
+> innerhalb ±0,1. (2) robot_finds_in_f32: exakt innerhalb ±0,03 der Bits (0,63–0,70), weil Zellgrenze und
+> Bezugspunkt die Decke setzen; `near` +0,00 bis +0,03, mittlerer Fehler mindestens 10 % kleiner. (3)
+> robot_findc: `_pop` innerhalb ±0,05 der Bits. (4) `_hot` ist auf den Roboter-Aufgaben nicht besser als
+> `_pop` und im Mittel mindestens 0,03 schlechter.
+
+**Ergebnis.** servo, exakt nach 1500 Updates (in Klammern: Updates bis Wertung 0,5, aus der Kurve in
+250er-Schritten):
+
+| Netz | Bits | `_pop` | `_hot` |
+|---|---|---|---|
+| vit | 0,84 (1000) | 1,00 (750) | 0,97 (1000) |
+| layer_s | 0,22 (nie) | 0,98 (750) | 0,67 (1250) |
+| hier_s | 0,23 (nie) | 0,99 (750) | 0,91 (1000) |
+| mlp | 0,03 (nie) | 0,96 (750) | 0,21 (nie) |
+| cnn | 0,22 (nie) | 0,22 ± 0,18 (nie) | 0,01 (nie) |
+
+robot_findc (Farbe genannt), exakt / `near` / `step_err`:
+
+| Netz | Bits | `_pop` | `_hot` |
+|---|---|---|---|
+| cnn+cmd | 0,63 / 0,83 / 1,09 | 0,68 / 0,94 / 0,69 | 0,75 / 0,91 / 0,83 |
+| vit+cmd | 0,64 / 0,82 / 1,17 | 0,63 / 0,92 / 0,82 | 0,74 / 0,90 / 0,85 |
+| layer_s+cell | 0,45 / 0,72 / 1,87 | 0,59 / 0,91 / 0,99 | 0,64 / 0,85 / 1,45 |
+| hier_s+cell | 0,26 / 0,62 / 2,46 | 0,42 / 0,82 / 1,78 | 0,46 / 0,72 / 2,60 |
+
+robot_finds_in_f32 (Form gezeigt, `+ref+rez3`), exakt / richtiger Körper (exakt oder eine Zelle daneben) /
+verloren (`scripts/finds_error_eval.py`). Für Bits über alle vier Netze: richtiger Körper 0,87–0,90, verloren
+0,07–0,10 (Eintrag „Was fehlt zwischen Lesen und Suchen?“).
+
+| Netz | Bits exakt | `_pop` | `_hot` |
+|---|---|---|---|
+| cnn | 0,66 | 0,73 / 0,97 / 0,01 | 0,79 / 0,95 / 0,02 |
+| layer_s+cell | 0,70 | 0,70 / 0,97 / 0,01 | 0,77 / 0,96 / 0,02 |
+| hier_s+cell | 0,63 | 0,63 / 0,96 / 0,02 | 0,71 / 0,94 / 0,03 |
+| vit | 0,65 | 0,61 / 0,94 / 0,02 | 0,72 / 0,93 / 0,03 |
+
+`step_err`: `_pop` 0,49–0,81, `_hot` 0,45–0,73; für Bits liegt nur layer_s Seed 0 vor (0,63; layer_s mit
+`_pop` 0,49, mit `_hot` 0,45 im Mittel über drei Seeds). Exakt unter „gefunden“ mit `_hot`
+(`scripts/finds_cell_eval.py`): Abstand zur Zellgrenze < 0,25 px 0,54–0,56, ≥ 2 px 0,90–0,95; Würfel
+0,84–0,89, T 0,63–0,74. Der falsche Körper wird weiter in 0,02–0,04 gewählt.
+
+**Vergleich mit der Vorhersage.** (1) servo: klar verfehlt. Vier von fünf Netzen erreichen mit `_pop` 0,96–1,00,
+mit Bits 0,03–0,84. (2) robot_finds_in_f32: `_pop` exakt −0,04 bis +0,07 gegenüber Bits (für zwei von vier
+Netzen innerhalb ±0,03), aber der richtige Körper wird um 0,05–0,09 öfter gefunden statt höchstens 0,03:
+verfehlt. (3) robot_findc: verfehlt für die Gitter (+0,14 / +0,16), getroffen für cnn und vit. (4) Verfehlt:
+`_hot` ist exakt auf beiden Roboter-Aufgaben 0,04–0,11 besser als `_pop`; nur bei `near` und `step_err` auf
+robot_findc liegt `_pop` vorn.
+
+**Schluss.** Die Bit-Kodierung des Schritts war selbst ein Hindernis, größer als gedacht. Drei Befunde: (a)
+Auf servo ist der Unterschied eine Frage von Lernen oder Nicht-Lernen in 1500 Updates. (b) Der Anteil
+„verloren“ der Suche (0,07–0,10) war fast ganz ein Effekt der Bits (ein falsches hohes Bit wirft den Schritt
+weit weg); mit je einem Ausgang je Wert bleiben 0,01–0,03. (c) Zellgrenze und Formeffekt bleiben bestehen;
+sie sind Eigenschaften der Zielgröße, nicht der Kodierung. `_hot` ist exakt besser, `_pop` lernt auf servo
+schneller und liegt näher; vermutlich drückt die breite Glocke (Nachbar 0,61 gegen 1,0) die exakte Wertung,
+geprüft ist das nicht (eine schmalere Glocke wäre die Probe). Das cnn auf servo hat von keiner Kodierung
+etwas; ungeklärt. Ob die Schritt-Aufgaben der Leiter auf die neue Kodierung umgestellt werden, ist eine
+Entscheidung über die Aufgaben (alle bisherigen Zahlen wären nicht mehr vergleichbar) und hier nicht
+getroffen; die alten Aufgaben sind unverändert.
+
+**Belege.** `results/pop_servo.jsonl`, `results/pop_findc.jsonl`, `results/finds_pop.jsonl`,
+`results/finds_error.jsonl`, `results/finds_cell.jsonl`; Worker-Jobs `pop_servo`, `pop_findc`, `pop_finds`,
+`hot_finds` (Commit 08efb9d).
+
 ## Laufend / offen
 
 - Innere Suchszenen mit dem Flächenschwerpunkt als Ort jedes Körpers (`gazeshapec`, 48000 Szenen neu
@@ -812,14 +894,3 @@ Einschränkung: Der Flächenschwerpunkt zählt überlappende Quader doppelt, die
   „gefunden“ liegen L, U, T höchstens 0,10 unter dem Würfel (bisher bis 0,29). Die exakte Wertung von layer_s
   mit Zeigebild steigt von 0,70 auf 0,74–0,80; `near` bleibt bei 0,88–0,93. An der Zellgrenze bleibt es beim
   Münzwurf.
-- Schritt als Populations-Code statt 8 Bits (Idee agy, IDEAS-agy-2026-11-14.md; Auftrag Nutzer 2026-11-14):
-  je Achse 16 Ausgänge für −8..7 im Symbol-Bereich, Ziel = Glocke um den wahren Wert (`_pop`, Breite eine
-  Zelle) oder ein einzelner Ausgang (`_hot`, ohne Nachbarschaft), gelesen wird der stärkste Ausgang je Achse.
-  Gleiche Bilder, gleiche Schritte, gleicher Verlust (BCE). Aufgaben: servo, robot_findc, robot_finds_in_f32,
-  jeweils Bits / `_pop` / `_hot`, Seeds 0–2.
-  **Vorhersage vor dem Lauf (2026-11-14):** (1) servo: kein großer Tempogewinn; `_pop` braucht bis Wertung 0,5
-  mindestens halb so viele Updates wie Bits (kein Faktor 2, schon gar nicht 50), Endwert nach 1500 Updates
-  innerhalb ±0,1. (2) robot_finds_in_f32: exakt innerhalb ±0,03 der Bits (0,63–0,70), weil Zellgrenze und
-  Bezugspunkt die Decke setzen; `near` +0,00 bis +0,03, mittlerer Fehler mindestens 10 % kleiner. (3)
-  robot_findc: `_pop` innerhalb ±0,05 der Bits. (4) `_hot` ist auf den Roboter-Aufgaben nicht besser als
-  `_pop` und im Mittel mindestens 0,03 schlechter.
