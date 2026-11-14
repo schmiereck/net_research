@@ -482,7 +482,13 @@ RobotFindShapeIn = _variant(RobotFindShape, "robot_finds_in", files=IN_FILES)
 RobotFindShapeIn12 = _variant(RobotFindShape, "robot_finds_in12", files=IN_FILES, TRAIN_N=12000)
 RobotFindShapeInF32 = _variant(RobotFindShapeF32, "robot_finds_in_f32", files=IN_FILES)
 RobotFindShapeIn12F32 = _variant(RobotFindShapeF32, "robot_finds_in12_f32", files=IN_FILES, TRAIN_N=12000)
+# The same inner scenes, but the place of a body is its AREA CENTROID (visible centre) instead of the body origin
+# of the robot model, which lies up to 3.3 px (cell = 4 px) off for the L, U and T (data gazeshapec_*).
+C_FILES = ("gazeshapec", "gazeshapecheld_test")
+RobotFindShapeC = _variant(RobotFindShape, "robot_finds_c", files=C_FILES)
+RobotFindShapeCF32 = _variant(RobotFindShapeF32, "robot_finds_c_f32", files=C_FILES)
 IN_TASKS = {c.name: c for c in (RobotShapeAtIn, RobotShapeAtIn12, RobotShapeAtInF32, RobotShapeAtIn12F32,
+                                RobotFindShapeC, RobotFindShapeCF32,
                                 RobotFindShapeIn, RobotFindShapeIn12, RobotFindShapeInF32, RobotFindShapeIn12F32)}
 
 

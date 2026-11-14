@@ -2,7 +2,8 @@
 
     python scripts/finds_cell_eval.py [--task robot_finds_in_f32] [--seeds 0 1 2]
 
-Needs data/robot/gazeshapein_test_pos.npz (made in the robot project from the same scenes): for every body the
+Needs data/robot/<scenes>_test_pos.npz (made in the robot project from the same scenes; <scenes> = gazeshapein or
+gazeshapec): for every body the
 distance in pixels from its projected origin to the nearest sampling point of the fovea (d1) and to the second
 nearest (d2). margin = d2 - d1: near 0 the body lies on the border between two cells, and the "right" cell is
 decided by a fraction of a pixel (one cell = 4 px, one pixel of the 32 x 32 view = 2 px).
@@ -38,7 +39,7 @@ def main():
     a = ap.parse_args()
     task = make_task(a.task)
     d = task._load(f"{task.files[0]}_test")
-    g = np.load(data_path("gazeshapein_test_pos.npz"))
+    g = np.load(data_path(f"{task.files[0]}_test_pos.npz"))
     assert (g["cells"] == d["cells"]).all(), "position file belongs to other scenes"
     n = len(d["obs"])
     i, k = np.tile(np.arange(n), 3), np.repeat(np.arange(3), n)
