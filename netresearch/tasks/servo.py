@@ -101,7 +101,7 @@ class Servo(SupervisedTask):
     """Pointer (green) and target (red) in the image -> the step that moves the pointer onto the target."""
 
     def __init__(self):
-        self.spec = TaskSpec("servo", "patterns", "supervised", "bits", 8, seq_len=1, chance=0.0,
+        self.spec = TaskSpec("servo", "patterns", "supervised", "bits", 8, seq_len=1, chance=0.0, step=True,
                              description="pointer and target pixel -> signed step (dx, dy), 2 x 4 bit")
 
     def sample(self, batch, rng, split="train"):

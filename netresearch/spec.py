@@ -46,6 +46,9 @@ class TaskSpec:
     role: str = ""             # output area (OUT_AREAS); default derived from kind/head
     parts: dict = field(default_factory=dict)   # bits head: name -> (lo, hi) of the target bits; the
     #                                             evaluation reports the exact-match share of each part
+    step: bool = False         # bits head: the 8 target bits are ONE signed step (dx, dy) (tasks.servo.command_bits);
+    #                            the evaluation then also reports "near" (at most one cell off in each axis, the
+    #                            exact answers included) and "step_err" (mean Euclidean error in cells)
 
     def __post_init__(self):
         if not self.role:

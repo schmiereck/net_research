@@ -765,6 +765,44 @@ Eigenschaft der Zielgröße; das ist offen.
 
 **Belege.** `results/finds_cell.jsonl`; `data/robot/gazeshapein_test_pos.npz` (nicht im Repository).
 
+## 2026-11-14 — Bezugspunkt der Körper; zweite Zahl für Schritt-Aufgaben
+
+**Frage.** (1) Liegt bei L, U und T der Punkt, dessen Zelle der Blickschritt treffen soll, neben der sichtbaren
+Mitte? Das war die Vermutung zum Formeffekt im vorigen Eintrag. (2) Auftrag des Nutzers: „höchstens eine Zelle
+daneben“ als zweite Zahl in die Wertung.
+
+**Gemacht.** (1) Im Roboter-Modell je Körper den Abstand zwischen Körper-Ursprung (den der Export projiziert)
+und Flächenschwerpunkt seiner Quader gemessen (`scripts/robot_body_origin.py`, läuft im Roboter-Projekt);
+Maßstab am Tisch 471 px je Meter, eine Zelle = 4 px = 8,5 mm. (2) `TaskSpec.step`: Für Aufgaben mit einem
+Schritt als Ziel (servo, robot_gaze, robot_reach*, robot_find, robot_findc, robot_findi, robot_finds*) meldet
+die Auswertung zusätzlich `near` (höchstens eine Zelle je Achse daneben, exakte eingeschlossen) und `step_err`
+(mittlerer Abstand in Zellen); in Lehrplan-Läufen steht beides im Feld `near`. `score` bleibt die exakte
+Wertung.
+
+**Ergebnis.**
+
+| Körper | Ursprung → Flächenschwerpunkt | exakt unter „gefunden“ (layer_s, voriger Eintrag) |
+|---|---|---|
+| Würfel | 0,0 px | 0,87 |
+| Kreuz | 0,0 px | 0,82 |
+| U | 1,8 px | 0,79 |
+| T | 2,6 px | 0,62 |
+| L | 3,5 px | 0,72 |
+
+Die Körper sind 24–60 mm groß, also 3–7 Zellen. Probe der neuen Zahl an gespeicherten Netzen von
+`robot_finds_in_f32` (Seed 0): layer_s mit Zeigebild exakt 0,71, `near` 0,91, `step_err` 0,63.
+
+**Schluss.** Die Vermutung stimmt: Bei den drei unsymmetrischen Körpern liegt der verlangte Punkt 1,8–3,5 px
+neben dem Schwerpunkt, bis fast eine Zelle, und er dreht sich mit dem Körper. Würfel und Kreuz haben den
+Ursprung in der Mitte, und genau sie werden am genauesten getroffen. Die Reihenfolge innerhalb von U, T, L
+folgt dem Abstand nicht streng (T schlechter als L); der Abstand ist also nicht die einzige Größe. Der
+Formeffekt ist damit überwiegend eine Eigenschaft der Zielgröße: Der Ursprung ist ein willkürlicher Punkt des
+Modells, aus dem Bild nur über Form und Drehung zu erschließen. Ob der Blick besser auf den Schwerpunkt zielen
+sollte, ist eine Entscheidung über die Aufgabe und hier nicht getroffen; die Daten sind unverändert.
+Einschränkung: Der Flächenschwerpunkt zählt überlappende Quader doppelt, die Abstände sind Näherungen.
+
+**Belege.** `scripts/robot_body_origin.py` (Ausgabe oben), `netresearch/spec.py`, `netresearch/train.py`.
+
 ## Laufend / offen
 
 - Zurzeit keine laufenden Aufträge.

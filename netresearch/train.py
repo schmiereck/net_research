@@ -107,12 +107,18 @@ def eval_set(task, n=2048, seed=12345):
     return _eval_cache[key]
 
 
+def _steps(bits):
+    """[..., 8] bits (two two's complement nibbles, MSB first) -> [..., 2] signed steps (float)."""
+    v = (bits.reshape(*bits.shape[:-1], 2, 4) * torch.tensor([8.0, 4.0, 2.0, 1.0], device=bits.device)).sum(-1)
+    return torch.where(v > 7, v - 16, v)
+
+
 @torch.no_grad()
 def evaluate_supervised(model, task, n_batches=None):
     spec = task.spec
     was_training = model.training
     model.eval()
-    correct = total = loss_sum = bit_correct = 0.0
+    correct = total = loss_sum = bit_correct = near = step_err = 0.0
     part = {k: 0.0 for k in spec.parts}
     for b in eval_set(task)[:n_batches]:
         logits, _ = run_sequence(model, b["obs"].float(), cmd=b.get("cmd"), ref=b.get("ref"))
@@ -127,6 +133,10 @@ def evaluate_supervised(model, task, n_batches=None):
             bit_correct += (eq.mean(-1) * m).sum().item()
             for k, (lo, hi) in spec.parts.items():
                 part[k] += (eq[..., lo:hi].min(-1).values * m).sum().item()
+            if spec.step:
+                d = (_steps(pred) - _steps(b["target"])).abs()
+                near += ((d.max(-1).values <= 1).float() * m).sum().item()
+                step_err += (d.pow(2).sum(-1).sqrt() * m).sum().item()
         total += m.sum().item()
     model.train(was_training)
     acc = correct / total
@@ -134,6 +144,8 @@ def evaluate_supervised(model, task, n_batches=None):
     res["score"] = (acc - spec.chance) / (1 - spec.chance)          # chance = 0 for multi-bit outputs
     if spec.head == "bits":
         res["bit_acc"] = bit_correct / total
+        if spec.step:
+            res["near"], res["step_err"] = near / total, step_err / total
         if part:
             res["parts"] = {k: round(v / total, 4) for k, v in part.items()}
     if spec.name == "charnext":

@@ -41,7 +41,7 @@ class _Robot(SupervisedTask):
     kind, text = "", ""
 
     def __init__(self):
-        self.spec = TaskSpec("robot_" + self.kind, "robot", "supervised", "bits", 8, seq_len=1, chance=0.0,
+        self.spec = TaskSpec("robot_" + self.kind, "robot", "supervised", "bits", 8, seq_len=1, chance=0.0, step=True,
                              description=self.text)
         self._data = {}
 
@@ -71,7 +71,7 @@ class RobotFind(SupervisedTask):
     CUBES = 3
 
     def __init__(self):
-        self.spec = TaskSpec("robot_find", "robot", "supervised", "bits", 8, seq_len=1, chance=0.0,
+        self.spec = TaskSpec("robot_find", "robot", "supervised", "bits", 8, seq_len=1, chance=0.0, step=True,
                              description="robot fovea image + command (colour of the wanted cube) -> gaze shift "
                                          "(dx, dy) that centres it")
         self._data = {}
@@ -109,7 +109,7 @@ class RobotFindColor(SupervisedTask):
     cube has a hue from that band (gazecolorheld): does the address generalise to a colour never seen?"""
 
     def __init__(self):
-        self.spec = TaskSpec("robot_findc", "robot", "supervised", "bits", 8, seq_len=1, chance=0.0,
+        self.spec = TaskSpec("robot_findc", "robot", "supervised", "bits", 8, seq_len=1, chance=0.0, step=True,
                              description="robot fovea image, cubes in random colours + command (colour of the "
                                          "wanted cube) -> gaze shift (dx, dy) that centres it")
         self._data = {}
@@ -158,7 +158,7 @@ class RobotFindImage(RobotFindColor):
 
     def __init__(self):
         super().__init__()
-        self.spec = TaskSpec("robot_findi", "robot", "supervised", "bits", 8, seq_len=1, chance=0.0,
+        self.spec = TaskSpec("robot_findi", "robot", "supervised", "bits", 8, seq_len=1, chance=0.0, step=True,
                              description="robot fovea image + a picture of the wanted cube -> gaze shift "
                                          "(dx, dy) that centres it")
 
@@ -180,7 +180,7 @@ class RobotFindShape(RobotFindColor):
 
     def __init__(self):
         super().__init__()
-        self.spec = TaskSpec("robot_finds", "robot", "supervised", "bits", 8, seq_len=1, chance=0.0,
+        self.spec = TaskSpec("robot_finds", "robot", "supervised", "bits", 8, seq_len=1, chance=0.0, step=True,
                              description="robot fovea image, three shapes of one colour + a picture of the "
                                          "wanted one -> gaze shift (dx, dy) that centres it")
         self._rng = np.random.default_rng(0)

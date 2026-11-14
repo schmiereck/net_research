@@ -148,6 +148,8 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   0,00–0,07, ein falscher Körper wird in 0,02–0,03 gewählt.
   Die fehlende Zelle hat zwei Ursachen: die Zellgrenze (dort ist der Schritt ein Münzwurf; ein Fünftel der
   Körper liegt weniger als 0,5 px daneben) und die Form (T und L 0,15–0,29 schlechter als der Würfel).
+  Der Formeffekt kommt aus der Zielgröße: Der Körper-Ursprung liegt bei U, T, L 1,8–3,5 px neben dem
+  Schwerpunkt. Schritt-Aufgaben melden seit 2026-11-14 neben der exakten Wertung `near` und `step_err`.
 - **Die Greif-Decke von 0,62 ist großteils Wertung:** Die besten Netze liegen in 0,79–0,87 der Fälle
   höchstens eine Zelle daneben (`results/step_error.jsonl`).
 - **Vorlauf im Spiele-Training (Review agy 3.1) ändert die Rangfolgen nicht:** Nur layer_i_sp4 gewinnt auf den

@@ -54,10 +54,12 @@ def job(args):
         fm = {t: final_metrics(model, task) for t, task in wt.items()}
         final = {t: round(m["score"], 4) for t, m in fm.items()}
         parts = {t: m["parts"] for t, m in fm.items() if "parts" in m}
+        near = {t: [round(m["near"], 4), round(m["step_err"], 4)] for t, m in fm.items() if "near" in m}
         curve.append([done, final])
         if name:
             save_checkpoint(model, model_name, name, seed, list(final.values())[-1])
         return {"plan": plan, "task": plan, "model": model_name, "seed": seed, "updates": done, "final": final, "parts": parts,
+                "near": near,          # step tasks: [share at most one cell off, mean error in cells]
                 "time": round(time.time() - t0, 1), "curve": curve}
     except Exception:  # noqa: BLE001
         return {"plan": plan, "model": model_name, "seed": seed, "error": traceback.format_exc()}
