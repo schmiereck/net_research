@@ -143,7 +143,9 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   70 % der Körper liegen außerhalb von Ring 5; innen liest nur cnn brauchbar (0,63).
 - **Liegen alle Körper im scharfen Bereich, wird die Suchszene gelesen** (`gazeshapein`, Seeds 0–2): Form an
   genannter Stelle 0,88–0,95 mit `+rez3` und 48000 Szenen (vit 0,69). Die Form-Suche steigt von 0,07–0,09
-  auf 0,63–0,70 (layer_s 0,70). Zwischen Lesen und Suchen bleiben etwa 0,25; gelöst ist die Suche nicht.
+  auf 0,63–0,70 (layer_s 0,70). Der richtige Körper wird dabei in 0,87–0,90 der Fälle gefunden; was zur
+  exakten Wertung fehlt, ist fast nur eine Zelle Schrittgenauigkeit. Der Vergleich mit dem Zeigebild kostet
+  0,00–0,07, ein falscher Körper wird in 0,02–0,03 gewählt.
 - **Die Greif-Decke von 0,62 ist großteils Wertung:** Die besten Netze liegen in 0,79–0,87 der Fälle
   höchstens eine Zelle daneben (`results/step_error.jsonl`).
 - **Vorlauf im Spiele-Training (Review agy 3.1) ändert die Rangfolgen nicht:** Nur layer_i_sp4 gewinnt auf den

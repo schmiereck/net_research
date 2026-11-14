@@ -673,13 +673,49 @@ Die Option `--burn` bleibt im Code und ist standardmäßig aus.
 
 **Belege.** `results/burnin_b0.jsonl`, `results/burnin_b16.jsonl`.
 
+## 2026-11-14 — Innere Suchszenen: Was fehlt zwischen Lesen und Suchen?
+
+**Frage.** In den inneren Szenen wird die Form an genannter Stelle zu 0,88–0,95 gelesen, die Suche erreicht
+aber nur 0,63–0,70. Steckt die Lücke im Vergleich mit dem Zeigebild oder im exakten Blickschritt?
+
+**Vorhersage vor dem Lauf (2026-11-14, Commit 80be21b).** Mit genannter Form liegen cnn und layer_s 0,05–0,15
+über den Netzen mit Zeigebild. Von den Fehlern der Netze mit Zeigebild liegt mindestens die Hälfte beim
+richtigen Körper eine Zelle daneben, 20–35 % bei einem anderen Körper; „richtiger Körper gefunden“ erreicht
+0,82–0,90.
+
+**Gemacht.** `robot_finds_in_f32` (48000 Szenen, `+rez3`, 24000 Updates, Seeds 0–2) mit Zeigebild (`+ref`) und
+mit der Form als Kommando (`+cmd` / `+cell`), Gewichte gespeichert. `scripts/finds_error_eval.py` teilt jede
+Antwort auf 9000 Testpaaren ein: exakt / richtiger Körper, höchstens eine Zelle je Achse daneben / höchstens
+eine Zelle neben einem anderen Körper der Szene / sonstwo.
+
+**Ergebnis.** Anteile, Mittel über drei Seeds.
+
+| Netz | Form | exakt | richtiger Körper, 1 Zelle daneben | anderer Körper | sonstwo | richtiger Körper gesamt |
+|---|---|---|---|---|---|---|
+| layer_s | gezeigt | 0,69 | 0,21 | 0,02 | 0,08 | 0,90 |
+| layer_s | genannt | 0,73 | 0,20 | 0,01 | 0,07 | 0,93 |
+| cnn | gezeigt | 0,66 | 0,22 | 0,03 | 0,09 | 0,88 |
+| cnn | genannt | 0,66 | 0,23 | 0,01 | 0,09 | 0,90 |
+| vit | gezeigt | 0,64 | 0,22 | 0,03 | 0,10 | 0,87 |
+| vit | genannt | 0,71 | 0,21 | 0,01 | 0,07 | 0,92 |
+| hier_s | gezeigt | 0,62 | 0,25 | 0,03 | 0,10 | 0,87 |
+| hier_s | genannt | 0,66 | 0,25 | 0,01 | 0,09 | 0,90 |
+
+Die neu trainierten Netze mit Zeigebild treffen die Wertungen vom Vortag auf 0,00–0,01.
+
+**Schluss.** Die Lücke ist der exakte Blickschritt, nicht der Vergleich. (1) Der Bildvergleich kostet wenig:
+genannt gegen gezeigt +0,00 (cnn) bis +0,07 (vit), layer_s +0,03; die Vorhersage (0,05–0,15 für cnn und
+layer_s) war zu hoch. (2) Ein falscher Körper wird fast nie gewählt (0,02–0,03 aller Antworten, 6–9 % der
+Fehler); vorhergesagt waren 20–35 % der Fehler, verfehlt. (3) Zwei Drittel der Fehler liegen beim richtigen
+Körper eine Zelle daneben (getroffen), und der richtige Körper wird in 0,87–0,90 der Fälle gefunden
+(getroffen). Das entspricht der Lesequote von 0,88–0,95: Wer die Form liest, findet den Körper auch. Die
+Form-Suche ist in den inneren Szenen also bis auf die Schrittgenauigkeit gelöst; die exakte Wertung
+unterschätzt sie, wie beim Greifen (Review-Punkt 3.4). Offen: die 0,07–0,10 „sonstwo“ (nicht aufgeteilt in
+zwei Zellen daneben gegen ganz verloren) und warum die eine Zelle fehlt (Körpermitte nahe einer Zellgrenze
+oder Grenze der Netze).
+
+**Belege.** `results/finds_gap.jsonl`, `results/finds_error.jsonl` (Worker-Auftrag finds_in_gap2).
+
 ## Laufend / offen
 
-- Lücke zwischen Lesen und Suchen in den inneren Szenen (`robot_finds_in_f32`, 48000 Szenen, `+rez3`):
-  (1) `scripts/finds_error_eval.py` teilt jede Antwort ein in exakt / richtiger Körper, höchstens eine Zelle
-  daneben / anderer Körper der Szene / sonstwo. (2) Dieselbe Aufgabe mit der Form als Kommando statt als
-  Zeigebild (`+cmd` bzw. `+cell` ohne `+ref`): Der Unterschied ist der Preis des Bildvergleichs.
-  **Vorhersage vor dem Lauf (2026-11-14):** Mit genannter Form liegen cnn und layer_s 0,05–0,15 über den
-  Netzen mit Zeigebild (also 0,72–0,85). Von den Fehlern der Netze mit Zeigebild liegt mindestens die Hälfte
-  beim richtigen Körper eine Zelle daneben, 20–35 % bei einem anderen Körper; „richtiger Körper gefunden“
-  (exakt oder eine Zelle daneben) erreicht 0,82–0,90.
+- Zurzeit keine laufenden Aufträge.
