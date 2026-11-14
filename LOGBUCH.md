@@ -675,4 +675,11 @@ Die Option `--burn` bleibt im Code und ist standardmäßig aus.
 
 ## Laufend / offen
 
-- Zurzeit keine laufenden Aufträge.
+- Lücke zwischen Lesen und Suchen in den inneren Szenen (`robot_finds_in_f32`, 48000 Szenen, `+rez3`):
+  (1) `scripts/finds_error_eval.py` teilt jede Antwort ein in exakt / richtiger Körper, höchstens eine Zelle
+  daneben / anderer Körper der Szene / sonstwo. (2) Dieselbe Aufgabe mit der Form als Kommando statt als
+  Zeigebild (`+cmd` bzw. `+cell` ohne `+ref`): Der Unterschied ist der Preis des Bildvergleichs.
+  **Vorhersage vor dem Lauf (2026-11-14):** Mit genannter Form liegen cnn und layer_s 0,05–0,15 über den
+  Netzen mit Zeigebild (also 0,72–0,85). Von den Fehlern der Netze mit Zeigebild liegt mindestens die Hälfte
+  beim richtigen Körper eine Zelle daneben, 20–35 % bei einem anderen Körper; „richtiger Körper gefunden“
+  (exakt oder eine Zelle daneben) erreicht 0,82–0,90.
