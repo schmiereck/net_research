@@ -104,8 +104,10 @@ def pop_code(steps, sigma=1.0):
     return c.reshape(len(c), 32)
 
 
-STEP_SIGMA = 1.0     # width (cells) of the bump in the step code of the step tasks; 0 = one unit per value.
-#                      Chosen on seeds 5 and 6 against 0.5 and 0 (LOGBUCH 2026-11-14, results/step_code_tune*.jsonl)
+STEP_SIGMA = 0.5     # width (cells) of the bump in the step code of the step tasks; 0 = one unit per value.
+#                      1.0 won the rule on seeds 5 and 6 (learning speed on servo), but servo saturates anyway
+#                      and 0.5 is about 0.07 better in the exact score of the fine search scenes; the user chose
+#                      0.5 (LOGBUCH 2026-11-14). Results with 1.0: results/step_pop*.jsonl
 
 
 def decode_step(x, spec, logits=True):

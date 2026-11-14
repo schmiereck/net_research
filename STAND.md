@@ -153,7 +153,8 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
 - **Die Bit-Kodierung des Schritts ist selbst ein Hindernis** (2026-11-14): Mit 16 Ausgängen je Achse statt
   4 Bits lernen vier von fünf Netzen servo in 1500 Updates (0,96–1,00 statt 0,03–0,84); die Formsuche steigt
   exakt auf 0,71–0,79 (`_hot`), der richtige Körper wird in 0,93–0,97 gefunden. Varianten `*_pop` / `*_hot`;
-  seit 2026-11-14 sind die Schritt-Aufgaben umgestellt (Glocke, Breite 1 Zelle, gewählt auf Seeds 5 / 6);
+  seit 2026-11-14 sind die Schritt-Aufgaben umgestellt (Glocke; zuerst Breite 1 nach Regel auf Seeds 5 / 6,
+  dann auf Entscheidung des Nutzers Breite 0,5; servo als Stufe mit 1500 Updates);
   die alte Form heißt `<name>_bits`. Alle Schritt-Zahlen in diesem Dokument vor diesem Datum sind Bit-Werte.
   Neu gerechnet (Seeds 0–2, `results/step_pop_compare.json`): exakt meist +0,05 bis +0,22 (robot_reach_big
   0,41–0,52 statt 0,18–0,33, `near` 0,94–0,97); vit / vitmem verlieren bis 0,05; servo steht bei 6000 Updates

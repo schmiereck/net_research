@@ -1102,4 +1102,12 @@ Bezugsläufe in `results/servo_arch.jsonl`, `gap.jsonl`, `new3.jsonl`, `robot.js
 
 ## Laufend / offen
 
-- (derzeit nichts)
+- Entscheidung des Nutzers (2026-11-14): Glockenbreite 0,5 statt 1 (`STEP_SIGMA = 0.5`), und servo als Stufe
+  mit 1500 statt 6000 Updates (bei 6000 trennt es nicht mehr). Neuberechnung wie im vorigen Eintrag, Seeds
+  0–2; servo zusätzlich mit 1500 Updates. Netze mit Breite 1 lokal in `results/checkpoints/<name>_pop1`.
+  **Vorhersage vor dem Lauf (2026-11-14):** (1) Gegenüber Breite 1 exakt +0,05 bis +0,10 im Mittel der Netze
+  auf robot_find, robot_findc, robot_findi und allen robot_finds*; `near` dort −0,00 bis −0,04. (2) vit und
+  vitmem liegen auf keiner Aufgabe mehr als 0,03 unter ihrem Bit-Wert. (3) robot_reach_big exakt 0,50–0,62.
+  (4) servo bei 1500 Updates trennt: vit, hier_s, layer_s mindestens 0,85; mlp 0,2–0,5; cnn unter 0,1; bei
+  6000 Updates alle außer esn mindestens 0,98. (5) robot_gaze: kein Netz ändert sich um mehr als 0,03
+  gegenüber Breite 1, außer mlp / esn / gru / lstm (die fallen um bis zu 0,15).
