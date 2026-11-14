@@ -24,15 +24,10 @@ import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from netresearch.tasks import make_task  # noqa: E402
+from netresearch.tasks.servo import decode_step  # noqa: E402
 from netresearch.train import load_checkpoint, run_sequence  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
-
-
-def steps(bits):
-    """[n, 8] bits (two nibbles, MSB first, two's complement) -> [n, 2] signed steps."""
-    v = (bits.reshape(len(bits), 2, 4).astype(np.int64) * np.array([8, 4, 2, 1])).sum(-1)
-    return np.where(v > 7, v - 16, v)
 
 
 def main():
@@ -46,7 +41,7 @@ def main():
     for tname in a.tasks:
         task = make_task(tname)
         b = task.sample(a.n, np.random.default_rng(0), "test")
-        true = steps(b["target"][0])
+        true = decode_step(b["target"][0], task.spec, logits=False)
         extra = {k: torch.tensor(b[k]) for k in ("cmd", "ref") if k in b}
         per = defaultdict(list)
         for p in sorted((ROOT / "results" / "checkpoints" / tname).glob("*.pt")):
@@ -58,7 +53,7 @@ def main():
             except Exception as e:                                   # a checkpoint of an older model layout
                 print(f"  skipped {p.name}: {type(e).__name__}")
                 continue
-            pred = steps((lg[0][:, task.spec.out_slice] > 0).numpy())
+            pred = decode_step(lg[0][:, task.spec.out_slice].numpy(), task.spec)
             d = np.abs(pred - true)
             ok, near = d.max(1) == 0, d.max(1) <= 1
             cliff = (true == -1) | (true == 0)

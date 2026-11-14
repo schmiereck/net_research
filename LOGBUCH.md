@@ -978,14 +978,70 @@ falscher Körper.
 **Belege.** `results/finds_c.jsonl`, `results/finds_error.jsonl`, `results/finds_cell.jsonl`; Worker-Job
 `finds_c_hot` (Commit a322c18).
 
+## 2026-11-14 — Schritt-Aufgaben auf den Populations-Code umgestellt; Wahl der Glockenbreite
+
+**Frage.** Auftrag des Nutzers: Schritt-Aufgaben auf die neue Kodierung umstellen. Welche der drei Varianten
+(Glocke Breite 1, Glocke Breite 0,5, ein Ausgang je Wert)?
+
+**Gemacht.** Auswahl auf den Abstimm-Seeds 5 und 6. Regel und Vorhersage vor dem Lauf (wörtlich aus „Laufend
+/ offen“):
+
+> - Auftrag des Nutzers (2026-11-14): Schritt-Aufgaben auf die neue Kodierung umstellen. Vorher Wahl der
+> Kodierung auf den Abstimm-Seeds 5 und 6: `_pop` (Glocke, Breite 1 Zelle), `_p05` (Breite 0,5: Nachbar 0,14
+> statt 0,61) und `_hot` auf servo (5 Netze, 1500 Updates), robot_findc (4 Netze) und robot_finds_in_f32
+> (4 Netze, je 24000 Updates). **Regel, vorab festgelegt:** Es gewinnt die Kodierung mit der höchsten exakten
+> Wertung, gemittelt erst über die Netze je Aufgabe, dann über die drei Aufgaben. Liegen zwei innerhalb 0,02,
+> entscheidet `near` im selben Mittel.
+> **Vorhersage vor dem Lauf (2026-11-14):** `_p05` gewinnt: auf den Roboter-Aufgaben exakt innerhalb ±0,03
+> von `_hot`, auf servo wie `_pop` (layer_s, hier_s, mlp mindestens 0,85; `_hot` dort im Mittel mindestens
+> 0,15 darunter).
+
+**Ergebnis.** Exakt / `near`, Mittel über die Netze je Aufgabe:
+
+| Aufgabe | `_pop` (Breite 1) | `_p05` (Breite 0,5) | `_hot` |
+|---|---|---|---|
+| servo (5 Netze, 1500 Updates) | 0,83 / 0,91 | 0,63 / 0,80 | 0,49 / 0,70 |
+| robot_findc (4 Netze) | 0,57 / 0,90 | 0,65 / 0,88 | 0,64 / 0,84 |
+| robot_finds_in_f32 (4 Netze) | 0,67 / 0,96 | 0,74 / 0,96 | 0,75 / 0,95 |
+| Mittel der drei Aufgaben | 0,691 / 0,922 | 0,673 / 0,877 | 0,627 / 0,831 |
+
+servo je Netz (exakt): mlp 0,93 / 0,35 / 0,17; layer_s 0,96 / 0,86 / 0,78; vit 1,00 / 0,96 / 0,54; hier_s
+0,99 / 0,98 / 0,94; cnn 0,28 / 0,00 / 0,00.
+
+**Vergleich mit der Vorhersage.** Verfehlt: Es gewinnt `_pop`, nicht `_p05`. Richtig war, dass `_p05` auf den
+Roboter-Aufgaben exakt wie `_hot` liegt (±0,01); falsch, dass es auf servo wie `_pop` lernt (mlp 0,35, cnn
+0,00).
+
+**Schluss.** Nach der Regel: `_pop` und `_p05` liegen exakt innerhalb 0,02, `near` entscheidet für `_pop`.
+`STEP_SIGMA = 1.0`. Das ist ein Tausch, kein klarer Sieg: Die breite Glocke lernt servo in 1500 Updates
+deutlich besser und landet öfter in der Nachbarzelle statt weit weg, kostet aber auf den beiden
+Roboter-Aufgaben 0,07–0,08 exakt gegenüber `_p05` / `_hot`. Die Entscheidung hängt an der servo-Messung nach
+nur 1500 Updates (Lerntempo); bei längeren Läufen kann das Bild anders sein. Die Breite ist eine Konstante
+(`netresearch/tasks/servo.py`), `*_p05` und `*_hot` bleiben als Varianten für vier Aufgaben.
+
+Umgestellt (Register `netresearch/tasks/registry.py`, `STEP_TASKS`): servo, robot_gaze, robot_reach,
+robot_reach_big, robot_find, robot_findc, robot_findi, robot_finds, robot_finds_f32, robot_finds_in*,
+robot_finds_c*. 32 Ausgänge im Symbol-Bereich (26–58), gelesen wird der stärkste Ausgang je Achse, Wertung
+= beide Achsen richtig; `near` und `step_err` wie bisher. Die alte Form heißt `<name>_bits` (Bezug für alle
+Zahlen vor diesem Eintrag; gespeicherte Netze lokal nach `results/checkpoints/<name>_bits` verschoben, sie
+liefern dort die alten Zahlen). Nicht umgestellt: die Hilfsaufgaben `*_parts` (liegen im selben Bereich, drei
+Schritte passen nicht hinein; gemeinsame Lehrpläne nur mit `<name>_bits`, sonst bricht der Lehrplan mit
+Hinweis ab) und die Anpassungs-Studien (`adapt`, `fastweights`, `library`, `context`: eigene Bit-Ausgabe der
+Servo-Geräte). Auswerteskripte und GUI lesen beide Kodierungen über `decode_step`.
+
+**Belege.** `results/step_code_tune.jsonl`, `results/step_code_tune_finds.jsonl`; Worker-Jobs `tune_servo`,
+`tune_findc`, `tune_finds` (Commit 1316b69).
+
 ## Laufend / offen
 
-- Auftrag des Nutzers (2026-11-14): Schritt-Aufgaben auf die neue Kodierung umstellen. Vorher Wahl der
-  Kodierung auf den Abstimm-Seeds 5 und 6: `_pop` (Glocke, Breite 1 Zelle), `_p05` (Breite 0,5: Nachbar 0,14
-  statt 0,61) und `_hot` auf servo (5 Netze, 1500 Updates), robot_findc (4 Netze) und robot_finds_in_f32
-  (4 Netze, je 24000 Updates). **Regel, vorab festgelegt:** Es gewinnt die Kodierung mit der höchsten exakten
-  Wertung, gemittelt erst über die Netze je Aufgabe, dann über die drei Aufgaben. Liegen zwei innerhalb 0,02,
-  entscheidet `near` im selben Mittel.
-  **Vorhersage vor dem Lauf (2026-11-14):** `_p05` gewinnt: auf den Roboter-Aufgaben exakt innerhalb ±0,03
-  von `_hot`, auf servo wie `_pop` (layer_s, hier_s, mlp mindestens 0,85; `_hot` dort im Mittel mindestens
-  0,15 darunter).
+- Neuberechnung der Schritt-Aufgaben im Populations-Code, Seeds 0–2, gleiche Netze und Update-Zahlen wie die
+  Bezugsläufe in Bits: servo, robot_gaze, robot_reach (je 6000), robot_find (6000), robot_findc, robot_findi
+  (24000); als Lehrplan mit gespeicherten Netzen robot_reach, robot_reach_big, robot_finds, robot_finds_f32,
+  robot_finds_in, robot_finds_in_f32, robot_finds_c_f32 (je 24000). Nicht neu gerechnet: Größen-Studie,
+  langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
+  **Vorhersage vor dem Lauf (2026-11-14):** (1) Kein Netz fällt auf einer Aufgabe exakt um mehr als 0,03
+  unter seinen Bit-Wert. (2) servo nach 6000 Updates: alle Netze außer cnn mindestens 0,95; cnn unter 0,6.
+  (3) Roboter-Aufgaben: `near` steigt bei jedem Netz, das in Bits exakt über 0,2 lag, um mindestens 0,05;
+  exakt steigt im Mittel über die Netze um 0,03–0,12. (4) Gitter-Netze (layer_s, hier_s) gewinnen exakt mehr
+  als cnn und vit. (5) robot_reach_big bleibt exakt unter 0,75 (die Greif-Decke war großteils Zellgrenze,
+  nicht Kodierung).

@@ -153,7 +153,8 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
 - **Die Bit-Kodierung des Schritts ist selbst ein Hindernis** (2026-11-14): Mit 16 Ausgängen je Achse statt
   4 Bits lernen vier von fünf Netzen servo in 1500 Updates (0,96–1,00 statt 0,03–0,84); die Formsuche steigt
   exakt auf 0,71–0,79 (`_hot`), der richtige Körper wird in 0,93–0,97 gefunden. Varianten `*_pop` / `*_hot`;
-  die Aufgaben der Leiter sind nicht umgestellt (Entscheidung offen).
+  seit 2026-11-14 sind die Schritt-Aufgaben umgestellt (Glocke, Breite 1 Zelle, gewählt auf Seeds 5 / 6);
+  die alte Form heißt `<name>_bits`. Alle Schritt-Zahlen in diesem Dokument vor diesem Datum sind Bit-Werte.
 - **Blickziel am Flächenschwerpunkt** (`robot_finds_c_f32`, 2026-11-14): exakt +0,04–0,05 (layer_s 0,74), der
   Formeffekt schrumpft von bis zu 0,29 auf bis zu 0,18, verschwindet aber nicht (L und U bleiben zurück).
   Zusammen mit einem Ausgang je Wert addiert sich beides: Formsuche exakt 0,76–0,81 (layer_s 0,81).

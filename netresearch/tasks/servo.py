@@ -104,9 +104,34 @@ def pop_code(steps, sigma=1.0):
     return c.reshape(len(c), 32)
 
 
+STEP_SIGMA = 1.0     # width (cells) of the bump in the step code of the step tasks; 0 = one unit per value.
+#                      Chosen on seeds 5 and 6 against 0.5 and 0 (LOGBUCH 2026-11-14, results/step_code_tune*.jsonl)
+
+
+def decode_step(x, spec, logits=True):
+    """Outputs of a step task (numpy, [n, n_out]; logits, or with logits=False targets) -> [n, 2] signed steps.
+    Works for both codes: 8 bits (spec.step) and the population code (spec.pop)."""
+    x = np.asarray(x)
+    if spec.pop:
+        return x.reshape(len(x), 2, 16).argmax(-1).astype(np.int64) - 8
+    return bits_steps(x > (0.0 if logits else 0.5))
+
+
+def bits_variant(base, name):
+    """The step task `base` in its original 8-bit code under another name (the reference for old results)."""
+    class Bits(base):
+        def __init__(self):
+            super().__init__()
+            self.spec.name = name
+
+    Bits.__name__ = Bits.name = name
+    return Bits
+
+
 def pop_variant(base, name, sigma):
     """The step task `base` with the step given as a population code (32 outputs in the symbol area) instead of
-    8 bits. Same images, same steps; only the output code differs."""
+    8 bits. Same images, same steps; only the output code differs. All batches the task hands out (sample, make,
+    held_out) carry the population code as target."""
     from dataclasses import replace
 
     class Pop(base):
@@ -115,11 +140,19 @@ def pop_variant(base, name, sigma):
             assert self.spec.step, base
             self.spec = replace(self.spec, name=name, n_out=32, role="symbol", step=False, pop=True)
 
-        def sample(self, batch, rng, split="train"):
-            b = super().sample(batch, rng, split)
+        @staticmethod
+        def _pop(b):
             t = b["target"]
-            b["target"] = pop_code(bits_steps(t.reshape(-1, 8)), sigma).reshape(*t.shape[:-1], 32)
+            if t.shape[-1] == 8:                                     # not yet converted (sample calls make)
+                b["target"] = pop_code(bits_steps(t.reshape(-1, 8)), sigma).reshape(*t.shape[:-1], 32)
             return b
+
+        def sample(self, *a, **k):
+            return self._pop(super().sample(*a, **k))
+
+    for fn in ("make", "held_out"):
+        if hasattr(base, fn):
+            setattr(Pop, fn, (lambda f: lambda self, *a, **k: self._pop(getattr(base, f)(self, *a, **k)))(fn))
 
     Pop.__name__ = Pop.name = name
     return Pop

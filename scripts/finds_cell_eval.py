@@ -25,7 +25,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from netresearch.tasks import make_task  # noqa: E402
 from netresearch.tasks.robot import data_path  # noqa: E402
 from netresearch.train import load_checkpoint, run_sequence  # noqa: E402
-from finds_error_eval import decode  # noqa: E402
+from netresearch.tasks.servo import decode_step  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 BANDS = (0.0, 0.25, 0.5, 1.0, 2.0, 99.0)                             # margin in pixels
@@ -65,7 +65,7 @@ def main():
             for s in range(0, len(i), 1000):
                 e = {q: v[:, s:s + 1000] for q, v in extra.items()}
                 lg.append(run_sequence(model, torch.tensor(b["obs"][:, s:s + 1000]), **e)[0][0])
-        dd = np.abs(decode(torch.cat(lg)[:, task.spec.out_slice].numpy(), task.spec) - true)
+        dd = np.abs(decode_step(torch.cat(lg)[:, task.spec.out_slice].numpy(), task.spec) - true)
         found, exact = dd.max(1) <= 1, dd.max(1) == 0
         off = found & ~exact
         row = {"by_margin": [float(exact[found & (band == j)].mean()) for j in range(len(BANDS) - 1)],

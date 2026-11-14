@@ -43,6 +43,10 @@ def job(args):
         wt = {t: make_task(t) for t in watch}
         curve, done, t0 = [], 0, time.time()
         for k, (names, updates) in enumerate(phases):
+            specs = [make_task(t).spec for t in names]
+            if any(s.pop for s in specs) and sum(s.role == "symbol" for s in specs) > 1:
+                raise ValueError(f"{'+'.join(names)}: a step task in the population code shares the symbol area "
+                                 f"with another task; use its '<name>_bits' form in this phase")
             learners = [make_learner(model, make_task(t), updates, 64, seed + 100 * k + j)
                         for j, t in enumerate(names)]
 

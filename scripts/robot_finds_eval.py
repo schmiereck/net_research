@@ -26,21 +26,17 @@ import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from netresearch.tasks import make_task  # noqa: E402
+from netresearch.tasks.servo import decode_step  # noqa: E402
 from netresearch.train import load_checkpoint, run_sequence, to_t  # noqa: E402
 
-W = np.array([8, 4, 2, 1])
-
-
-def decode(bits):
-    v = (bits.reshape(-1, 2, 4) * W).sum(-1)
-    return np.where(v > 7, v - 16, v)
+SPEC = None                                  # spec of the evaluated task (set in main)
 
 
 def score(model, b, target=None):
     with torch.no_grad():
         lg, _ = run_sequence(model, b["obs"], cmd=b["cmd"], ref=b.get("ref"))
-    p = decode((lg[0, :, 18:26] > 0).numpy().astype(np.int64))
-    t = decode((b["target"] if target is None else target)[0].numpy().astype(np.int64))
+    p = decode_step(lg[0][:, SPEC.out_slice].numpy(), SPEC)
+    t = decode_step((b["target"] if target is None else target)[0].numpy(), SPEC, logits=False)
     e = np.abs(p - t)
     return {"exact": round(float((e.sum(1) == 0).mean()), 4), "within1": round(float((e.max(1) <= 1).mean()), 4)}
 
@@ -75,6 +71,8 @@ def main():
     ap.add_argument("--out", default="results/robot_finds_eval.jsonl")
     a = ap.parse_args()
     task = make_task("robot_finds")
+    global SPEC
+    SPEC = task.spec
     d, dh = task._load("gazeshape_test"), task._load("gazeshapeheld_test")
     n = len(d["obs"])
     idx, k = np.arange(n), np.random.default_rng(0).integers(0, 3, size=n)

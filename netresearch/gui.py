@@ -290,9 +290,15 @@ class SupervisedPanel(Panel):
             pred, tgt = int(lg.argmax()), int(target)
             ok = pred == tgt
             ptxt, ttxt = label_text(spec.name, pred), label_text(spec.name, tgt)
+        elif spec.pop:                           # step as a population code: shown as the 8 bits of the step
+            from .tasks.servo import command_bits, decode_step
+            pb = command_bits(*decode_step(lg.numpy()[None], spec)[0][:, None])[0].astype(int)
+            target = command_bits(*decode_step(np.asarray(target)[None], spec, logits=False)[0][:, None])[0].astype(int)
+            ok = bool((pb == target).all())
         else:
             pb = (lg > 0).int().numpy()
             ok = bool((pb == target).all())
+        if spec.head != "class":
             ptxt = "".join("#" if b else "." for b in pb)
             ttxt = "".join("#" if b else "." for b in target)
         trail = None

@@ -16,7 +16,7 @@ from .robot import (RobotFind, RobotFindColor, RobotFindImage, RobotFindShape, R
                     RobotLook, RobotLookMem, RobotReach, RobotReachBig, RobotReachParts,
                     RobotReachPartsBig, RobotShape, RobotShapeEdge, RobotShapeEdgeBig,
                     RobotShapeEdgeF32, RobotShapeEdgeF32Big, RobotShapeF32, RobotShapeZ2, RobotShapeZ4)
-from .servo import Servo, pop_variant
+from .servo import STEP_SIGMA, Servo, bits_variant, pop_variant
 from .text import CharNext
 
 
@@ -107,6 +107,15 @@ TASKS = {
                                    seq_len=32),
     "push_easy": _game_task("push_easy", PushEasy, "push a box onto a near target in an open room"),
 }
+
+# Since 2026-11-14 the step tasks give the step as a population code (16 units per axis, bump of width STEP_SIGMA)
+# instead of two 4-bit numbers. "<name>_bits" is the task in the old code: the reference for all results before
+# that date, and the one to combine with the "*_parts" auxiliary tasks (those live in the symbol area, too).
+STEP_TASKS = ("servo", "robot_gaze", "robot_reach", "robot_reach_big", "robot_find", "robot_findc", "robot_findi",
+              "robot_finds", "robot_finds_f32", *(n for n in IN_TASKS if n.startswith("robot_finds")))
+for _n in STEP_TASKS:
+    TASKS[_n + "_bits"] = bits_variant(TASKS[_n], _n + "_bits")
+    TASKS[_n] = pop_variant(TASKS[_n], _n, STEP_SIGMA)
 
 _cache = {}
 
