@@ -278,11 +278,16 @@ class SupervisedPanel(Panel):
             self.state = self.model.init_state(1)
 
     @torch.no_grad()
-    def step(self, obs, target, counted, cmd=None):
+    def step(self, obs, target, counted, cmd=None, ref=None):
         spec = self.task.spec
+        if ref is not None and hasattr(self.model, "ref_enc"):              # "+ref": address from the picture
+            cmd = self.model.ref_enc(torch.from_numpy(ref[None]).float())[0].numpy()
         if cmd is not None and getattr(self.model, "takes_cmd", False):       # command port (models.attach_cmd)
             self.model.cmd = torch.from_numpy(cmd[None])
-        logits, self.state = self.model(torch.from_numpy(obs[None]), self.state)
+        x = torch.from_numpy(obs[None]).float()
+        if x.shape[-1] != 16:                    # finer fovea: the net's own front stage ("+retN" / "+rezN")
+            x = self.model.retina(x)
+        logits, self.state = self.model(x, self.state)
         if getattr(self.model, "takes_cmd", False):
             self.model.cmd = None
         lg = logits[0, spec.out_slice]
@@ -324,7 +329,8 @@ class SupervisedPanel(Panel):
         if cmd is not None:                      # robot_find: the command is the colour of the wanted object
             ttxt += "  Kmd " + " ".join(f"{v:.1f}" for v in cmd[:3]) + ("" if getattr(self.model, "takes_cmd", False) else " (ohne Eingang)")
         self.show(obs, f"Ziel   : {ttxt}{mark}\nVorhers: {ptxt}\nGenauig: {acc}",
-                  (GOOD if ok else BAD) if counted else MUTED, trail=trail)
+                  (GOOD if ok else BAD) if counted else MUTED, trail=trail,
+                  map_img=None if ref is None else frame_image(ref, SCALE // 2))   # the picture shown as address
 
 
 class App:
@@ -441,8 +447,9 @@ class App:
         target = self.seq["target"][self.t, 0]
         counted = self.seq["mask"][self.t, 0] > 0
         cmd = self.seq["cmd"][self.t, 0] if "cmd" in self.seq else None
+        ref = self.seq["ref"][self.t, 0] if "ref" in self.seq else None
         for p in self.panels:
-            p.step(obs, target, counted, cmd)
+            p.step(obs, target, counted, cmd, ref)
         self.t += 1
 
     def toggle(self):
