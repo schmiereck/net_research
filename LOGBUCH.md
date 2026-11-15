@@ -1477,5 +1477,15 @@ mit 0,67 und `near` 0,50).
 
 ## Laufend / offen
 
+- Lösequoten mit mehr Seeds (Auftrag Nutzer 2026-11-15): `robot_loop_cue_f32` und `robot_loop_blind_f32`, die
+  sechs Netze mit Gedächtnis, fünf weitere Seeds 3, 4, 7, 8, 9 (5 und 6 bleiben Abstimm-Seeds), 12000 Updates;
+  Schleife wie zuvor, „gelöst“ = `near` nach 4 Schritten über 0,6. Zusammen mit den Seeds 0–2 dann 8 Läufe je
+  Netz und Aufgabe.
+  **Vorhersage vor dem Lauf (2026-11-15), für die 10 neuen Läufe je Netz (beide Aufgaben zusammen):**
+  (1) hier_s löst mindestens 9 von 10. (2) layer_s, layer_s_sp4, layer_s_am4 lösen je 4–8 von 10; vitmem und
+  attnmem je 3–7 von 10. (3) `cue` bleibt seltener gelöst als `blind`: über alle sechs Netze höchstens 18 von
+  30 Läufen in `cue`, mindestens 22 von 30 in `blind`. (4) Gelöste Läufe von layer_s und layer_s_sp4 liegen in
+  `near` bei 0,89–0,94, gelöste von hier_s bei 0,82–0,89. (5) Die Folgen-Wertung im Training (über 0,67 =
+  gelöst) stimmt in mindestens 57 der 60 Läufe mit der Schleife überein.
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
