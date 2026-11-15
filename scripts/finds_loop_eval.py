@@ -1,6 +1,7 @@
 """Shape search in a LOOP: the net's gaze step is carried out, the next image comes from the new gaze.
 
     python scripts/finds_loop_eval.py [--task robot_finds_c_f32] [--seeds 0 1 2] [--steps 4] [--scenes 1500]
+                                      [--images gazeshapec]
 
 The nets are the stored single-step nets (results/checkpoints/<task>); nothing is trained here. Needs
 data/robot/<scenes>_test_img.npz (robot project: export_netresearch.py --tasks gazeshapec --n-train 0 --images):
@@ -103,10 +104,11 @@ def main():
     ap.add_argument("--steps", type=int, default=4)
     ap.add_argument("--scenes", type=int, default=1500)
     ap.add_argument("--models", nargs="*", help="only these nets (default: every stored net of the task)")
+    ap.add_argument("--images", default="gazeshapec", help="scene set with camera images (<name>_test_img.npz)")
     a = ap.parse_args()
     task = make_task(a.task)
     fine = a.task.endswith("_f32")
-    d = np.load(data_path(f"{task.files[0]}_test_img.npz"))
+    d = np.load(data_path(f"{a.images}_test_img.npz"))
     n = min(a.scenes, len(d["obs"]))
     d = {q: d[q][:n] for q in ("obs", "f32", "gaze", "pos", "cells", "refs", "img", "big")}
     for i in range(0, n, max(1, n // 20)):                             # the copy of the sampler is exact

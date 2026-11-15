@@ -1241,5 +1241,19 @@ trainieren, Schleife erneut messen.
 
 ## Laufend / offen
 
+- Formsuche in der Schleife mit Szenen, die das Ziel auch in der Mitte zeigen (Auftrag Nutzer 2026-11-15).
+  Neue Export-Variante `gazeshapeu`: Der Blick hängt an einem Körper, dessen Abstand zur Mitte gleichmäßig 0–5
+  Zellen ist (je etwa ein Sechstel, mit Versatz in der Zelle); die anderen zwei liegen irgendwo im Blickfeld
+  (Probe: zu 90 % in den groben Ringen 6–8). Aufgabe `robot_finds_m_f32`: 24000 Szenen `gazeshapec` + 24000
+  `gazeshapeu` (gleiche Gesamtzahl wie bisher), Test 1500 + 1500. Gleiche vier Netze, 24000 Updates, Seeds
+  0–2; danach dieselbe Schleife auf denselben 1500 Startszenen wie im vorigen Eintrag.
+  **Vorhersage vor dem Lauf (2026-11-15):** (1) Schleife, `near` nach 4 Schritten: jedes Netz mindestens
+  0,90, cnn 0,93–0,97; `near` fällt von Schritt 1 zu Schritt 2 um höchstens 0,03. (2) Exakt nach den
+  Schritten 2–4: 0,65–0,85 (Rest ist die Zellgrenze: der Körper liegt irgendwo in der Mittelzelle). (3) Blick
+  auf dem falschen Körper höchstens 0,06 bei jedem Schritt; „bleib“ bei Schritt 4 in mindestens 0,55 der
+  Läufe. (4) Abstand zwischen bestem und schlechtestem Netz in `near` nach 4 Schritten höchstens 0,06.
+  (5) Einzelschritt auf den alten Testszenen (`gazeshapec`): exakt höchstens 0,05 unter den bisherigen
+  0,76–0,80. (6) Einzelschritt auf den neuen Szenen: Körper am Blick (Abstand 0–5) `near` mindestens 0,93;
+  die zwei Körper im groben Rand exakt nur 0,25–0,50.
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

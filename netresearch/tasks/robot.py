@@ -487,8 +487,15 @@ RobotFindShapeIn12F32 = _variant(RobotFindShapeF32, "robot_finds_in12_f32", file
 C_FILES = ("gazeshapec", "gazeshapecheld_test")
 RobotFindShapeC = _variant(RobotFindShape, "robot_finds_c", files=C_FILES)
 RobotFindShapeCF32 = _variant(RobotFindShapeF32, "robot_finds_c_f32", files=C_FILES)
+# Mixed scenes for a gaze LOOP (data gazeshapem_*, scripts/merge_robot_sets.py): half are the centroid scenes above
+# (gaze between the three bodies, each 3-5 cells from the centre), half are scenes in which the gaze hangs on one
+# body (gazeshapeu: its distance from the centre is uniform over 0..5 cells, 0 = "I am looking at it already";
+# the other two lie anywhere in the field of view, mostly in the coarse rim). The first kind alone never shows
+# the wanted body at the centre, and nets trained on it leave the body again after their first step.
+M_FILES = ("gazeshapem", "gazeshapecheld_test")
+RobotFindShapeMF32 = _variant(RobotFindShapeF32, "robot_finds_m_f32", files=M_FILES)
 IN_TASKS = {c.name: c for c in (RobotShapeAtIn, RobotShapeAtIn12, RobotShapeAtInF32, RobotShapeAtIn12F32,
-                                RobotFindShapeC, RobotFindShapeCF32,
+                                RobotFindShapeC, RobotFindShapeCF32, RobotFindShapeMF32,
                                 RobotFindShapeIn, RobotFindShapeIn12, RobotFindShapeInF32, RobotFindShapeIn12F32)}
 
 
