@@ -174,7 +174,12 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   anderen Körper bis 0,33). Ursache: Im Trainingssatz liegt der gesuchte Körper nie in der Mitte (0,2 % der
   Ziele höchstens eine Zelle entfernt), „bleiben“ wurde nie gelernt. Das Orakel erreicht 1,00 nach zwei
   Schritten. **Die Einzelschritt-Zahl sagt die Schleife nicht vorher, solange die Szenen die Zustände der
-  Schleife nicht enthalten.** Offen: Szenen mit Abstand 0 bis Rand exportieren, neu trainieren.
+  Schleife nicht enthalten.**
+  Mit solchen Szenen (`robot_finds_m_f32`: halb `gazeshapec`, halb `gazeshapeu` mit dem Ziel 0–5 Zellen von der
+  Mitte, 2026-11-15): alle vier Netze bleiben auf dem Körper, `near` nach 4 Schritten cnn 0,95, layer_s 0,94,
+  vit 0,93, hier_s 0,90 (exakt 0,58–0,69), und der Einzelschritt sagt das je Netz auf 0,02 vorher. Die Schleife
+  bringt aber nichts über den ersten Schritt hinaus: falscher Körper bleibt (0,04–0,09), und die Netze sagen
+  „bleib“, auch wenn der Körper eine Zelle daneben liegt (Orakel: exakt 1,00 nach zwei Schritten).
 - **Blickziel am Flächenschwerpunkt** (`robot_finds_c_f32`, 2026-11-14): exakt +0,04–0,05 (layer_s 0,74), der
   Formeffekt schrumpft von bis zu 0,29 auf bis zu 0,18, verschwindet aber nicht (L und U bleiben zurück).
   Zusammen mit einem Ausgang je Wert addiert sich beides: Formsuche exakt 0,76–0,81 (layer_s 0,81).

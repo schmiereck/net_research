@@ -1239,21 +1239,82 @@ trainieren, Schleife erneut messen.
 `scripts/finds_loop_eval.py`, `netresearch/tasks/fovea.py`; Daten `data/robot/gazeshapec_test_img.npz`
 (lokal, 124 MB, nicht im Repository).
 
+## 2026-11-15 — Schleife mit Szenen, die das Ziel auch in der Mitte zeigen (`robot_finds_m_f32`)
+
+**Frage.** Bleiben die Netze auf dem gefundenen Körper, wenn das Training den Zustand „ich sehe ihn schon an“
+enthält – und sagt der Einzelschritt die Schleife dann vorher?
+
+**Gemacht.** Export-Variante `gazeshapeu` im Roboter-Projekt (Blick hängt an einem Körper, Abstand zur Mitte
+gleichmäßig 0–5 Zellen mit Versatz in der Zelle; die zwei anderen irgendwo im Blickfeld). Aufgabe
+`robot_finds_m_f32`: 24000 Szenen `gazeshapec` + 24000 `gazeshapeu` (`scripts/merge_robot_sets.py`), Test
+1500 + 1500. Vier Netze, 24000 Updates, Seeds 0–2 (Worker, Commit ab03005; der erste Job lief leer durch,
+weil die Daten noch nicht synchronisiert waren). Danach `scripts/finds_loop_eval.py --task robot_finds_m_f32`
+auf denselben 1500 Startszenen wie im vorigen Eintrag und `scripts/finds_mixed_eval.py` (Einzelschritt je
+Szenenart). Vorhersage vor dem Lauf (wörtlich aus „Laufend / offen“):
+
+> - Formsuche in der Schleife mit Szenen, die das Ziel auch in der Mitte zeigen (Auftrag Nutzer 2026-11-15).
+>   Neue Export-Variante `gazeshapeu`: Der Blick hängt an einem Körper, dessen Abstand zur Mitte gleichmäßig 0–5
+>   Zellen ist (je etwa ein Sechstel, mit Versatz in der Zelle); die anderen zwei liegen irgendwo im Blickfeld
+>   (Probe: zu 90 % in den groben Ringen 6–8). Aufgabe `robot_finds_m_f32`: 24000 Szenen `gazeshapec` + 24000
+>   `gazeshapeu` (gleiche Gesamtzahl wie bisher), Test 1500 + 1500. Gleiche vier Netze, 24000 Updates, Seeds
+>   0–2; danach dieselbe Schleife auf denselben 1500 Startszenen wie im vorigen Eintrag.
+>   **Vorhersage vor dem Lauf (2026-11-15):** (1) Schleife, `near` nach 4 Schritten: jedes Netz mindestens
+>   0,90, cnn 0,93–0,97; `near` fällt von Schritt 1 zu Schritt 2 um höchstens 0,03. (2) Exakt nach den
+>   Schritten 2–4: 0,65–0,85 (Rest ist die Zellgrenze: der Körper liegt irgendwo in der Mittelzelle). (3) Blick
+>   auf dem falschen Körper höchstens 0,06 bei jedem Schritt; „bleib“ bei Schritt 4 in mindestens 0,55 der
+>   Läufe. (4) Abstand zwischen bestem und schlechtestem Netz in `near` nach 4 Schritten höchstens 0,06.
+>   (5) Einzelschritt auf den alten Testszenen (`gazeshapec`): exakt höchstens 0,05 unter den bisherigen
+>   0,76–0,80. (6) Einzelschritt auf den neuen Szenen: Körper am Blick (Abstand 0–5) `near` mindestens 0,93;
+>   die zwei Körper im groben Rand exakt nur 0,25–0,50.
+
+**Ergebnis.** Schleife, Mittel über 3 Seeds, nach Schritt 1 / 2 / 3 / 4; in Klammern der Wert nach Schritt 4
+mit den alten Netzen (`robot_finds_c_f32`).
+
+| | `near` | exakt | falscher Körper | „bleib“ bei Schritt 2 / 3 / 4 |
+|---|---|---|---|---|
+| cnn | 0,93 / 0,93 / 0,94 / 0,95 (0,88) | 0,50 / 0,65 / 0,68 / 0,69 (0,53) | 0,05 / 0,06 / 0,04 / 0,04 (0,09) | 0,63 / 0,88 / 0,93 |
+| layer_s | 0,94 / 0,91 / 0,93 / 0,94 (0,67) | 0,50 / 0,63 / 0,65 / 0,66 (0,36) | 0,04 / 0,07 / 0,05 / 0,05 (0,22) | 0,61 / 0,86 / 0,91 |
+| vit | 0,93 / 0,92 / 0,93 / 0,93 (0,63) | 0,49 / 0,63 / 0,65 / 0,66 (0,34) | 0,04 / 0,07 / 0,06 / 0,05 (0,26) | 0,62 / 0,87 / 0,92 |
+| hier_s | 0,90 / 0,87 / 0,89 / 0,90 (0,57) | 0,45 / 0,54 / 0,57 / 0,58 (0,28) | 0,07 / 0,11 / 0,09 / 0,09 (0,30) | 0,60 / 0,82 / 0,88 |
+
+Umkehr des vorigen Schritts 0,01 (vorher 0,09–0,15); Median-Abstand nach Schritt 4 1,7–1,9 px (Orakel 1,5).
+Einzelschritt (exakt / `near`):
+
+| | alte Szenen (`gazeshapec`, 1500) | Körper am Blick (neu) | davon genau in der Mitte, exakt | zwei Körper im Rand (neu) |
+|---|---|---|---|---|
+| cnn | 0,75 / 0,94 | 0,63 / 0,90 | 0,90 | 0,50 / 0,73 |
+| layer_s | 0,76 / 0,95 | 0,64 / 0,91 | 0,86 | 0,46 / 0,73 |
+| vit | 0,75 / 0,94 | 0,61 / 0,89 | 0,90 | 0,50 / 0,77 |
+| hier_s | 0,69 / 0,92 | 0,55 / 0,87 | 0,85 | 0,35 / 0,62 |
+
+Liegt der Körper am Blick 1–5 Zellen neben der Mitte, ist der Schritt nur in 0,44–0,71 exakt.
+
+**Vergleich mit der Vorhersage.** (1) Getroffen, knapp: `near` nach 4 Schritten 0,90–0,95 (hier_s genau 0,90),
+cnn 0,95; Rückgang von Schritt 1 zu 2 höchstens 0,03. (2) Teilweise: exakt nach den Schritten 2–4 cnn
+0,65–0,69, layer_s und vit 0,63–0,66, hier_s 0,54–0,58 (unter der Spanne). (3) Teilweise: falscher Körper bei
+cnn höchstens 0,06, bei layer_s und vit 0,07 bei Schritt 2, bei hier_s 0,07–0,11; „bleib“ bei Schritt 4
+0,88–0,93 (weit über den vorhergesagten 0,55). (4) Getroffen: Abstand der Netze 0,05. (5) Für drei Netze
+getroffen (−0,02 bis −0,04), hier_s verliert 0,07. (6) Verfehlt im ersten Teil: Körper am Blick `near`
+0,87–0,91 statt mindestens 0,93; Rand exakt 0,35–0,50 getroffen.
+
+**Schluss.** (a) Die Lücke lag in den Szenen, nicht in den Netzen: Mit dem Ziel auch in der Mitte bleiben alle
+vier Netze auf dem Körper; `near` nach vier Schritten steigt von 0,57–0,88 auf 0,90–0,95, das Pendeln
+verschwindet. (b) Jetzt sagt der Einzelschritt die Schleife vorher: `near` auf den Startszenen 0,92–0,95,
+`near` nach vier Schritten 0,90–0,95, gleiche Reihenfolge, je Netz höchstens 0,02 Unterschied. Bedingung
+dafür ist, dass die Einzelschritt-Szenen die Zustände der Schleife enthalten. (c) Die Schleife gewinnt aber
+nichts gegenüber dem ersten Schritt: Wer nach Schritt 1 auf dem falschen Körper sitzt (0,04–0,09), bleibt dort,
+und exakt bleibt bei 0,58–0,69, obwohl die Geometrie 1,00 erlaubt. Die Netze antworten „bleib“ in 0,9 der
+Läufe, auch wenn der Körper eine Zelle daneben liegt: die Zellgrenze entscheidet weiter wie ein Münzwurf.
+(d) Preis der Mischung: Auf den alten Szenen exakt −0,02 bis −0,07 bei halb so vielen Szenen dieser Art.
+(e) Offen: Der Körper am Blick wird neben der Mitte schlechter getroffen (0,44–0,71 exakt) als auf den
+alten Szenen in gleicher Entfernung; nicht untersucht (Kandidaten: zwei Körper im groben Rand, Versatz in
+der Zelle).
+
+**Belege.** `results/finds_loop.jsonl` (Zeilen mit `robot_finds_m_f32`), `results/finds_mixed.jsonl`,
+`results/finds_loop_train.jsonl`; Netze in `results/checkpoints/robot_finds_m_f32`; Daten
+`data/robot/gazeshapem_*.npz`, `gazeshapeu_*.npz` (lokal und in der Freigabe).
+
 ## Laufend / offen
 
-- Formsuche in der Schleife mit Szenen, die das Ziel auch in der Mitte zeigen (Auftrag Nutzer 2026-11-15).
-  Neue Export-Variante `gazeshapeu`: Der Blick hängt an einem Körper, dessen Abstand zur Mitte gleichmäßig 0–5
-  Zellen ist (je etwa ein Sechstel, mit Versatz in der Zelle); die anderen zwei liegen irgendwo im Blickfeld
-  (Probe: zu 90 % in den groben Ringen 6–8). Aufgabe `robot_finds_m_f32`: 24000 Szenen `gazeshapec` + 24000
-  `gazeshapeu` (gleiche Gesamtzahl wie bisher), Test 1500 + 1500. Gleiche vier Netze, 24000 Updates, Seeds
-  0–2; danach dieselbe Schleife auf denselben 1500 Startszenen wie im vorigen Eintrag.
-  **Vorhersage vor dem Lauf (2026-11-15):** (1) Schleife, `near` nach 4 Schritten: jedes Netz mindestens
-  0,90, cnn 0,93–0,97; `near` fällt von Schritt 1 zu Schritt 2 um höchstens 0,03. (2) Exakt nach den
-  Schritten 2–4: 0,65–0,85 (Rest ist die Zellgrenze: der Körper liegt irgendwo in der Mittelzelle). (3) Blick
-  auf dem falschen Körper höchstens 0,06 bei jedem Schritt; „bleib“ bei Schritt 4 in mindestens 0,55 der
-  Läufe. (4) Abstand zwischen bestem und schlechtestem Netz in `near` nach 4 Schritten höchstens 0,06.
-  (5) Einzelschritt auf den alten Testszenen (`gazeshapec`): exakt höchstens 0,05 unter den bisherigen
-  0,76–0,80. (6) Einzelschritt auf den neuen Szenen: Körper am Blick (Abstand 0–5) `near` mindestens 0,93;
-  die zwei Körper im groben Rand exakt nur 0,25–0,50.
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
