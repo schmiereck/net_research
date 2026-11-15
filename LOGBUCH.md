@@ -1166,5 +1166,19 @@ den `_hot`-Werten vom Vortag (0,76–0,81).
 
 ## Laufend / offen
 
-- Nichts eingereiht. Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
+- Formsuche in der Schleife (Auftrag Nutzer 2026-11-15): Der Blickschritt des Netzes wird ausgeführt, das
+  nächste Bild kommt vom neuen Blickpunkt (`netresearch/tasks/fovea.py` tastet das Kamerabild wie der Roboter
+  ab, bitgenau gegen die exportierten Bilder geprüft; `scripts/finds_loop_eval.py`). Gespeicherte
+  Einzelschritt-Netze von `robot_finds_c_f32` (Breite 0,5, Seeds 0–2), nichts wird trainiert; 1500 Testszenen
+  × 3 Körper, 4 Schritte. Vorab bekannt (40 Szenen, nur Geometrie, kein Netz): Ein wahrer Schritt landet nur
+  in 0,62 der Fälle in der Mittelzelle, weil die Zellen ab 5 Zellen neben der Mitte gröber werden.
+  **Vorhersage vor dem Lauf (2026-11-15):** (1) Nach Schritt 1 exakt (Körper in der Mittelzelle) 0,45–0,60,
+  `near` 0,92–0,97. (2) Nach den Schritten 2–4 exakt 0,60–0,75 und zwischen Schritt 2 und 4 nicht mehr
+  steigend (Änderung unter 0,03); `near` 0,92–0,97; Median-Abstand höchstens 2,5 px. (3) Die Netze pendeln:
+  bei Schritt 3 und 4 ist der Schritt in 0,10–0,25 der Läufe die genaue Umkehr des vorigen. (4) Blick auf dem
+  falschen Körper: 0,02–0,06, über die Schritte gleichbleibend (Änderung unter 0,02); Blick aus dem Bild
+  unter 0,01. (5) Für die Prognose-Kette: `near` des Einzelschritts sagt `near` nach 4 Schritten auf ±0,03
+  vorher, je Netz; die Reihenfolge der vier Netze bleibt die des Einzelschritts, Abstand der Netze nach 4
+  Schritten höchstens 0,05 in exakt. (6) Orakel (wahrer Schritt): nach 2 Schritten exakt mindestens 0,97.
+- Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

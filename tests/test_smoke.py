@@ -90,3 +90,25 @@ def test_expand_shared_is_identical(name):
     assert torch.allclose(a, b, atol=1e-5)
     st = position_grad_stats(m, name, lambda mm: run_sequence(mm, x)[0].pow(2).mean())
     assert -1 <= st["mean_cos"] <= 1 and len(st["align"]) > 1
+
+
+def test_fovea_copy_matches_the_robot_export():
+    """netresearch/tasks/fovea.py re-samples the camera image exactly like the robot's export; a true step
+    puts the body within one cell of the centre."""
+    import numpy as np
+    import pytest
+    from netresearch.tasks import fovea as fv
+    from netresearch.tasks.robot import data_path
+    p = data_path("gazeshapec_test_img.npz")
+    if not p.exists():
+        pytest.skip("no camera images (robot project: export_netresearch.py --tasks gazeshapec --images)")
+    d = np.load(p)
+    for i in range(0, 40, 4):
+        g = d["gaze"][i]
+        assert (fv.sample(fv.integral(d["img"][i]), g) == d["obs"][i]).all()
+        assert (fv.sample_fine(fv.integral(d["big"][i]), g) == d["f32"][i]).all()
+        for k in range(3):
+            dx, dy, _ = fv.nearest_cell(g, d["pos"][i, k])
+            assert (dx, dy) == tuple(d["cells"][i, 2 * k:2 * k + 2])
+            rx, ry, _ = fv.nearest_cell(fv.shift(g, dx, dy), d["pos"][i, k])
+            assert max(abs(rx), abs(ry)) <= 1
