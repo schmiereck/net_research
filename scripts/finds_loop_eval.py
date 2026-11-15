@@ -19,6 +19,8 @@ wipes it before every step):
 and of the net's answers: rest = it answers (0, 0); flip = its step is the exact reverse of its previous one.
 "oracle" takes the true step every time: what the geometry allows (cells are coarse from 5 cells outward, so
 one true step does not always land in the centre cell).
+Tasks with a cue step (robot_loop_cue_f32, robot_loop_blind_f32): the net gets the picture of the wanted body once
+before the run (with the first view or with a blank view) and a blank picture at every step of the run.
 -> results/finds_loop.jsonl (one row per net and seed, lists over the steps 0..steps)
 """
 import argparse
@@ -110,6 +112,7 @@ def main():
     a = ap.parse_args()
     task = make_task(a.task)
     amnesia = a.amnesia or task.spec.seq_len == 1                       # single-step nets never carried a state
+    cue = getattr(task, "cue", None)                                    # robot_loop_cue_f32 / _blind_f32
     fine = a.task.endswith("_f32")
     d = np.load(data_path(f"{a.images}_test_img.npz"))
     n = min(a.scenes, len(d["obs"]))
@@ -127,11 +130,19 @@ def main():
     def policy(model):
         state = [None]                                                  # memory of the net along the run
 
+        primed = [False]
+
         def f(views, idx, body):
             ref = torch.tensor(d["refs"][idx, body, 0].astype(np.float32) / 255.0)[None]
+            x = torch.tensor(views.astype(np.float32) / 255.0)[None]
             with torch.no_grad():
-                lg, st = run_sequence(model, torch.tensor(views.astype(np.float32) / 255.0)[None],
-                                      state=None if amnesia else state[0], ref=ref)
+                if cue and not primed[0]:                               # cue step: the picture, eye does not move
+                    primed[0] = True
+                    _, st = run_sequence(model, x if cue == "view" else torch.zeros_like(x), ref=ref)
+                    state[0] = st if model.stateful else None
+                if cue:
+                    ref = torch.zeros_like(ref)                         # during the run the picture is blank
+                lg, st = run_sequence(model, x, state=None if amnesia else state[0], ref=ref)
             state[0] = st if model.stateful else None
             return decode_step(lg[0][:, task.spec.out_slice].numpy(), task.spec)
         return f

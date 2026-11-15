@@ -515,18 +515,53 @@ class RobotLoopF32(SupervisedTask):
             self._data[split] = dict(np.load(data_path(f"gazeloop_{split}.npz")))
         return self._data[split]
 
-    def make(self, d, i, view=None):
+    def make_run(self, d, i, view=None):
         v = self._rng.integers(0, 2, size=len(i)) if view is None else np.full(len(i), view)
-        s = d["steps"][i].astype(np.int64).transpose(1, 0, 2)                       # [T, B, 2]
+        s = d["steps"][i].astype(np.int64).transpose(1, 0, 2)                       # [4, B, 2]
+        n = s.shape[0]
         ref = d["refs"][i, v].astype(np.float32) / 255.0
         return {"obs": d["f32"][i].astype(np.float32).transpose(1, 0, 2, 3, 4) / 255.0,
-                "ref": np.broadcast_to(ref[None], (self.T, *ref.shape)).copy(),
-                "target": command_bits(s[..., 0].ravel(), s[..., 1].ravel()).reshape(self.T, len(i), 8),
-                "mask": np.ones((self.T, len(i)), np.float32)}
+                "ref": np.broadcast_to(ref[None], (n, *ref.shape)).copy(),
+                "target": command_bits(s[..., 0].ravel(), s[..., 1].ravel()).reshape(n, len(i), 8),
+                "mask": np.ones((n, len(i)), np.float32)}
+
+    def make(self, d, i, view=None):
+        return self.make_run(d, i, view)
 
     def sample(self, batch, rng, split="train"):
         d = self._load(split)
         return self.make(d, rng.integers(0, len(d["steps"]), size=batch), None if split == "train" else 0)
+
+
+class RobotLoopCueF32(RobotLoopF32):
+    """robot_loop_f32 as a task that cannot be solved without memory: the picture of the wanted body is shown
+    only at a CUE step in front of the run (the eye does not move there, the answer is not counted); at the 4
+    steps of the run the picture is blank. A net without memory does not know which of the three bodies is
+    wanted. cue = "view": the cue step shows the first view too (the net may work out the step there and keep
+    it); cue = "blind": the cue step shows the picture alone, the view is blank (the net has to keep WHAT is
+    wanted)."""
+    name, T, cue = "robot_loop_cue_f32", 5, "view"
+
+    def __init__(self):
+        super().__init__()
+        self.spec.description = ("a cue step with the picture of the wanted body"
+                                 + (" and the first view" if self.cue == "view" else " alone (view blank)")
+                                 + ", then 4 views along a run of gaze steps without the picture -> at every "
+                                   "view the gaze shift (dx, dy) that centres the wanted body")
+
+    def make(self, d, i, view=None):
+        b = super(RobotLoopCueF32, self).make_run(d, i, view)
+        first = b["obs"][:1] if self.cue == "view" else np.zeros_like(b["obs"][:1])
+        ref = np.zeros((self.T, *b["ref"].shape[1:]), np.float32)
+        ref[0] = b["ref"][0]
+        mask = np.ones((self.T, len(i)), np.float32)
+        mask[0] = 0.0
+        return {"obs": np.concatenate([first, b["obs"]]), "ref": ref,
+                "target": np.concatenate([b["target"][:1], b["target"]]), "mask": mask}
+
+
+class RobotLoopBlindF32(RobotLoopCueF32):
+    name, cue = "robot_loop_blind_f32", "blind"
 
 
 IN_TASKS = {c.name: c for c in (RobotShapeAtIn, RobotShapeAtIn12, RobotShapeAtInF32, RobotShapeAtIn12F32,
