@@ -185,6 +185,11 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   Körper bleibt (0,06–0,07). **Gedächtnis bringt hier keinen Vorteil** (beste Netze mit Gedächtnis = cnn;
   vitmem 0,82, attnmem 0,76 in `near`). Die Netze mit Gedächtnis hängen trotzdem am Zustand (gelöscht: `near`
   0,60–0,72), aber als Schrittzähler („frischer Zustand = erster Schritt, weit springen“), nicht als Erinnerung.
+  **Schleife, die ohne Erinnerung nicht lösbar ist** (`robot_loop_cue_f32`, `robot_loop_blind_f32`: Vorlage nur
+  an einem Hinweis-Schritt vor dem Lauf, 2026-11-15): ohne Gedächtnis `near` 0,32–0,33; gelöste Läufe von layer_s
+  und layer_s_sp4 0,91–0,93 (wie mit Vorlage). Ein Lauf löst ganz oder gar nicht: hier_s 6 von 6 (0,83–0,88),
+  layer_s 3, sp4 4, am4 4, attnmem 4, vitmem 3 von 6. Engpass ist das Finden der Lösung im Training, nicht das
+  Behalten. Mittel über Seeds taugt hier nicht; Lösequote und Wert der gelösten Läufe berichten.
 - **Blickziel am Flächenschwerpunkt** (`robot_finds_c_f32`, 2026-11-14): exakt +0,04–0,05 (layer_s 0,74), der
   Formeffekt schrumpft von bis zu 0,29 auf bis zu 0,18, verschwindet aber nicht (L und U bleiben zurück).
   Zusammen mit einem Ausgang je Wert addiert sich beides: Formsuche exakt 0,76–0,81 (layer_s 0,81).

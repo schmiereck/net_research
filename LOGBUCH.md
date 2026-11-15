@@ -1397,23 +1397,85 @@ schwächer (0,72–0,81 gegen `near` 0,76–0,94).
 `results/finds_loop_train.jsonl`; Netze in `results/checkpoints/robot_loop_f32`; Daten
 `data/robot/gazeloop_*.npz` (lokal und in der Freigabe).
 
+## 2026-11-15 — Blickschleife, die ohne Erinnerung nicht lösbar ist (`robot_loop_cue_f32`, `robot_loop_blind_f32`)
+
+**Frage.** Welche Netze behalten über die Blickschritte, welcher Körper gesucht ist, wenn die Vorlage nur einmal
+vor dem Lauf gezeigt wird?
+
+**Gemacht.** Zwei Aufgaben auf den Folgen von `robot_loop_f32` (5 Schritte): Vorlage nur an einem
+Hinweis-Schritt vor dem Lauf, danach leer. `cue`: Hinweis-Schritt mit erstem Bild; `blind`: Hinweis-Schritt nur
+mit Vorlage, Bild leer. Acht Netze, 12000 Updates, Seeds 0–2 (Worker, Commit a48b5a6, zwei Jobs). Danach
+`scripts/finds_loop_eval.py` auf den 1500 Startszenen (Hinweis-Schritt, dann 4 Schritte ohne Vorlage), je mit
+behaltenem und gelöschtem Zustand. Vorhersage vor dem Lauf (wörtlich aus „Laufend / offen“):
+
+> - Blickschleife, die ohne Erinnerung nicht lösbar ist (Auftrag Nutzer 2026-11-15). Zwei Aufgaben auf den
+>   Folgen von `robot_loop_f32` (gleiche Daten, 5 Schritte): Die Vorlage des gesuchten Körpers gibt es nur an einem
+>   Hinweis-Schritt vor dem Lauf (Blick bewegt sich dort nicht, Antwort zählt nicht), an den 4 Schritten des Laufs
+>   ist die Vorlage leer. `robot_loop_cue_f32`: der Hinweis-Schritt zeigt auch das erste Bild (das Netz kann den
+>   Schritt dort ausrechnen und behalten); `robot_loop_blind_f32`: der Hinweis-Schritt zeigt nur die Vorlage, das
+>   Bild ist leer (das Netz muss behalten, WAS gesucht ist). Acht Netze wie zuvor, 12000 Updates, Seeds 0–2.
+>   Hauptzahl: geschlossene Schleife auf den 1500 Startszenen (`finds_loop_eval.py`, Hinweis-Schritt, dann 4
+>   Schritte ohne Vorlage), Gegenprobe `--amnesia`.
+>   **Vorhersage vor dem Lauf (2026-11-15):** (1) Ohne Gedächtnis (cnn, vit) liegt `near` nach 4 Schritten in
+>   beiden Aufgaben bei 0,28–0,42 (ein Körper von dreien geraten); mit gelöschtem Zustand landen alle Netze in
+>   dieser Spanne. (2) `robot_loop_cue_f32`: layer_s und layer_s_sp4 erreichen `near` nach 4 Schritten 0,80–0,92
+>   (unter den 0,93–0,94 mit dauernder Vorlage), hier_s 0,70–0,88. (3) `robot_loop_blind_f32` ist schwerer:
+>   layer_s und layer_s_sp4 0,65–0,88, je Netz 0,03–0,15 unter der cue-Variante. (4) vitmem `near` 0,50–0,75,
+>   attnmem 0,42–0,70 in der cue-Variante; beide unter layer_s. (5) Erstmals trennen sich die Gedächtnis-Varianten
+>   kaum: layer_s_sp4 innerhalb ±0,03 um layer_s, layer_s_am4 0,02–0,10 darunter. (6) Der falsche Körper bleibt
+>   das Hauptproblem: Anteil nach 4 Schritten bei layer_s in der blind-Variante mindestens 0,10.
+
+**Ergebnis.** `near` nach 4 Schritten je Seed (0 / 1 / 2); „gelöst“ = `near` über 0,6.
+
+| | `cue`: Seeds | gelöst | `blind`: Seeds | gelöst | Zustand gelöscht (Mittel `cue` / `blind`) |
+|---|---|---|---|---|---|
+| hier_s | 0,87 / 0,86 / 0,88 | 3 | 0,85 / 0,83 / 0,87 | 3 | 0,22 / 0,28 |
+| layer_s_sp4 | 0,31 / 0,32 / 0,92 | 1 | 0,84 / 0,91 / 0,92 | 3 | 0,21 / 0,26 |
+| layer_s | 0,91 / 0,32 / 0,31 | 1 | 0,93 / 0,91 / 0,31 | 2 | 0,22 / 0,24 |
+| layer_s_am4 | 0,84 / 0,31 / 0,50 | 1 | 0,87 / 0,85 / 0,77 | 3 | 0,22 / 0,23 |
+| attnmem | 0,69 / 0,31 / 0,31 | 1 | 0,74 / 0,74 / 0,71 | 3 | 0,19 / 0,26 |
+| vitmem | 0,72 / 0,31 / 0,31 | 1 | 0,32 / 0,76 / 0,72 | 2 | 0,28 / 0,29 |
+| cnn (ohne Gedächtnis) | 0,33 / 0,33 / 0,33 | – | wie `cue` | – | 0,33 |
+| vit (ohne Gedächtnis) | 0,32 / 0,32 / 0,32 | – | wie `cue` | – | 0,32 |
+
+Ungelöste Läufe sitzen genau auf dem Boden der Netze ohne Gedächtnis: `near` 0,31–0,33, falscher Körper 0,667
+(sie steuern einen Körper an, unabhängig von der Vorlage). Gelöste Läufe von layer_s und layer_s_sp4: `near`
+0,91–0,93, exakt 0,72–0,75, falscher Körper 0,07–0,09 – wie mit dauernd sichtbarer Vorlage (0,93–0,94; 0,74–0,75;
+0,06–0,07). Folgen-Wertung im Training: ungelöst 0,62–0,66, gelöst 0,70–0,81; die Trainingskurve verlässt die
+Stufe 0,64 bei den gelösten Läufen nach 2500–4500 Updates (Gitter-Netze) bzw. 5750–7250 (vitmem, attnmem); zwei
+ungelöste Läufe (`cue`: layer_s_sp4 s0, layer_s_am4 s2) beginnen erst nach 10000 Updates zu steigen.
+
+**Vergleich mit der Vorhersage.** (1) Getroffen für cnn und vit (0,32–0,33); mit gelöschtem Zustand liegen die
+Netze mit Gedächtnis darunter (0,19–0,29, unter der Spanne): sie sagen seltener „bleib“. (2) Verfehlt im Mittel:
+layer_s 0,51 und layer_s_sp4 0,52 in `cue`, weil je zwei von drei Seeds die Lösung nicht finden; die gelösten
+Seeds liegen mit 0,91–0,92 am oberen Rand der Spanne. hier_s getroffen (0,87). (3) Verfehlt, Richtung falsch:
+`blind` ist nicht schwerer, sondern wird öfter gelöst (16 von 18 Läufen gegen 8 von 18 in `cue`). (4) vitmem
+0,45 unter der Spanne, attnmem 0,44 darin; beide knapp unter layer_s – wegen der Seed-Streuung ohne Aussage.
+(5) Nicht prüfbar: Die Mittel unterscheiden sich um bis zu 0,18, aber nur, weil unterschiedlich viele Seeds
+lösen. (6) Verfehlt im Kern: Bei den gelösten Läufen ist der falsche Körper mit 0,07–0,09 kein größeres Problem
+als mit Vorlage; das Mittel 0,27 kommt vom ungelösten Seed.
+
+**Schluss.** (a) Die Aufgabe trennt sauber: ohne Gedächtnis 0,32–0,33, mit gelöschtem Zustand alle am Boden,
+mit Gedächtnis bis 0,93. Erstmals in der Blickschleife ist das Gedächtnis nötig und wird nachweislich benutzt.
+(b) Wer die Lösung findet, verliert durch das Merken nichts: layer_s und layer_s_sp4 erreichen ohne Vorlage
+dieselben Werte wie mit. Das Behalten über vier Schritte ist für diese Netze nicht der Engpass. (c) Der Engpass
+ist das Finden der Lösung im Training: Ein Lauf löst die Aufgabe ganz oder gar nicht. Nur hier_s löst alle
+sechs Läufe (bei etwas schwächerem Endwert 0,83–0,88); layer_s 3 von 6, layer_s_sp4 und layer_s_am4 4 von 6,
+attnmem 4 von 6, vitmem 3 von 6. Bei drei Seeds je Aufgabe sind diese Quoten grob; die Reihenfolge zwischen den
+Gitter-Varianten ist damit nicht belegt, der Abstand von hier_s (6 von 6) zu den übrigen (3–4 von 6) ist ein
+Hinweis. Das Mittel über Seeds ist hier die falsche Zahl; berichtet werden müssen Lösequote und Wert der
+gelösten Läufe. (d) Unerwartet: Der Hinweis-Schritt MIT Bild wird seltener gelöst als der ohne. Nicht
+untersucht; Vermutung: Ohne Bild ist die Vorlage das einzige Signal im Zustand, mit Bild konkurriert sie mit
+der Szene. (e) vitmem und attnmem lösen später und enden tiefer (0,69–0,76); das passt zu ihrem schwächeren
+ersten Schritt aus dem vorigen Eintrag. (f) Für die Vorhersage-Pipeline: Die Folgen-Wertung im Training sagt
+je Lauf vorher, ob die Schleife gelöst ist (über 0,67 = gelöst, in allen 36 Läufen außer layer_s_am4 s2 in `cue`
+mit 0,67 und `near` 0,50).
+
+**Belege.** `results/finds_loop.jsonl` (Zeilen `robot_loop_cue_f32`, `robot_loop_blind_f32`, je auch
+`/amnesia`), `results/finds_loop_train.jsonl` (Kurven); Netze in `results/checkpoints/robot_loop_cue_f32` und
+`robot_loop_blind_f32`.
+
 ## Laufend / offen
 
-- Blickschleife, die ohne Erinnerung nicht lösbar ist (Auftrag Nutzer 2026-11-15). Zwei Aufgaben auf den
-  Folgen von `robot_loop_f32` (gleiche Daten, 5 Schritte): Die Vorlage des gesuchten Körpers gibt es nur an einem
-  Hinweis-Schritt vor dem Lauf (Blick bewegt sich dort nicht, Antwort zählt nicht), an den 4 Schritten des Laufs
-  ist die Vorlage leer. `robot_loop_cue_f32`: der Hinweis-Schritt zeigt auch das erste Bild (das Netz kann den
-  Schritt dort ausrechnen und behalten); `robot_loop_blind_f32`: der Hinweis-Schritt zeigt nur die Vorlage, das
-  Bild ist leer (das Netz muss behalten, WAS gesucht ist). Acht Netze wie zuvor, 12000 Updates, Seeds 0–2.
-  Hauptzahl: geschlossene Schleife auf den 1500 Startszenen (`finds_loop_eval.py`, Hinweis-Schritt, dann 4
-  Schritte ohne Vorlage), Gegenprobe `--amnesia`.
-  **Vorhersage vor dem Lauf (2026-11-15):** (1) Ohne Gedächtnis (cnn, vit) liegt `near` nach 4 Schritten in
-  beiden Aufgaben bei 0,28–0,42 (ein Körper von dreien geraten); mit gelöschtem Zustand landen alle Netze in
-  dieser Spanne. (2) `robot_loop_cue_f32`: layer_s und layer_s_sp4 erreichen `near` nach 4 Schritten 0,80–0,92
-  (unter den 0,93–0,94 mit dauernder Vorlage), hier_s 0,70–0,88. (3) `robot_loop_blind_f32` ist schwerer:
-  layer_s und layer_s_sp4 0,65–0,88, je Netz 0,03–0,15 unter der cue-Variante. (4) vitmem `near` 0,50–0,75,
-  attnmem 0,42–0,70 in der cue-Variante; beide unter layer_s. (5) Erstmals trennen sich die Gedächtnis-Varianten
-  kaum: layer_s_sp4 innerhalb ±0,03 um layer_s, layer_s_am4 0,02–0,10 darunter. (6) Der falsche Körper bleibt
-  das Hauptproblem: Anteil nach 4 Schritten bei layer_s in der blind-Variante mindestens 0,10.
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
