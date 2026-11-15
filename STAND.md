@@ -180,6 +180,11 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   vit 0,93, hier_s 0,90 (exakt 0,58–0,69), und der Einzelschritt sagt das je Netz auf 0,02 vorher. Die Schleife
   bringt aber nichts über den ersten Schritt hinaus: falscher Körper bleibt (0,04–0,09), und die Netze sagen
   „bleib“, auch wenn der Körper eine Zelle daneben liegt (Orakel: exakt 1,00 nach zwei Schritten).
+  Mit Training auf Blickfolgen (`robot_loop_f32`, verrauschter Lehrer, 2026-11-15) wird der zweite Schritt
+  nützlich: exakt nach 4 Schritten cnn 0,75, layer_s_sp4 0,75, layer_s 0,74 (`near` 0,93–0,94); der falsche
+  Körper bleibt (0,06–0,07). **Gedächtnis bringt hier keinen Vorteil** (beste Netze mit Gedächtnis = cnn;
+  vitmem 0,82, attnmem 0,76 in `near`). Die Netze mit Gedächtnis hängen trotzdem am Zustand (gelöscht: `near`
+  0,60–0,72), aber als Schrittzähler („frischer Zustand = erster Schritt, weit springen“), nicht als Erinnerung.
 - **Blickziel am Flächenschwerpunkt** (`robot_finds_c_f32`, 2026-11-14): exakt +0,04–0,05 (layer_s 0,74), der
   Formeffekt schrumpft von bis zu 0,29 auf bis zu 0,18, verschwindet aber nicht (L und U bleiben zurück).
   Zusammen mit einem Ausgang je Wert addiert sich beides: Formsuche exakt 0,76–0,81 (layer_s 0,81).

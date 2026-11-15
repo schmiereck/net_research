@@ -1314,25 +1314,90 @@ der Zelle).
 `results/finds_loop_train.jsonl`; Netze in `results/checkpoints/robot_finds_m_f32`; Daten
 `data/robot/gazeshapem_*.npz`, `gazeshapeu_*.npz` (lokal und in der Freigabe).
 
+## 2026-11-15 — Gedächtnis zwischen den Blickschritten (`robot_loop_f32`)
+
+**Frage.** Korrigiert die Blickschleife, wenn die Netze auf Folgen entlang eines Blicklaufs lernen – und bringt
+ein Gedächtnis über die Schritte etwas gegenüber Netzen ohne?
+
+**Gemacht.** Aufgabe `robot_loop_f32` (Folgen von 4 Bildern, Schritte dazwischen von einem verrauschten Lehrer,
+`scripts/make_loop_set.py`), 48000 Trainingsfolgen aus 16000 Szenen. Acht Netze, 12000 Updates, Seeds 0–2
+(Worker, Commit a681719, 173 Minuten). Danach `scripts/finds_loop_eval.py --task robot_loop_f32` auf denselben
+1500 Startszenen wie in den zwei vorigen Einträgen: einmal behalten die Netze ihren Zustand über die Schritte,
+einmal wird er vor jedem Schritt gelöscht (`--amnesia`). Vorhersage vor dem Lauf (wörtlich aus „Laufend /
+offen“):
+
+> - Gedächtnis zwischen den Blickschritten (Auftrag Nutzer 2026-11-15). Neue Aufgabe `robot_loop_f32`: Folgen
+>   von 4 Bildern einer Suchszene entlang eines Blicklaufs (`scripts/make_loop_set.py`: erstes Bild wie
+>   `gazeshapec`, danach je ein Schritt eines verrauschten Lehrers – 0,70 wahrer Schritt, 0,20 eine Zelle
+>   daneben, 0,10 auf einen der anderen Körper; netz-unabhängig), Ziel an jedem Bild der wahre Schritt vom
+>   jetzigen Blick. 16000 Trainingsszenen × 3 Körper = 48000 Folgen (Kamerabilder aus dem Export mit `--images`),
+>   Test 4500 Folgen. Netze je `+ref+rez3`: ohne Gedächtnis cnn, vit; mit Gedächtnis layer_s+cell, hier_s+cell,
+>   layer_s_sp4+cell, layer_s_am4+cell, vitmem, attnmem. 12000 Updates (Batch 64 Folgen), Seeds 0–2. Gemessen
+>   wird die geschlossene Schleife auf den 1500 Startszenen der vorigen Einträge (`finds_loop_eval.py`, Netze
+>   behalten ihren Zustand; Gegenprobe `--amnesia`). Hinweis: Wer immer „bleib“ sagt, ist auf den Folgen schon
+>   in etwa 0,44 der Bilder exakt; die Folgen-Wertung ist deshalb nicht die Hauptzahl.
+>   **Vorhersage vor dem Lauf (2026-11-15):** (1) Die Schleife korrigiert jetzt: bei cnn steigt exakt von
+>   Schritt 1 (um 0,50) auf mindestens 0,72 nach Schritt 4, und der Anteil „falscher Körper“ fällt von Schritt 1
+>   zu Schritt 4 um mindestens ein Drittel; `near` nach 4 Schritten cnn 0,95–0,98. (2) Gedächtnis bringt in
+>   dieser Form nichts Messbares: das beste Netz mit Gedächtnis liegt in `near` nach 4 Schritten innerhalb von
+>   ±0,02 um das beste ohne (cnn oder vit), in exakt innerhalb von ±0,03. (3) attnmem liegt in `near` nach 4
+>   Schritten mindestens 0,05 unter cnn; vitmem innerhalb von ±0,03 um vit. (4) Gegenprobe: Mit gelöschtem
+>   Zustand verlieren die Gitter-Netze (layer_s, hier_s, sp4, am4) in `near` nach 4 Schritten höchstens 0,03 –
+>   sie nutzen den Zustand also kaum. (5) layer_s_am4 und layer_s_sp4 sind nicht besser als layer_s (±0,02).
+
+**Ergebnis.** Schleife, Mittel über 3 Seeds. Folgen-Wertung = Anteil exakter Schritte auf den Testfolgen
+(„immer bleib“ liegt bei etwa 0,44).
+
+| | Folgen-Wertung | `near` nach Schritt 1 / 2 / 4 | exakt nach Schritt 1 / 2 / 4 | falscher Körper nach Schritt 1 / 4 | gelöschter Zustand: `near` / exakt nach Schritt 4 |
+|---|---|---|---|---|---|
+| layer_s_sp4 | 0,81 | 0,90 / 0,93 / 0,94 | 0,46 / 0,73 / 0,75 | 0,07 / 0,06 | 0,70 / 0,50 |
+| layer_s | 0,81 | 0,90 / 0,93 / 0,93 | 0,46 / 0,72 / 0,74 | 0,07 / 0,07 | 0,70 / 0,50 |
+| cnn (ohne Gedächtnis) | 0,79 | 0,87 / 0,91 / 0,93 | 0,45 / 0,72 / 0,75 | 0,09 / 0,07 | 0,93 / 0,75 |
+| layer_s_am4 | 0,78 | 0,86 / 0,89 / 0,90 | 0,42 / 0,68 / 0,70 | 0,10 / 0,09 | 0,60 / 0,39 |
+| vit (ohne Gedächtnis) | 0,77 | 0,82 / 0,87 / 0,90 | 0,38 / 0,67 / 0,72 | 0,13 / 0,09 | 0,90 / 0,72 |
+| hier_s | 0,79 | 0,84 / 0,88 / 0,89 | 0,40 / 0,68 / 0,71 | 0,12 / 0,10 | 0,67 / 0,47 |
+| vitmem | 0,75 | 0,73 / 0,80 / 0,82 | 0,31 / 0,61 / 0,65 | 0,20 / 0,17 | 0,72 / 0,51 |
+| attnmem | 0,72 | 0,65 / 0,73 / 0,76 | 0,25 / 0,53 / 0,58 | 0,25 / 0,23 | 0,64 / 0,46 |
+
+Spanne über die Seeds in `near` nach Schritt 4 höchstens 0,02 (vit 0,03). Umkehr des vorigen Schritts 0,00–0,01;
+kein Lauf verlässt das Bild. „bleib“ bei Schritt 4: 0,93–0,99. Mit gelöschtem Zustand sagen die Netze mit
+Gedächtnis bei Schritt 2 nur in 0,25–0,35 „bleib“ (mit Zustand 0,36–0,59), der Anteil „falscher Körper“ steigt
+auf 0,22–0,31, Umkehr 0,05–0,09. Zum Vergleich die Einzelschritt-Netze des vorigen Eintrags
+(`robot_finds_m_f32`, 24000 Updates, 48000 Szenen): cnn `near` 0,93 / 0,93 / 0,95, exakt 0,50 / 0,65 / 0,69,
+falscher Körper 0,05 / 0,04.
+
+**Vergleich mit der Vorhersage.** (1) Teilweise: cnn exakt steigt von 0,45 auf 0,75 (getroffen, Start etwas
+unter „um 0,50“); der Anteil „falscher Körper“ fällt bei cnn nur von 0,09 auf 0,07 (ein Viertel, nicht ein
+Drittel; bei vit 0,13 auf 0,09, bei den übrigen kaum) – verfehlt; `near` nach 4 Schritten cnn 0,93 statt
+0,95–0,98 – verfehlt. (2) Getroffen: bestes Netz mit Gedächtnis (layer_s_sp4) `near` 0,94 gegen cnn 0,93, exakt
+0,75 gegen 0,75. (3) attnmem getroffen (0,17 unter cnn); vitmem verfehlt (0,82 gegen vit 0,90, also −0,08).
+(4) Klar verfehlt: Mit gelöschtem Zustand verlieren die Gitter-Netze 0,23–0,30 in `near`, nicht höchstens 0,03.
+(5) Getroffen: layer_s_sp4 +0,01, layer_s_am4 −0,03 gegenüber layer_s.
+
+**Schluss.** (a) Folgen-Training macht den zweiten Schritt nützlich: exakt steigt von Schritt 1 zu Schritt 2 um
+0,26–0,30 bei allen Netzen (vorher 0,09–0,15) und endet bei cnn, layer_s, layer_s_sp4 auf 0,74–0,75 (vorher
+höchstens 0,69). Die letzte Zelle wird jetzt öfter nachgeführt; das Orakel liegt aber bei 1,00. (b) Der falsche
+Körper wird weiter kaum verlassen (Rückgang höchstens 0,04), obwohl der Lehrer in 0,10 der Schritte genau
+dorthin führt und die Folge den Rückweg zeigt. (c) Gedächtnis bringt in dieser Aufgabe keinen Vorteil: Die
+besten Netze mit Gedächtnis (layer_s, layer_s_sp4) enden gleich wie cnn; der Vorsprung in `near` nach Schritt 1
+(0,90 gegen 0,87) ist ein Einzelschritt-Vorsprung, den es schon ohne Folgen gab. (d) Die Gegenprobe zeigt
+trotzdem, dass die Netze den Zustand benutzen – nur nicht als Erinnerung an die Szene: Im Training kommt ein
+frischer Zustand nur beim ersten Bild vor, und dort liegt das Ziel nie in der Mitte. Ein frischer Zustand heißt
+für sie „erster Schritt, weit springen“; mit gelöschtem Zustand springen sie deshalb vom gefundenen Körper
+wieder weg. Der Zustand dient als Schrittzähler, eine Abkürzung aus dem Aufbau des Datensatzes. Die Gegenprobe
+misst hier also Abhängigkeit vom Zustand, nicht Nutzen des Gedächtnisses; meine Vorhersage (4) hatte das nicht
+bedacht. (e) vitmem und attnmem sind schon im ersten Schritt deutlich schlechter als vit (0,73 und 0,65 gegen
+0,82) und holen das nicht auf. (f) Preis des Folgen-Trainings: Der erste Schritt ist schwächer als bei
+`robot_finds_m_f32` (cnn `near` 0,87 gegen 0,93, falscher Körper 0,09 gegen 0,05) – ein Drittel der
+Startszenen, und nur jedes vierte Bild ist ein Startbild. Deshalb bleibt `near` nach 4 Schritten bei 0,93 statt
+0,95. (g) Die Folgen-Wertung ordnet die Netze ähnlich wie die Schleife, überschätzt aber hier_s und trennt
+schwächer (0,72–0,81 gegen `near` 0,76–0,94).
+
+**Belege.** `results/finds_loop.jsonl` (Zeilen `robot_loop_f32` und `robot_loop_f32/amnesia`),
+`results/finds_loop_train.jsonl`; Netze in `results/checkpoints/robot_loop_f32`; Daten
+`data/robot/gazeloop_*.npz` (lokal und in der Freigabe).
+
 ## Laufend / offen
 
-- Gedächtnis zwischen den Blickschritten (Auftrag Nutzer 2026-11-15). Neue Aufgabe `robot_loop_f32`: Folgen
-  von 4 Bildern einer Suchszene entlang eines Blicklaufs (`scripts/make_loop_set.py`: erstes Bild wie
-  `gazeshapec`, danach je ein Schritt eines verrauschten Lehrers – 0,70 wahrer Schritt, 0,20 eine Zelle
-  daneben, 0,10 auf einen der anderen Körper; netz-unabhängig), Ziel an jedem Bild der wahre Schritt vom
-  jetzigen Blick. 16000 Trainingsszenen × 3 Körper = 48000 Folgen (Kamerabilder aus dem Export mit `--images`),
-  Test 4500 Folgen. Netze je `+ref+rez3`: ohne Gedächtnis cnn, vit; mit Gedächtnis layer_s+cell, hier_s+cell,
-  layer_s_sp4+cell, layer_s_am4+cell, vitmem, attnmem. 12000 Updates (Batch 64 Folgen), Seeds 0–2. Gemessen
-  wird die geschlossene Schleife auf den 1500 Startszenen der vorigen Einträge (`finds_loop_eval.py`, Netze
-  behalten ihren Zustand; Gegenprobe `--amnesia`). Hinweis: Wer immer „bleib“ sagt, ist auf den Folgen schon
-  in etwa 0,44 der Bilder exakt; die Folgen-Wertung ist deshalb nicht die Hauptzahl.
-  **Vorhersage vor dem Lauf (2026-11-15):** (1) Die Schleife korrigiert jetzt: bei cnn steigt exakt von
-  Schritt 1 (um 0,50) auf mindestens 0,72 nach Schritt 4, und der Anteil „falscher Körper“ fällt von Schritt 1
-  zu Schritt 4 um mindestens ein Drittel; `near` nach 4 Schritten cnn 0,95–0,98. (2) Gedächtnis bringt in
-  dieser Form nichts Messbares: das beste Netz mit Gedächtnis liegt in `near` nach 4 Schritten innerhalb von
-  ±0,02 um das beste ohne (cnn oder vit), in exakt innerhalb von ±0,03. (3) attnmem liegt in `near` nach 4
-  Schritten mindestens 0,05 unter cnn; vitmem innerhalb von ±0,03 um vit. (4) Gegenprobe: Mit gelöschtem
-  Zustand verlieren die Gitter-Netze (layer_s, hier_s, sp4, am4) in `near` nach 4 Schritten höchstens 0,03 –
-  sie nutzen den Zustand also kaum. (5) layer_s_am4 und layer_s_sp4 sind nicht besser als layer_s (±0,02).
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
