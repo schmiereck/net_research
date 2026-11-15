@@ -1100,14 +1100,71 @@ hatte `_hot` +0,07–0,13 gebracht); das ist der Preis der Wahl von Breite 1.
 Bezugsläufe in `results/servo_arch.jsonl`, `gap.jsonl`, `new3.jsonl`, `robot.jsonl`, `reach_read.jsonl`,
 `finds_res.jsonl`, `finds_c.jsonl`, `grid_slow.jsonl`, `pop_findc.jsonl`.
 
+## 2026-11-15 — Schritt-Aufgaben mit Glockenbreite 0,5; servo als Stufe mit 1500 Updates
+
+**Frage.** Was ändert die schmalere Glocke (0,5 statt 1 Zelle) Netz für Netz, und trennt servo mit 1500
+Updates wieder?
+
+**Gemacht.** 14 Worker-Jobs (Commit eff150a), Seeds 0–2, gleiche Netze und Update-Zahlen wie die
+Neuberechnung mit Breite 1; servo mit 1500 und mit 6000 Updates (13 Netze). Vorhersage vor dem Lauf
+(wörtlich aus „Laufend / offen“):
+
+> - Entscheidung des Nutzers (2026-11-14): Glockenbreite 0,5 statt 1 (`STEP_SIGMA = 0.5`), und servo als Stufe
+>   mit 1500 statt 6000 Updates (bei 6000 trennt es nicht mehr). Neuberechnung wie im vorigen Eintrag, Seeds
+>   0–2; servo zusätzlich mit 1500 Updates. Netze mit Breite 1 lokal in `results/checkpoints/<name>_pop1`.
+>   **Vorhersage vor dem Lauf (2026-11-14):** (1) Gegenüber Breite 1 exakt +0,05 bis +0,10 im Mittel der Netze
+>   auf robot_find, robot_findc, robot_findi und allen robot_finds*; `near` dort −0,00 bis −0,04. (2) vit und
+>   vitmem liegen auf keiner Aufgabe mehr als 0,03 unter ihrem Bit-Wert. (3) robot_reach_big exakt 0,50–0,62.
+>   (4) servo bei 1500 Updates trennt: vit, hier_s, layer_s mindestens 0,85; mlp 0,2–0,5; cnn unter 0,1; bei
+>   6000 Updates alle außer esn mindestens 0,98. (5) robot_gaze: kein Netz ändert sich um mehr als 0,03
+>   gegenüber Breite 1, außer mlp / esn / gru / lstm (die fallen um bis zu 0,15).
+
+**Ergebnis.** Exakt, Mittel über 3 Seeds; Änderung gegenüber Breite 1, Bit-Werte in Klammern.
+
+| Aufgabe | exakt mit Breite 0,5 | exakt gegen Breite 1 | `near` gegen Breite 1 |
+|---|---|---|---|
+| servo, 1500 Updates | vit, vitmem, attnmem 1,00; layer_i 0,97; hier_s 0,96; layer_s_sp4 0,93; layer_s 0,92; layer_s_am4 0,90; gru 0,55; mlp 0,40; lstm 0,37; cnn 0,01; esn 0,00 | – | – |
+| servo, 6000 Updates | alle 1,00 außer esn 0,01 | ±0,00 | ±0,00 |
+| robot_gaze | cnn 0,99; vit 0,98; layer_s 0,98; vitmem 0,97; hier_s 0,96; layer_i 0,91; attnmem 0,64; mlp 0,55; gru 0,51; lstm 0,49; esn 0,37 | +0,00 bis +0,04, attnmem +0,06; mlp −0,01, esn −0,03 | −0,00 bis −0,06 |
+| robot_reach (6000 / 24000) | 0,21–0,29 (Bits 0,08–0,15) | **−0,01 bis −0,05**, nur vitmem bei 24000 +0,02 | −0,01 bis −0,08 |
+| robot_reach_big | cnn 0,52; vit 0,50; vitmem 0,50; layer_s 0,48; hier_s 0,41 (Bits 0,18–0,33) | −0,02 bis +0,01, vitmem +0,04 | −0,00 bis −0,02 |
+| robot_find | cnn+cmd 0,78; layer_s_sp4+cell 0,72; layer_s+cell 0,71; vit+cmd 0,67; hier_s+cmd 0,61 (Bits 0,34–0,72) | +0,04 bis +0,09 | −0,00 bis −0,02 |
+| robot_findc | cnn+cmd 0,77; vit+cmd 0,72; layer_s_sp4+cmd 0,69; vitmem+cmd 0,67; layer_s+cell 0,66; hier_s+cell 0,49 | +0,07 bis +0,11; mlp / gru / lstm +0,03 | −0,01 bis −0,04; mlp / gru / lstm −0,05 bis −0,07 |
+| robot_findi | cnn+ref 0,71; cnn+cmd 0,67; vit+ref 0,65; vit+cmd 0,65; layer_s_sp4+cell+ref 0,62 | +0,04 bis +0,09 | −0,01 bis −0,02 |
+| robot_finds | layer_s_sp4 0,29; layer_s 0,28; vit 0,20; cnn 0,19; hier_s 0,19 (Bits 0,06–0,09) | +0,01 bis +0,04 | −0,02 bis −0,06 |
+| robot_finds_f32 | layer_s 0,47; vit 0,46; cnn 0,43; hier_s 0,37 | +0,04 bis +0,10 | −0,04 bis +0,03 |
+| robot_finds_in | cnn 0,61; layer_s 0,61; layer_s_sp4 0,61; hier_s 0,54; vit 0,48 | +0,04 bis +0,07 | −0,03 bis +0,00 |
+| robot_finds_in_f32 | cnn 0,78; layer_s 0,77; hier_s 0,70; vit 0,70 (Bits 0,63–0,70) | +0,07 bis +0,09 | −0,01 bis +0,00 |
+| robot_finds_c_f32 | layer_s 0,80; cnn 0,79; vit 0,77; hier_s 0,76 (Bits 0,69–0,73) | +0,04 bis +0,13 | −0,01 bis +0,02 |
+
+vit und vitmem liegen jetzt auf jeder Aufgabe auf oder über ihrem Bit-Wert (+0,00 bis +0,15); gegenüber
+Breite 1 gewinnen sie am meisten (robot_findc +0,09 / +0,11, robot_finds_c_f32 +0,13). Rangkorrelation
+servo (1500 Updates) gegen robot_gaze über 13 Netze: +0,27; ohne cnn +0,53.
+
+**Vergleich mit der Vorhersage.** (1) Großteils getroffen: Suchaufgaben exakt +0,04 bis +0,11 für die
+lernenden Netze, `near` −0,00 bis −0,04. Daneben: robot_finds (alte Szenen, grobes Bild) nur +0,01 bis
++0,04 bei `near` bis −0,06; vit auf robot_finds_c_f32 +0,13; die schwachen Netze auf robot_findc nur +0,03.
+(2) Getroffen: vit / vitmem nirgends unter dem Bit-Wert. (3) Verfehlt für zwei von fünf Netzen: layer_s
+0,48, hier_s 0,41; die Breite ändert robot_reach_big praktisch nicht. (4) Getroffen: vit 1,00, hier_s 0,96,
+layer_s 0,92, mlp 0,40, cnn 0,01; bei 6000 alle außer esn 1,00. (5) Verfehlt: vitmem und layer_i +0,04,
+attnmem +0,06; mlp / esn / gru / lstm fallen nicht um bis zu 0,15, sondern ändern sich um −0,03 bis +0,01.
+Nicht vorhergesagt: robot_reach wird mit der schmalen Glocke schlechter (exakt −0,01 bis −0,05).
+
+**Schluss.** (a) Breite 0,5 ist auf allen Suchaufgaben die bessere Wahl und hebt den Nachteil von vit /
+vitmem gegenüber den Bits auf; die Verschiebung der Rangfolge zugunsten von cnn und den Gittern, die Breite 1
+zeigte, war zum Teil eine Folge der breiten Glocke. (b) Der Preis liegt dort, wo die Netze ungenau sind:
+auf robot_reach (mittlerer Fehler über eine Zelle) kostet die schmale Glocke exakt bis 0,05 und `near` bis
+0,08, auf robot_finds `near` bis 0,06. Die breite Glocke hilft, solange das Netz den Ort nur ungefähr kennt.
+(c) servo trennt mit 1500 Updates wieder, misst aber Lerntempo: cnn 0,01 nach 1500 und 1,00 nach 6000
+Updates. Als Sieb für robot_gaze taugt es damit nicht (cnn ist dort das beste Netz).
+(d) Die besten Werte der Formsuche: innere Szenen 0,78 (cnn), mit Schwerpunkt 0,80 (layer_s); das entspricht
+den `_hot`-Werten vom Vortag (0,76–0,81).
+
+**Belege.** `results/step_p05.jsonl`, `results/step_p05_cur.jsonl`, `results/step_p05_compare.json`
+(je Netz: Breite 0,5, Breite 1, Bits); Breite 1 in `results/step_pop*.jsonl`. Netze in
+`results/checkpoints/<Aufgabe>`, die mit Breite 1 lokal in `<Aufgabe>_pop1`.
+
 ## Laufend / offen
 
-- Entscheidung des Nutzers (2026-11-14): Glockenbreite 0,5 statt 1 (`STEP_SIGMA = 0.5`), und servo als Stufe
-  mit 1500 statt 6000 Updates (bei 6000 trennt es nicht mehr). Neuberechnung wie im vorigen Eintrag, Seeds
-  0–2; servo zusätzlich mit 1500 Updates. Netze mit Breite 1 lokal in `results/checkpoints/<name>_pop1`.
-  **Vorhersage vor dem Lauf (2026-11-14):** (1) Gegenüber Breite 1 exakt +0,05 bis +0,10 im Mittel der Netze
-  auf robot_find, robot_findc, robot_findi und allen robot_finds*; `near` dort −0,00 bis −0,04. (2) vit und
-  vitmem liegen auf keiner Aufgabe mehr als 0,03 unter ihrem Bit-Wert. (3) robot_reach_big exakt 0,50–0,62.
-  (4) servo bei 1500 Updates trennt: vit, hier_s, layer_s mindestens 0,85; mlp 0,2–0,5; cnn unter 0,1; bei
-  6000 Updates alle außer esn mindestens 0,98. (5) robot_gaze: kein Netz ändert sich um mehr als 0,03
-  gegenüber Breite 1, außer mlp / esn / gru / lstm (die fallen um bis zu 0,15).
+- Nichts eingereiht. Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
+  Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

@@ -159,6 +159,13 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   Neu gerechnet (Seeds 0–2, `results/step_pop_compare.json`): exakt meist +0,05 bis +0,22 (robot_reach_big
   0,41–0,52 statt 0,18–0,33, `near` 0,94–0,97); vit / vitmem verlieren bis 0,05; servo steht bei 6000 Updates
   für alle lernenden Netze auf 1,00 und trennt nicht mehr.
+  Mit Breite 0,5 (2026-11-15, `results/step_p05_compare.json`; **das sind die gültigen Zahlen**): Suchaufgaben
+  exakt +0,04 bis +0,11 gegenüber Breite 1 (robot_findc cnn+cmd 0,77, vit+cmd 0,72; robot_finds_in_f32 cnn
+  0,78, layer_s 0,77; robot_finds_c_f32 layer_s 0,80, cnn 0,79, vit 0,77, hier_s 0,76); vit / vitmem liegen
+  nirgends mehr unter ihrem Bit-Wert. robot_reach_big unverändert (0,41–0,52), robot_reach exakt 0,21–0,29
+  (bis 0,05 schlechter als mit Breite 1: die schmale Glocke kostet dort, wo das Netz den Ort nur ungefähr
+  kennt). servo mit 1500 Updates trennt (vit, vitmem, attnmem 1,00; Gitter 0,90–0,97; gru 0,55; mlp 0,40;
+  lstm 0,37; cnn 0,01), misst aber Lerntempo: cnn erreicht nach 6000 Updates 1,00.
 - **Blickziel am Flächenschwerpunkt** (`robot_finds_c_f32`, 2026-11-14): exakt +0,04–0,05 (layer_s 0,74), der
   Formeffekt schrumpft von bis zu 0,29 auf bis zu 0,18, verschwindet aber nicht (L und U bleiben zurück).
   Zusammen mit einem Ausgang je Wert addiert sich beides: Formsuche exakt 0,76–0,81 (layer_s 0,81).
@@ -186,7 +193,7 @@ beides gerechnet haben; 6–14 Architekturen je Paar, also eine Beschreibung, no
 | `match_shift` | `robot_lookmem` (Kandidaten nacheinander vergleichen) | +0.88 | Dieselben zwei Netze kommen ohne Hilfe durch (attnmem, gru), alle anderen 0. Auch das Heilmittel (Vorstufe) übertrug sich. Aber: nach dem Roboter-Befund gebaut, keine blinde Prognose |
 | `push_easy` | `robot_findc` (Ziel per Kommando suchen) | +0.70 (n = 14) | Gleiche Rangfolge über cnn und die Gitter-Varianten; attnmem, gru, mlp scheitern an beidem. **Die blinde Prognose für das vit ist gescheitert:** `push_easy` 0.11, `robot_findc` 0.65 (bestes Netz). Auch hier_s fällt heraus (−0.01 gegen 0.43). Die Aufgabe sagt also nur für cnn und flache Gitter vorher |
 | `count` | `robot_findc` | +0.65 (n = 14) | ähnlich: stimmt für die Gitter, vit ist die Ausnahme (0.19 gegen 0.65) |
-| `servo` | `robot_gaze` (Blick zentrieren) | +0.21 (n = 11) | Sieb in einer Richtung: wer `servo` nicht löst (mlp, gru), löst `robot_gaze` nicht. Umgekehrt gilt es nicht: attnmem löst `servo` (1.00) und bleibt auf `robot_gaze` bei 0.51. 16 Spalten sind nur langsam auf `servo` |
+| `servo` | `robot_gaze` (Blick zentrieren) | +0.21 (n = 11) | Sieb in einer Richtung: wer `servo` nicht löst (mlp, gru), löst `robot_gaze` nicht. Umgekehrt gilt es nicht: attnmem löst `servo` (1.00) und bleibt auf `robot_gaze` bei 0.51. 16 Spalten sind nur langsam auf `servo`. Das sind Bit-Werte. Im Populations-Code (1500 Updates, 2026-11-15): Rangkorrelation +0,27 (n = 13), ohne cnn +0,53; cnn lernt `servo` langsam (0,01) und ist auf `robot_gaze` das beste Netz |
 | `servo` | `robot_reach` (Hand zum Würfel) | (+0.81) | Scheinbar: `robot_reach` löst niemand (0.05–0.13). `servo` ist als Vorhersage zu leicht |
 | `servo` | `robot_findc` | +0.31 | keine Vorhersage |
 | `cycle_mem`, `recall`, `keep_shift`, `same_shift` | `robot_lookmem` | −0.5 … +0.3 | **keine Vorhersage**: Die Gitter lösen die Gedächtnis-Batterie und scheitern am Vergleichen auf Roboter-Bildern |
