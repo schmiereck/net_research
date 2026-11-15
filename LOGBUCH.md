@@ -1164,21 +1164,82 @@ den `_hot`-Werten vom Vortag (0,76–0,81).
 (je Netz: Breite 0,5, Breite 1, Bits); Breite 1 in `results/step_pop*.jsonl`. Netze in
 `results/checkpoints/<Aufgabe>`, die mit Breite 1 lokal in `<Aufgabe>_pop1`.
 
+## 2026-11-15 — Formsuche in der Schleife: Der Blickschritt wird ausgeführt
+
+**Frage.** Sagen die Einzelschritt-Zahlen der Formsuche vorher, ob der Blick in der Schleife auf dem
+gesuchten Körper landet und dort bleibt?
+
+**Gemacht.** Export im Roboter-Projekt um `--images` erweitert: Die Testszenen von `gazeshapec` werden mit dem
+ganzen Kamerabild gespeichert (240 × 240 und 480 × 480; die ersten 1500 Szenen, identisch mit dem bisherigen
+Testsatz). `netresearch/tasks/fovea.py` tastet daraus die Fovea an jedem Blickpunkt neu ab, eine Kopie der
+Geometrie des Roboters, bitgenau gegen die exportierten Bilder geprüft (auch im Test). Ein Schritt (dx, dy)
+verschiebt den Blick so, dass der Abtastpunkt der gewählten Zelle auf den der Mittelzelle fällt.
+`scripts/finds_loop_eval.py`: gespeicherte Einzelschritt-Netze von `robot_finds_c_f32` (Breite 0,5, Seeds
+0–2), nichts trainiert, kein Gedächtnis zwischen den Schritten; 1500 Szenen × 3 Körper, 4 Schritte, das
+Zeigebild bleibt gleich. „Orakel“ nimmt jedes Mal den wahren Schritt. Vorhersage vor dem Lauf (wörtlich
+aus „Laufend / offen“, Commit 1549e56):
+
+> - Formsuche in der Schleife (Auftrag Nutzer 2026-11-15): Der Blickschritt des Netzes wird ausgeführt, das
+>   nächste Bild kommt vom neuen Blickpunkt (`netresearch/tasks/fovea.py` tastet das Kamerabild wie der Roboter
+>   ab, bitgenau gegen die exportierten Bilder geprüft; `scripts/finds_loop_eval.py`). Gespeicherte
+>   Einzelschritt-Netze von `robot_finds_c_f32` (Breite 0,5, Seeds 0–2), nichts wird trainiert; 1500 Testszenen
+>   × 3 Körper, 4 Schritte. Vorab bekannt (40 Szenen, nur Geometrie, kein Netz): Ein wahrer Schritt landet nur
+>   in 0,62 der Fälle in der Mittelzelle, weil die Zellen ab 5 Zellen neben der Mitte gröber werden.
+>   **Vorhersage vor dem Lauf (2026-11-15):** (1) Nach Schritt 1 exakt (Körper in der Mittelzelle) 0,45–0,60,
+>   `near` 0,92–0,97. (2) Nach den Schritten 2–4 exakt 0,60–0,75 und zwischen Schritt 2 und 4 nicht mehr
+>   steigend (Änderung unter 0,03); `near` 0,92–0,97; Median-Abstand höchstens 2,5 px. (3) Die Netze pendeln:
+>   bei Schritt 3 und 4 ist der Schritt in 0,10–0,25 der Läufe die genaue Umkehr des vorigen. (4) Blick auf dem
+>   falschen Körper: 0,02–0,06, über die Schritte gleichbleibend (Änderung unter 0,02); Blick aus dem Bild
+>   unter 0,01. (5) Für die Prognose-Kette: `near` des Einzelschritts sagt `near` nach 4 Schritten auf ±0,03
+>   vorher, je Netz; die Reihenfolge der vier Netze bleibt die des Einzelschritts, Abstand der Netze nach 4
+>   Schritten höchstens 0,05 in exakt. (6) Orakel (wahrer Schritt): nach 2 Schritten exakt mindestens 0,97.
+
+**Ergebnis.** Mittel über 3 Seeds, nach Schritt 1 / 2 / 3 / 4.
+
+| | exakt (Körper in der Mittelzelle) | `near` (höchstens eine Zelle) | Blick auf falschem Körper | Median-Abstand px |
+|---|---|---|---|---|
+| Orakel | 0,67 / 1,00 / 1,00 / 1,00 | 0,99 / 1,00 / 1,00 / 1,00 | 0 | 1,8 / 1,5 / 1,5 / 1,5 |
+| cnn | 0,54 / 0,48 / 0,59 / 0,53 | 0,95 / 0,86 / 0,90 / 0,88 | 0,03 / 0,10 / 0,06 / 0,09 | 2,0 / 2,2 / 1,8 / 2,0 |
+| layer_s | 0,54 / 0,32 / 0,44 / 0,36 | 0,96 / 0,68 / 0,78 / 0,67 | 0,03 / 0,25 / 0,11 / 0,22 | 2,0 / 2,9 / 2,3 / 2,8 |
+| vit | 0,51 / 0,28 / 0,42 / 0,34 | 0,94 / 0,60 / 0,77 / 0,63 | 0,04 / 0,29 / 0,12 / 0,26 | 2,1 / 3,7 / 2,5 / 3,2 |
+| hier_s | 0,50 / 0,22 / 0,34 / 0,28 | 0,94 / 0,57 / 0,68 / 0,57 | 0,04 / 0,33 / 0,17 / 0,30 | 2,1 / 4,3 / 3,0 / 3,9 |
+
+Der Blick verlässt das Kamerabild nie. Das Netz antwortet „bleib“ (0, 0) bei Schritt 2 in 0,14–0,31 der Läufe
+(richtig wäre es in etwa 0,55), bei Schritt 4 in 0,27–0,53. Genaue Umkehr des vorigen Schritts: bei Schritt 3
+und 4 in 0,09–0,15.
+Diagnose (300 Szenen, Seed 0): Liegt der Körper nach Schritt 1 in der Mittelzelle, macht vit in 0,40 der
+Läufe einen Schritt von 5 oder mehr Zellen (cnn 0,12); nach solchen großen Schritten liegt der Blick in
+0,69–0,79 auf einem anderen Körper. **Im Trainingssatz liegt der gesuchte Körper nie in der Mitte:** Anteil
+der Ziele mit größtem Schritt 0 / 1 / 2 / 3 / 4 / 5 Zellen: 0,000 / 0,002 / 0,019 / 0,076 / 0,215 / 0,687
+(der Blick liegt beim Export nahe am Schwerpunkt der drei Körper, die mindestens 60 mm auseinanderliegen).
+
+**Vergleich mit der Vorhersage.** (1) Getroffen: nach Schritt 1 exakt 0,50–0,54, `near` 0,94–0,96.
+(2) Verfehlt: exakt nach den Schritten 2–4 0,22–0,59 statt 0,60–0,75, und es schwankt mit dem Schritt
+(gerade Schritte schlechter); `near` 0,57–0,90; Median-Abstand nur bei cnn und layer_s (ungerade Schritte)
+unter 2,5 px. (3) Großteils getroffen: Umkehr 0,09–0,15 (hier_s bei Schritt 4 mit 0,09 knapp darunter).
+(4) Verfehlt, und das ist der Hauptbefund: falscher Körper nach Schritt 2 in 0,10–0,33 statt gleichbleibend
+0,02–0,06. (5) Verfehlt: `near` des Einzelschritts (0,95–0,97) sagt `near` nach 4 Schritten nicht vorher
+(cnn 0,88, die anderen 0,57–0,67); die Reihenfolge ändert sich (Einzelschritt layer_s 0,80, cnn 0,79, vit
+0,77, hier_s 0,76; Schleife cnn weit vorn), Abstand 0,25 statt höchstens 0,05. (6) Getroffen: Orakel 1,00
+nach 2 Schritten.
+
+**Schluss.** (a) Der erste Schritt hält, was die Einzelschritt-Zahl verspricht. Danach verlassen die Netze
+den Körper wieder: Den Zustand „ich sehe ihn schon an“ gibt es im Trainingssatz nicht, also haben sie nie
+gelernt zu bleiben. Das ist eine Lücke der Aufgabe, kein Unvermögen der Netze – geprüft ist das aber erst,
+wenn Netze mit solchen Szenen trainiert sind. (b) Für die Prognose-Kette: Eine Einzelschritt-Aufgabe sagt
+die Schleife nur vorher, wenn ihre Szenen die Zustände enthalten, die die Schleife besucht. Die bisherige
+Leiter tat das nicht; die Unterschiede der Netze außerhalb der Trainingsverteilung (cnn robust, vit und
+hier_s nicht) waren im Einzelschritt unsichtbar. (c) Die Geometrie selbst erlaubt 1,00 nach zwei Schritten;
+ein wahrer Schritt allein trifft die Mittelzelle nur in 0,67, weil die Zellen ab 5 Zellen neben der Mitte
+gröber sind – die Schleife ist also nötig, nicht nur Kontrolle. (d) Nächster Schritt: Suchszenen, in denen
+der Abstand des gesuchten Körpers zur Mitte gleichmäßig von 0 bis zum Rand reicht (Export-Variante), damit
+trainieren, Schleife erneut messen.
+
+**Belege.** `results/finds_loop.jsonl` (je Netz und Seed, Listen über die Schritte);
+`scripts/finds_loop_eval.py`, `netresearch/tasks/fovea.py`; Daten `data/robot/gazeshapec_test_img.npz`
+(lokal, 124 MB, nicht im Repository).
+
 ## Laufend / offen
 
-- Formsuche in der Schleife (Auftrag Nutzer 2026-11-15): Der Blickschritt des Netzes wird ausgeführt, das
-  nächste Bild kommt vom neuen Blickpunkt (`netresearch/tasks/fovea.py` tastet das Kamerabild wie der Roboter
-  ab, bitgenau gegen die exportierten Bilder geprüft; `scripts/finds_loop_eval.py`). Gespeicherte
-  Einzelschritt-Netze von `robot_finds_c_f32` (Breite 0,5, Seeds 0–2), nichts wird trainiert; 1500 Testszenen
-  × 3 Körper, 4 Schritte. Vorab bekannt (40 Szenen, nur Geometrie, kein Netz): Ein wahrer Schritt landet nur
-  in 0,62 der Fälle in der Mittelzelle, weil die Zellen ab 5 Zellen neben der Mitte gröber werden.
-  **Vorhersage vor dem Lauf (2026-11-15):** (1) Nach Schritt 1 exakt (Körper in der Mittelzelle) 0,45–0,60,
-  `near` 0,92–0,97. (2) Nach den Schritten 2–4 exakt 0,60–0,75 und zwischen Schritt 2 und 4 nicht mehr
-  steigend (Änderung unter 0,03); `near` 0,92–0,97; Median-Abstand höchstens 2,5 px. (3) Die Netze pendeln:
-  bei Schritt 3 und 4 ist der Schritt in 0,10–0,25 der Läufe die genaue Umkehr des vorigen. (4) Blick auf dem
-  falschen Körper: 0,02–0,06, über die Schritte gleichbleibend (Änderung unter 0,02); Blick aus dem Bild
-  unter 0,01. (5) Für die Prognose-Kette: `near` des Einzelschritts sagt `near` nach 4 Schritten auf ±0,03
-  vorher, je Netz; die Reihenfolge der vier Netze bleibt die des Einzelschritts, Abstand der Netze nach 4
-  Schritten höchstens 0,05 in exakt. (6) Orakel (wahrer Schritt): nach 2 Schritten exakt mindestens 0,97.
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

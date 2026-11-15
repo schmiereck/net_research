@@ -166,6 +166,15 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   (bis 0,05 schlechter als mit Breite 1: die schmale Glocke kostet dort, wo das Netz den Ort nur ungefähr
   kennt). servo mit 1500 Updates trennt (vit, vitmem, attnmem 1,00; Gitter 0,90–0,97; gru 0,55; mlp 0,40;
   lstm 0,37; cnn 0,01), misst aber Lerntempo: cnn erreicht nach 6000 Updates 1,00.
+- **Formsuche in der Schleife** (2026-11-15, `scripts/finds_loop_eval.py`, `results/finds_loop.jsonl`): Der
+  Blickschritt wird ausgeführt, das nächste Bild kommt vom neuen Blickpunkt (`netresearch/tasks/fovea.py`,
+  bitgenaue Kopie der Roboter-Fovea; Kamerabilder aus dem Export mit `--images`). Mit den gespeicherten
+  Einzelschritt-Netzen: Schritt 1 landet in 0,94–0,96 höchstens eine Zelle neben dem Körper, danach verlassen
+  die Netze ihn wieder (`near` nach 4 Schritten cnn 0,88, layer_s 0,67, vit 0,63, hier_s 0,57; Blick auf einem
+  anderen Körper bis 0,33). Ursache: Im Trainingssatz liegt der gesuchte Körper nie in der Mitte (0,2 % der
+  Ziele höchstens eine Zelle entfernt), „bleiben“ wurde nie gelernt. Das Orakel erreicht 1,00 nach zwei
+  Schritten. **Die Einzelschritt-Zahl sagt die Schleife nicht vorher, solange die Szenen die Zustände der
+  Schleife nicht enthalten.** Offen: Szenen mit Abstand 0 bis Rand exportieren, neu trainieren.
 - **Blickziel am Flächenschwerpunkt** (`robot_finds_c_f32`, 2026-11-14): exakt +0,04–0,05 (layer_s 0,74), der
   Formeffekt schrumpft von bis zu 0,29 auf bis zu 0,18, verschwindet aber nicht (L und U bleiben zurück).
   Zusammen mit einem Ausgang je Wert addiert sich beides: Formsuche exakt 0,76–0,81 (layer_s 0,81).
