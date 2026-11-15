@@ -494,6 +494,41 @@ RobotFindShapeCF32 = _variant(RobotFindShapeF32, "robot_finds_c_f32", files=C_FI
 # the wanted body at the centre, and nets trained on it leave the body again after their first step.
 M_FILES = ("gazeshapem", "gazeshapecheld_test")
 RobotFindShapeMF32 = _variant(RobotFindShapeF32, "robot_finds_m_f32", files=M_FILES)
+class RobotLoopF32(SupervisedTask):
+    """Shape search along a RUN of gaze steps (data gazeloop_*, scripts/make_loop_set.py): a sequence of 4 views
+    of one search scene (32 x 32, needs a front stage "+rezN"), the first as in robot_finds_c_f32, each further one
+    after a gaze step of a noisy teacher (mostly right, sometimes one cell off, sometimes onto the wrong body).
+    The picture of the wanted body ("ref") is the same at every step. Target at every step: the gaze step that
+    centres the wanted body from where the eye is NOW, (0, 0) once it looks at it. A net without memory sees
+    four unrelated single-step problems; a net with memory can use what it saw before the step."""
+    name, T = "robot_loop_f32", 4
+
+    def __init__(self):
+        self.spec = TaskSpec(self.name, "robot", "supervised", "bits", 8, seq_len=self.T, chance=0.0, step=True,
+                             needs_memory=True,
+                             description="4 views of a search scene along a run of gaze steps + a picture of the "
+                                         "wanted body -> at every view the gaze shift (dx, dy) that centres it")
+        self._data, self._rng = {}, np.random.default_rng(0)
+
+    def _load(self, split):
+        if split not in self._data:
+            self._data[split] = dict(np.load(data_path(f"gazeloop_{split}.npz")))
+        return self._data[split]
+
+    def make(self, d, i, view=None):
+        v = self._rng.integers(0, 2, size=len(i)) if view is None else np.full(len(i), view)
+        s = d["steps"][i].astype(np.int64).transpose(1, 0, 2)                       # [T, B, 2]
+        ref = d["refs"][i, v].astype(np.float32) / 255.0
+        return {"obs": d["f32"][i].astype(np.float32).transpose(1, 0, 2, 3, 4) / 255.0,
+                "ref": np.broadcast_to(ref[None], (self.T, *ref.shape)).copy(),
+                "target": command_bits(s[..., 0].ravel(), s[..., 1].ravel()).reshape(self.T, len(i), 8),
+                "mask": np.ones((self.T, len(i)), np.float32)}
+
+    def sample(self, batch, rng, split="train"):
+        d = self._load(split)
+        return self.make(d, rng.integers(0, len(d["steps"]), size=batch), None if split == "train" else 0)
+
+
 IN_TASKS = {c.name: c for c in (RobotShapeAtIn, RobotShapeAtIn12, RobotShapeAtInF32, RobotShapeAtIn12F32,
                                 RobotFindShapeC, RobotFindShapeCF32, RobotFindShapeMF32,
                                 RobotFindShapeIn, RobotFindShapeIn12, RobotFindShapeInF32, RobotFindShapeIn12F32)}

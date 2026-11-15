@@ -1316,5 +1316,23 @@ der Zelle).
 
 ## Laufend / offen
 
+- Gedächtnis zwischen den Blickschritten (Auftrag Nutzer 2026-11-15). Neue Aufgabe `robot_loop_f32`: Folgen
+  von 4 Bildern einer Suchszene entlang eines Blicklaufs (`scripts/make_loop_set.py`: erstes Bild wie
+  `gazeshapec`, danach je ein Schritt eines verrauschten Lehrers – 0,70 wahrer Schritt, 0,20 eine Zelle
+  daneben, 0,10 auf einen der anderen Körper; netz-unabhängig), Ziel an jedem Bild der wahre Schritt vom
+  jetzigen Blick. 16000 Trainingsszenen × 3 Körper = 48000 Folgen (Kamerabilder aus dem Export mit `--images`),
+  Test 4500 Folgen. Netze je `+ref+rez3`: ohne Gedächtnis cnn, vit; mit Gedächtnis layer_s+cell, hier_s+cell,
+  layer_s_sp4+cell, layer_s_am4+cell, vitmem, attnmem. 12000 Updates (Batch 64 Folgen), Seeds 0–2. Gemessen
+  wird die geschlossene Schleife auf den 1500 Startszenen der vorigen Einträge (`finds_loop_eval.py`, Netze
+  behalten ihren Zustand; Gegenprobe `--amnesia`). Hinweis: Wer immer „bleib“ sagt, ist auf den Folgen schon
+  in etwa 0,44 der Bilder exakt; die Folgen-Wertung ist deshalb nicht die Hauptzahl.
+  **Vorhersage vor dem Lauf (2026-11-15):** (1) Die Schleife korrigiert jetzt: bei cnn steigt exakt von
+  Schritt 1 (um 0,50) auf mindestens 0,72 nach Schritt 4, und der Anteil „falscher Körper“ fällt von Schritt 1
+  zu Schritt 4 um mindestens ein Drittel; `near` nach 4 Schritten cnn 0,95–0,98. (2) Gedächtnis bringt in
+  dieser Form nichts Messbares: das beste Netz mit Gedächtnis liegt in `near` nach 4 Schritten innerhalb von
+  ±0,02 um das beste ohne (cnn oder vit), in exakt innerhalb von ±0,03. (3) attnmem liegt in `near` nach 4
+  Schritten mindestens 0,05 unter cnn; vitmem innerhalb von ±0,03 um vit. (4) Gegenprobe: Mit gelöschtem
+  Zustand verlieren die Gitter-Netze (layer_s, hier_s, sp4, am4) in `near` nach 4 Schritten höchstens 0,03 –
+  sie nutzen den Zustand also kaum. (5) layer_s_am4 und layer_s_sp4 sind nicht besser als layer_s (±0,02).
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

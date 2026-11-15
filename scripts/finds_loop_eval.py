@@ -8,7 +8,8 @@ data/robot/<scenes>_test_img.npz (robot project: export_netresearch.py --tasks g
 the test scenes with the whole camera image, so the fovea can be sampled anew at any gaze (netresearch/tasks/
 fovea.py, checked here bit for bit against the exported views).
 One run = one scene and one wanted body (3 per scene), the picture of the wanted body stays the same. Before
-every step and after the last one the true state is measured:
+every step and after the last one the true state is measured (nets with memory keep it along the run; --amnesia
+wipes it before every step):
     exact   the body lies in the centre cell (right answer now: step (0, 0))
     near    at most one cell beside it
     px      distance in camera pixels from the body to the point the centre cell looks at (one cell = 4 px)
@@ -105,8 +106,10 @@ def main():
     ap.add_argument("--scenes", type=int, default=1500)
     ap.add_argument("--models", nargs="*", help="only these nets (default: every stored net of the task)")
     ap.add_argument("--images", default="gazeshapec", help="scene set with camera images (<name>_test_img.npz)")
+    ap.add_argument("--amnesia", action="store_true", help="wipe the net's memory before every step (control)")
     a = ap.parse_args()
     task = make_task(a.task)
+    amnesia = a.amnesia or task.spec.seq_len == 1                       # single-step nets never carried a state
     fine = a.task.endswith("_f32")
     d = np.load(data_path(f"{a.images}_test_img.npz"))
     n = min(a.scenes, len(d["obs"]))
@@ -122,11 +125,15 @@ def main():
     print(f"{a.task}: {n} scenes x 3 bodies, {a.steps} steps, {len(nets)} nets", flush=True)
 
     def policy(model):
+        state = [None]                                                  # memory of the net along the run
+
         def f(views, idx, body):
             ref = torch.tensor(d["refs"][idx, body, 0].astype(np.float32) / 255.0)[None]
             with torch.no_grad():
-                lg = run_sequence(model, torch.tensor(views.astype(np.float32) / 255.0)[None], ref=ref)[0][0]
-            return decode_step(lg[:, task.spec.out_slice].numpy(), task.spec)
+                lg, st = run_sequence(model, torch.tensor(views.astype(np.float32) / 255.0)[None],
+                                      state=None if amnesia else state[0], ref=ref)
+            state[0] = st if model.stateful else None
+            return decode_step(lg[0][:, task.spec.out_slice].numpy(), task.spec)
         return f
 
     parts = defaultdict(list)
@@ -141,7 +148,7 @@ def main():
         for (name, seed), ps in parts.items():
             s = summary(*(np.concatenate(x) for x in zip(*ps)))
             per[name].append(s)
-            out.write(json.dumps({"task": a.task, "model": name, "seed": seed, "scenes": n, "steps": a.steps, **s}) + "\n")
+            out.write(json.dumps({"task": a.task + ("/amnesia" if a.amnesia else ""), "model": name, "seed": seed, "scenes": n, "steps": a.steps, **s}) + "\n")
     f = lambda v: " ".join(f"{x:.2f}" for x in v)                       # noqa: E731
     print(f"\nmean over seeds; columns = before step 1, after step 1 .. {a.steps}")
     for q in ("exact", "near", "px_median", "other", "out", "rest", "flip"):

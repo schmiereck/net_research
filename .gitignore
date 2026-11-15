@@ -16,3 +16,6 @@ data/robot/gazeshape*.npz
 # (--tasks shapeview --n-train 12000 --n-test 3000: resolution test, 52 MB)
 data/robot/shapeview*.npz
 data/robot/shapeedge*.npz
+# camera images of search scenes and the gaze sequences made from them (scripts/make_loop_set.py)
+data/robot/loopimg/
+data/robot/gazeloop*.npz
