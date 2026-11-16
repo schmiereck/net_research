@@ -1475,17 +1475,66 @@ mit 0,67 und `near` 0,50).
 `/amnesia`), `results/finds_loop_train.jsonl` (Kurven); Netze in `results/checkpoints/robot_loop_cue_f32` und
 `robot_loop_blind_f32`.
 
+## 2026-11-16 — Lösequoten der Gedächtnis-Schleife mit acht Seeds
+
+**Frage.** Lernt hier_s die Aufgabe mit einmal gezeigter Vorlage wirklich zuverlässiger als die anderen Netze
+mit Gedächtnis, und bleibt der Hinweis-Schritt mit Bild der schwerere?
+
+**Gemacht.** `robot_loop_cue_f32` und `robot_loop_blind_f32`, sechs Netze mit Gedächtnis, fünf weitere Seeds
+3, 4, 7, 8, 9, 12000 Updates (Worker, Commit 5d37ef0); Schleife auf den 1500 Startszenen wie im vorigen
+Eintrag. Zusammen mit den Seeds 0–2 acht Läufe je Netz und Aufgabe. „Gelöst“ = `near` nach 4 Schritten über
+0,6. Vorhersage vor dem Lauf (wörtlich aus „Laufend / offen“):
+
+> - Lösequoten mit mehr Seeds (Auftrag Nutzer 2026-11-15): `robot_loop_cue_f32` und `robot_loop_blind_f32`, die
+>   sechs Netze mit Gedächtnis, fünf weitere Seeds 3, 4, 7, 8, 9 (5 und 6 bleiben Abstimm-Seeds), 12000 Updates;
+>   Schleife wie zuvor, „gelöst“ = `near` nach 4 Schritten über 0,6. Zusammen mit den Seeds 0–2 dann 8 Läufe je
+>   Netz und Aufgabe.
+>   **Vorhersage vor dem Lauf (2026-11-15), für die 10 neuen Läufe je Netz (beide Aufgaben zusammen):**
+>   (1) hier_s löst mindestens 9 von 10. (2) layer_s, layer_s_sp4, layer_s_am4 lösen je 4–8 von 10; vitmem und
+>   attnmem je 3–7 von 10. (3) `cue` bleibt seltener gelöst als `blind`: über alle sechs Netze höchstens 18 von
+>   30 Läufen in `cue`, mindestens 22 von 30 in `blind`. (4) Gelöste Läufe von layer_s und layer_s_sp4 liegen in
+>   `near` bei 0,89–0,94, gelöste von hier_s bei 0,82–0,89. (5) Die Folgen-Wertung im Training (über 0,67 =
+>   gelöst) stimmt in mindestens 57 der 60 Läufe mit der Schleife überein.
+
+**Ergebnis.** Gelöste Läufe von 8 (in Klammern: von den 5 neuen) und `near` der gelösten Läufe.
+
+| | `cue` gelöst | `blind` gelöst | zusammen von 16 | `near` gelöst | exakt gelöst | falscher Körper gelöst |
+|---|---|---|---|---|---|---|
+| hier_s | 8 (5) | 8 (5) | 16 | 0,80–0,88 | 0,63–0,70 | 0,11–0,19 |
+| layer_s | 4 (3) | 7 (5) | 11 | 0,89–0,93 | 0,69–0,74 | 0,07–0,11 |
+| layer_s_sp4 | 4 (3) | 7 (4) | 11 | 0,75–0,92 | 0,59–0,74 | 0,07–0,24 |
+| attnmem | 5 (4) | 6 (3) | 11 | 0,64–0,76 | 0,48–0,59 | 0,22–0,34 |
+| layer_s_am4 | 2 (1) | 8 (5) | 10 | 0,77–0,89 | 0,60–0,70 | 0,10–0,22 |
+| vitmem | 4 (3) | 3 (1) | 7 | 0,63–0,78 | 0,48–0,60 | 0,21–0,35 |
+
+Ungelöste Läufe der Gitter-Netze liegen bei 0,31–0,32 (Boden), mit einer Ausnahme (layer_s_am4 `cue` s2: 0,50).
+Bei vitmem und attnmem gibt es Zwischenstände: sieben Läufe mit `near` 0,38–0,59. Neue Läufe je Aufgabe über
+alle Netze: `cue` 19 von 30, `blind` 23 von 30; alle Läufe: `cue` 27 von 48, `blind` 39 von 48.
+
+**Vergleich mit der Vorhersage.** (1) Getroffen: hier_s 10 von 10. (2) Getroffen: layer_s 8, layer_s_sp4 7,
+layer_s_am4 6, attnmem 7, vitmem 4 von 10. (3) `blind` getroffen (23), `cue` um einen Lauf verfehlt (19 statt
+höchstens 18); die Richtung stimmt. (4) layer_s getroffen (0,89–0,92); layer_s_sp4 hat zwei gelöste Läufe
+darunter (0,75 und 0,79), hier_s einen (0,80). (5) Um einen Lauf verfehlt: 56 von 60 stimmen überein; die vier
+Abweichungen sind Zwischenstände von attnmem und vitmem (`near` 0,52–0,59 bei Folgen-Wertung 0,67–0,68).
+
+**Schluss.** (a) hier_s lernt die Aufgabe zuverlässig: 16 von 16 Läufen, die übrigen Gitter-Netze 10–11 von 16
+(hier_s gegen layer_s: exakter Fisher-Test zweiseitig p = 0,04). Der Unterschied sitzt in `cue`: hier_s 8 von 8,
+layer_s und layer_s_sp4 4 von 8, layer_s_am4 2 von 8. (b) Dafür ist der Endwert von hier_s tiefer: `near`
+0,80–0,88 gegen 0,89–0,93 bei gelösten Läufen von layer_s, falscher Körper 0,11–0,19 gegen 0,07–0,11. Das ist
+der bekannte Einzelschritt-Abstand von hier_s, kein Gedächtnis-Effekt. Zuverlässigkeit des Lernens und Güte des
+Ergebnisses sind hier zwei getrennte Eigenschaften der Architektur. (c) Der Hinweis-Schritt mit Bild ist für
+die layer_s-Familie klar schwerer zu lernen (10 von 24 gegen 22 von 24), für hier_s, attnmem und vitmem nicht
+(17 von 24 gegen 17 von 24). Die Ursache ist nicht untersucht. (d) layer_s_sp4 und layer_s_am4 sind in der
+Lösequote nicht besser als layer_s; am4 ist in `cue` eher schlechter (2 gegen 4 von 8, bei dieser Zahl nicht
+belegt). (e) vitmem und attnmem lösen weicher (Zwischenstände) und enden tiefer; vitmem ist das schwächste
+Netz (7 von 16). (f) Die Folgen-Wertung im Training sagt die Schleife je Lauf weiter gut vorher (bei den
+Gitter-Netzen in allen 64 Läufen bis auf einen), an der Grenze 0,67–0,68 nicht.
+
+**Belege.** `results/finds_loop.jsonl` (Zeilen `robot_loop_cue_f32`, `robot_loop_blind_f32`, Seeds 3, 4, 7, 8,
+9), `results/finds_loop_train.jsonl`; Netze in `results/checkpoints/robot_loop_cue_f32` und
+`robot_loop_blind_f32`.
+
 ## Laufend / offen
 
-- Lösequoten mit mehr Seeds (Auftrag Nutzer 2026-11-15): `robot_loop_cue_f32` und `robot_loop_blind_f32`, die
-  sechs Netze mit Gedächtnis, fünf weitere Seeds 3, 4, 7, 8, 9 (5 und 6 bleiben Abstimm-Seeds), 12000 Updates;
-  Schleife wie zuvor, „gelöst“ = `near` nach 4 Schritten über 0,6. Zusammen mit den Seeds 0–2 dann 8 Läufe je
-  Netz und Aufgabe.
-  **Vorhersage vor dem Lauf (2026-11-15), für die 10 neuen Läufe je Netz (beide Aufgaben zusammen):**
-  (1) hier_s löst mindestens 9 von 10. (2) layer_s, layer_s_sp4, layer_s_am4 lösen je 4–8 von 10; vitmem und
-  attnmem je 3–7 von 10. (3) `cue` bleibt seltener gelöst als `blind`: über alle sechs Netze höchstens 18 von
-  30 Läufen in `cue`, mindestens 22 von 30 in `blind`. (4) Gelöste Läufe von layer_s und layer_s_sp4 liegen in
-  `near` bei 0,89–0,94, gelöste von hier_s bei 0,82–0,89. (5) Die Folgen-Wertung im Training (über 0,67 =
-  gelöst) stimmt in mindestens 57 der 60 Läufe mit der Schleife überein.
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

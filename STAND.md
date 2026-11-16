@@ -190,6 +190,9 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   und layer_s_sp4 0,91–0,93 (wie mit Vorlage). Ein Lauf löst ganz oder gar nicht: hier_s 6 von 6 (0,83–0,88),
   layer_s 3, sp4 4, am4 4, attnmem 4, vitmem 3 von 6. Engpass ist das Finden der Lösung im Training, nicht das
   Behalten. Mittel über Seeds taugt hier nicht; Lösequote und Wert der gelösten Läufe berichten.
+  Mit acht Seeds (2026-11-16): hier_s löst 16 von 16 Läufen, layer_s 11, layer_s_sp4 11, attnmem 11,
+  layer_s_am4 10, vitmem 7. hier_s lernt zuverlässiger, endet aber tiefer (`near` 0,80–0,88 gegen 0,89–0,93 bei
+  layer_s). Der Hinweis-Schritt mit Bild ist für die layer_s-Familie schwerer (10 von 24 gegen 22 von 24).
 - **Blickziel am Flächenschwerpunkt** (`robot_finds_c_f32`, 2026-11-14): exakt +0,04–0,05 (layer_s 0,74), der
   Formeffekt schrumpft von bis zu 0,29 auf bis zu 0,18, verschwindet aber nicht (L und U bleiben zurück).
   Zusammen mit einem Ausgang je Wert addiert sich beides: Formsuche exakt 0,76–0,81 (layer_s 0,81).
