@@ -1508,7 +1508,7 @@ Eintrag. Zusammen mit den Seeds 0–2 acht Läufe je Netz und Aufgabe. „Gelös
 | vitmem | 4 (3) | 3 (1) | 7 | 0,63–0,78 | 0,48–0,60 | 0,21–0,35 |
 
 Ungelöste Läufe der Gitter-Netze liegen bei 0,31–0,32 (Boden), mit einer Ausnahme (layer_s_am4 `cue` s2: 0,50).
-Bei vitmem und attnmem gibt es Zwischenstände: sieben Läufe mit `near` 0,38–0,59. Neue Läufe je Aufgabe über
+Bei vitmem und attnmem gibt es Zwischenstände: sechs Läufe mit `near` 0,38–0,59. Neue Läufe je Aufgabe über
 alle Netze: `cue` 19 von 30, `blind` 23 von 30; alle Läufe: `cue` 27 von 48, `blind` 39 von 48.
 
 **Vergleich mit der Vorhersage.** (1) Getroffen: hier_s 10 von 10. (2) Getroffen: layer_s 8, layer_s_sp4 7,
