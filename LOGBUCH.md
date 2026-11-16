@@ -1536,5 +1536,18 @@ Gitter-Netzen in allen 64 Läufen bis auf einen), an der Grenze 0,67–0,68 nich
 
 ## Laufend / offen
 
+- Was behalten die ungelösten layer_s-Läufe vom Hinweis? (Auftrag Nutzer 2026-11-16.) `scripts/loop_state_probe.py`:
+  die gespeicherten Netze (layer_s und hier_s, je 8 Seeds, beide Aufgaben) laufen über die 4500 Testfolgen;
+  nach jedem Schritt liest eine lineare Auslese (Ridge, eine Hälfte der Folgen zum Anpassen, die andere zum
+  Messen) aus dem Zustand die gesuchte Form (5 Formen, Zufall 0,2; 0,33 für jemanden, der nur die drei Körper
+  der Szene sieht) und den richtigen ersten Schritt (R²). Dieselbe Auslese auf dem Ausgang des Vorlagen-Encoders.
+  **Vorhersage vor dem Lauf (2026-11-16):** (1) Am Ausgang des Vorlagen-Encoders ist die Form in gelösten Läufen
+  zu mindestens 0,90 lesbar, in ungelösten zu mindestens 0,70 (auch ein kaum trainierter Encoder trennt die
+  Formen). (2) Im Zustand direkt nach dem Hinweis-Schritt: gelöst mindestens 0,90, ungelöst 0,40–0,80 – die
+  Vorlage kommt an. (3) Nach dem ersten Schritt des Laufs: gelöst mindestens 0,85, ungelöst höchstens 0,45 – sie
+  geht beim ersten Bild ohne Vorlage verloren. (4) hier_s: in allen 16 Läufen an allen Schritten mindestens
+  0,85. (5) In gelösten `cue`-Läufen von layer_s ist der erste Schritt nach dem Hinweis-Schritt mit R² von
+  mindestens 0,5 aus dem Zustand lesbar (das Netz rechnet ihn am Hinweis-Schritt aus), in ungelösten höchstens
+  0,2.
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
