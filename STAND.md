@@ -197,6 +197,10 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   (`+ref`, endet in tanh) gibt dort für jede Vorlage dasselbe gesättigte Muster aus (15 von 15 Läufen am Boden;
   bei gelösten nie); im Zustand kommt nichts an. Die Lösequoten messen also, wie oft der Eingang hängen bleibt.
   vitmem und attnmem scheitern auch mit lebendem Encoder.
+  Reihenfolge belegt (2026-11-16, `ref_curve`): Die layer_s-Familie sättigt den Encoder in den ersten 500–1000
+  Updates, gelöst wird frühestens ab 2750. Sättigung bei Update 1000 von mindestens 0,96 = bleibt hängen (6 von
+  6), höchstens 0,65 = löst (4 von 4). hier_s sättigt in dieser Phase gar nicht. Ursache (Eingriff ohne tanh)
+  noch nicht geprüft.
 - **Blickziel am Flächenschwerpunkt** (`robot_finds_c_f32`, 2026-11-14): exakt +0,04–0,05 (layer_s 0,74), der
   Formeffekt schrumpft von bis zu 0,29 auf bis zu 0,18, verschwindet aber nicht (L und U bleiben zurück).
   Zusammen mit einem Ausgang je Wert addiert sich beides: Formsuche exakt 0,76–0,81 (layer_s 0,81).

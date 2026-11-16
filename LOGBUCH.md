@@ -1610,23 +1610,80 @@ liegt der Engpass hinter dem Eingang. (g) Die lineare Auslese unterschätzt: gel
 **Belege.** `results/loop_state_probe.json`, `results/loop_ref_encoder.json`; Skript
 `scripts/loop_state_probe.py`.
 
+## 2026-11-16 — Vorlagen-Encoder im Trainingsverlauf: erst die Sättigung, dann das Hängenbleiben
+
+**Frage.** Geht die Sättigung des Vorlagen-Encoders dem Hängenbleiben voraus, oder ist sie eine Folge davon?
+
+**Gemacht.** `netresearch/curriculum.py` schreibt bei `+ref`-Netzen alle 250 Updates den Encoder mit
+(`ref_curve`, 512 Vorlagen). `robot_loop_cue_f32`, 12000 Updates: layer_s, layer_s_sp4, layer_s_am4, hier_s auf
+den Seeds 5 und 6; layer_s auf den Seeds 0–2 als Wiederholung (Worker, Commit 4f06cfe). Nebenbei: Der Worker
+stürzte zwischen den zwei Jobs an einer von OneDrive gesperrten Job-Datei ab; behoben (db27fd4). Vorhersage vor
+dem Lauf (wörtlich aus „Laufend / offen“):
+
+> - Reihenfolge belegen: Sättigung des Vorlagen-Encoders im Trainingsverlauf (Auftrag Nutzer 2026-11-16).
+>   `netresearch/curriculum.py` schreibt bei `+ref`-Netzen alle 250 Updates mit (`ref_curve`): Streuung des
+>   Encoder-Ausgangs über 512 Vorlagen, Anteil der Ausgangswerte mit Betrag über 0,95, mittlerer Betrag und
+>   Streuung vor dem tanh. Läufe auf `robot_loop_cue_f32`, 12000 Updates: layer_s, layer_s_sp4, layer_s_am4,
+>   hier_s auf den Abstimm-Seeds 5 und 6; dazu layer_s auf den Seeds 0–2 als Wiederholung mit bekanntem Ausgang
+>   (0 gelöst, 1 und 2 ungelöst). Vorab gesehen (lokaler Kurztest des Mitschreibens, layer_s Seed 5, 600 Updates):
+>   Anteil gesättigt 0,00 / 0,30 / 0,83 bei Update 0 / 250 / 500, Streuung 0,01 / 0,04 / 0,02.
+>   **Vorhersage vor dem Lauf (2026-11-16):** (1) Alle Läufe gehen früh in die Sättigung, gelöste wie ungelöste:
+>   bei Update 500 Anteil gesättigt mindestens 0,6 und Streuung unter 0,05. Die Sättigung allein entscheidet also
+>   nicht. (2) In gelösten Läufen steigt die Streuung über 0,1, bevor oder spätestens im selben Messpunkt, in dem
+>   die Folgen-Wertung 0,67 übersteigt: Erst wacht der Encoder auf, dann löst das Netz. (3) In ungelösten Läufen
+>   bleibt die Streuung nach Update 1000 unter 0,05, und der mittlere Betrag vor dem tanh endet bei mindestens
+>   3,5. (4) Unsicher: Bei Update 1000 liegt der mittlere Betrag vor dem tanh in jedem später gelösten
+>   layer_s-Lauf unter dem jedes später ungelösten. (5) Die Wiederholung von layer_s auf den Seeds 0–2 endet wie
+>   zuvor (gelöst, ungelöst, ungelöst). (6) Von den sechs Läufen der layer_s-Familie auf den Seeds 5 und 6 lösen
+>   2–4, hier_s löst beide.
+
+**Ergebnis.** Je Lauf: Anteil gesättigter Ausgangswerte bei Update 500 / 1000, mittlerer Betrag vor dem tanh bei
+Update 1000, erstes Update mit Streuung über 0,1, erstes Update mit Folgen-Wertung über 0,67, Endwert.
+
+| | gesättigt 500 / 1000 | Betrag 1000 | Streuung > 0,1 | Wertung > 0,67 | Ende |
+|---|---|---|---|---|---|
+| hier_s s5 | 0,00 / 0,00 | 0,4 | 1750 | 3500 | 0,77 |
+| hier_s s6 | 0,00 / 0,00 | 0,3 | 2750 | 4500 | 0,75 |
+| layer_s s0 | 0,00 / 0,45 | 1,4 | 2000 | 3250 | 0,80 |
+| layer_s_sp4 s6 | 0,39 / 0,65 | 2,0 | 1750 | 2750 | 0,81 |
+| layer_s s5 | 0,77 / 0,92 | 2,8 | 8000 | 8250 | 0,68 |
+| layer_s s1 | 0,79 / 0,96 | 3,0 | nie | nie | 0,65 |
+| layer_s s6 | 0,58 / 1,00 | 3,3 | nie | nie | 0,65 |
+| layer_s_sp4 s5 | 0,94 / 1,00 | 3,3 | nie | nie | 0,65 |
+| layer_s_am4 s6 | 0,90 / 1,00 | 3,3 | nie | nie | 0,64 |
+| layer_s_am4 s5 | 0,91 / 1,00 | 4,6 | nie | nie | 0,65 |
+| layer_s s2 | 0,97 / 1,00 | 5,4 | nie | nie | 0,66 |
+
+In den sechs ungelösten Läufen bleibt die Streuung nach Update 1000 bei höchstens 0,02, der Betrag vor dem tanh
+steigt bis 5,3–8,1 (Update 2750–5250) und endet bei 3,6–5,3. In layer_s s5 sinkt er ab Update 2750 von 6,8 auf 2,9;
+bei Update 8000 trennt der Encoder die Formen. Bei Update 0 und 250 ist in allen Läufen nichts gesättigt. Die
+Wiederholung von layer_s auf den Seeds 0–2 trifft die früheren Endwerte auf vier Stellen (0,8010 / 0,6487 /
+0,6561).
+
+**Vergleich mit der Vorhersage.** (1) Verfehlt: hier_s sättigt bei Update 500 und 1000 gar nicht, layer_s s0
+bei 500 auch nicht; nur die später ungelösten Läufe (0,58–0,97) und layer_s s5 liegen über 0,6. Der eine vorab
+gesehene Lauf war nicht typisch für die gelösten. (2) Getroffen: In allen fünf gelösten Läufen steigt die
+Streuung 250–1750 Updates vor der Folgen-Wertung. (3) Getroffen: Streuung höchstens 0,02, Betrag am Ende
+3,6–5,3. (4) Getroffen, knapp: gelöst 1,4 und 2,8, ungelöst 3,0 / 3,3 / 5,4. (5) Getroffen, auf vier Stellen.
+(6) Knapp: 2 von 6 der layer_s-Familie (einer davon spät und mit Endwert 0,68), hier_s beide.
+
+**Schluss.** (a) Die Reihenfolge ist belegt: Die Sättigung steht bei Update 500–1000, das Lösen beginnt
+frühestens bei 2750. Wer bei Update 1000 zu mindestens 0,96 gesättigt ist, bleibt hängen (6 von 6); wer bei
+höchstens 0,65 liegt, löst bis Update 4500 (4 von 4); der Lauf dazwischen (0,92) löst spät. Der Ausgang eines
+Laufs steht damit nach einem Zwölftel des Trainings fest. (b) Der Unterschied der Bauarten liegt in den ersten
+1000 Updates: Die layer_s-Familie treibt den Encoder-Ausgang für alle Vorlagen gleich auf große Werte, hier_s
+lässt ihn klein (Betrag 0,3–0,4), bis er die Formen trennt. Das erklärt, warum hier_s nie hängen bleibt.
+(c) Die Sättigung ist kein endgültiger Zustand: Der Betrag sinkt in mehreren Läufen langsam wieder, in einem
+reicht das zum späten Lösen. Längeres Training würde die Lösequote vermutlich heben; nicht gemessen. (d) Belegt
+ist die zeitliche Reihenfolge, nicht die Ursache. Der Eingriff (Encoder-Ausgang ohne tanh) steht aus.
+(e) Vermutung, nicht geprüft: Die layer_s-Netze benutzen den Encoder-Ausgang zuerst als Marke für den
+Hinweis-Schritt (Vorlage da gegen leer); dafür genügt ein großer konstanter Wert. Dazu passt, dass `blind`
+(dort markiert das leere Bild den Hinweis-Schritt) seltener hängen bleibt. (f) Die Läufe sind auf dem Worker
+bitgenau wiederholbar; ein Seed ist also eine feste Eigenschaft des Laufs, kein Rauschen der Maschine.
+
+**Belege.** `results/loop_refcurve.jsonl` (11 Läufe mit `ref_curve`).
+
 ## Laufend / offen
 
-- Reihenfolge belegen: Sättigung des Vorlagen-Encoders im Trainingsverlauf (Auftrag Nutzer 2026-11-16).
-  `netresearch/curriculum.py` schreibt bei `+ref`-Netzen alle 250 Updates mit (`ref_curve`): Streuung des
-  Encoder-Ausgangs über 512 Vorlagen, Anteil der Ausgangswerte mit Betrag über 0,95, mittlerer Betrag und
-  Streuung vor dem tanh. Läufe auf `robot_loop_cue_f32`, 12000 Updates: layer_s, layer_s_sp4, layer_s_am4,
-  hier_s auf den Abstimm-Seeds 5 und 6; dazu layer_s auf den Seeds 0–2 als Wiederholung mit bekanntem Ausgang
-  (0 gelöst, 1 und 2 ungelöst). Vorab gesehen (lokaler Kurztest des Mitschreibens, layer_s Seed 5, 600 Updates):
-  Anteil gesättigt 0,00 / 0,30 / 0,83 bei Update 0 / 250 / 500, Streuung 0,01 / 0,04 / 0,02.
-  **Vorhersage vor dem Lauf (2026-11-16):** (1) Alle Läufe gehen früh in die Sättigung, gelöste wie ungelöste:
-  bei Update 500 Anteil gesättigt mindestens 0,6 und Streuung unter 0,05. Die Sättigung allein entscheidet also
-  nicht. (2) In gelösten Läufen steigt die Streuung über 0,1, bevor oder spätestens im selben Messpunkt, in dem
-  die Folgen-Wertung 0,67 übersteigt: Erst wacht der Encoder auf, dann löst das Netz. (3) In ungelösten Läufen
-  bleibt die Streuung nach Update 1000 unter 0,05, und der mittlere Betrag vor dem tanh endet bei mindestens
-  3,5. (4) Unsicher: Bei Update 1000 liegt der mittlere Betrag vor dem tanh in jedem später gelösten
-  layer_s-Lauf unter dem jedes später ungelösten. (5) Die Wiederholung von layer_s auf den Seeds 0–2 endet wie
-  zuvor (gelöst, ungelöst, ungelöst). (6) Von den sechs Läufen der layer_s-Familie auf den Seeds 5 und 6 lösen
-  2–4, hier_s löst beide.
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
