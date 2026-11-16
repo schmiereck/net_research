@@ -1534,20 +1534,83 @@ Gitter-Netzen in allen 64 Läufen bis auf einen), an der Grenze 0,67–0,68 nich
 9), `results/finds_loop_train.jsonl`; Netze in `results/checkpoints/robot_loop_cue_f32` und
 `robot_loop_blind_f32`.
 
+## 2026-11-16 — Ungelöste Läufe der Gedächtnis-Schleife: Die Vorlage kommt nicht an
+
+**Frage.** Geht die Vorlage in den ungelösten layer_s-Läufen im Zustand verloren, oder kommt sie nie hinein?
+
+**Gemacht.** `scripts/loop_state_probe.py`: layer_s und hier_s, je 8 Seeds, beide Aufgaben, 4500 Testfolgen;
+lineare Auslese (Ridge, halb anpassen, halb messen) der gesuchten Form (Zufall 0,2) und des richtigen ersten
+Schritts (R²) aus dem Zustand nach jedem Schritt und aus dem Ausgang des Vorlagen-Encoders. Danach für alle 96
+Läufe der sechs Netze mit Gedächtnis: Streuung des Encoder-Ausgangs über 1500 Vorlagen und Anteil der
+Ausgangswerte mit Betrag über 0,95 (der Encoder endet in einem tanh) → `results/loop_ref_encoder.json`.
+Zusätzlich drei frisch angelegte Netze je Bauart. Vorhersage vor dem Lauf (wörtlich aus „Laufend / offen“):
+
+> - Was behalten die ungelösten layer_s-Läufe vom Hinweis? (Auftrag Nutzer 2026-11-16.) `scripts/loop_state_probe.py`:
+>   die gespeicherten Netze (layer_s und hier_s, je 8 Seeds, beide Aufgaben) laufen über die 4500 Testfolgen;
+>   nach jedem Schritt liest eine lineare Auslese (Ridge, eine Hälfte der Folgen zum Anpassen, die andere zum
+>   Messen) aus dem Zustand die gesuchte Form (5 Formen, Zufall 0,2; 0,33 für jemanden, der nur die drei Körper
+>   der Szene sieht) und den richtigen ersten Schritt (R²). Dieselbe Auslese auf dem Ausgang des Vorlagen-Encoders.
+>   **Vorhersage vor dem Lauf (2026-11-16):** (1) Am Ausgang des Vorlagen-Encoders ist die Form in gelösten Läufen
+>   zu mindestens 0,90 lesbar, in ungelösten zu mindestens 0,70 (auch ein kaum trainierter Encoder trennt die
+>   Formen). (2) Im Zustand direkt nach dem Hinweis-Schritt: gelöst mindestens 0,90, ungelöst 0,40–0,80 – die
+>   Vorlage kommt an. (3) Nach dem ersten Schritt des Laufs: gelöst mindestens 0,85, ungelöst höchstens 0,45 – sie
+>   geht beim ersten Bild ohne Vorlage verloren. (4) hier_s: in allen 16 Läufen an allen Schritten mindestens
+>   0,85. (5) In gelösten `cue`-Läufen von layer_s ist der erste Schritt nach dem Hinweis-Schritt mit R² von
+>   mindestens 0,5 aus dem Zustand lesbar (das Netz rechnet ihn am Hinweis-Schritt aus), in ungelösten höchstens
+>   0,2.
+
+**Ergebnis.** Form-Auslese (Anteil richtig), Spanne über die Läufe.
+
+| | Encoder-Ausgang | Zustand nach Hinweis | nach Schritt 1 | nach Schritt 4 | Schritt-R² nach Hinweis |
+|---|---|---|---|---|---|
+| layer_s `cue`, gelöst (4) | 0,80–0,85 | 0,74–0,81 | 0,73–0,76 | 0,74–0,75 | 0,25–0,35 |
+| layer_s `cue`, ungelöst (4) | 0,31–0,34 | 0,23–0,25 | 0,23–0,24 | 0,66–0,69 | 0,05–0,07 |
+| layer_s `blind`, gelöst (7) | 0,75–0,84 | 0,91–0,95 | 0,80–0,86 | 0,74–0,79 | – |
+| layer_s `blind`, ungelöst (1) | 0,34 | 0,32 | 0,24 | 0,67 | – |
+| hier_s `cue` (8, alle gelöst) | 0,73–0,87 | 0,70–0,83 | 0,68–0,79 | 0,72–0,75 | 0,22–0,41 |
+| hier_s `blind` (8, alle gelöst) | 0,72–0,85 | 0,92–0,94 | 0,82–0,87 | 0,71–0,78 | – |
+| frisch angelegt (6) | 0,30–0,35 | | | | |
+
+Die 0,66–0,69 der ungelösten Läufe nach Schritt 4 sind keine Erinnerung: Der Lehrer hat den Blick dann meist
+auf den gesuchten Körper gestellt, die Form steht im Bild. Encoder-Ausgang der Gitter-Netze (64 Läufe):
+
+| | Streuung über Vorlagen | Anteil Werte mit Betrag über 0,95 |
+|---|---|---|
+| gelöste Läufe (48) | 0,24–0,72 | 0,37–0,69 |
+| ungelöste Läufe am Boden (15; dazu ein Zwischenstand) | 0,00–0,17 | 0,69–1,00 (10 davon ab 0,90) |
+| frisch angelegt | 0,01 | 0,00 |
+
+In den ungelösten layer_s-Läufen liegt der Wert vor dem tanh im Mittel bei Betrag 3,5–5,4 mit Streuung
+0,6–0,95: Der Ausgang ist für jede Vorlage dasselbe Muster aus ±1. Kein Lauf mit zusammengefallenem Encoder
+(Streuung unter 0,05; 15 von 96) ist gelöst. Bei vitmem und attnmem gibt es dagegen ungelöste Läufe mit
+lebendem Encoder (in `blind` alle: Streuung 0,09–0,25, kein Wert gesättigt).
+
+**Vergleich mit der Vorhersage.** (1) Verfehlt: gelöst 0,73–0,87 statt mindestens 0,90; ungelöst 0,31–0,34
+statt mindestens 0,70 – wie ein frisch angelegter Encoder. (2) Verfehlt im Kern: In ungelösten Läufen kommt die
+Vorlage nicht im Zustand an (0,23–0,32); gelöst nur in `blind` über 0,90. (3) Ungelöst höchstens 0,45 getroffen,
+aber aus anderem Grund (es war nie etwas da); gelöst 0,73–0,86, überwiegend unter 0,85. (4) Verfehlt: hier_s
+0,68–0,94, fallend über die Schritte. (5) Gelöst verfehlt (R² 0,25–0,35 statt mindestens 0,5), ungelöst
+getroffen. Meine Annahme „die Vorlage kommt an und geht dann verloren“ war falsch.
+
+**Schluss.** (a) Die ungelösten Läufe der Gitter-Netze scheitern am Eingang, nicht am Gedächtnis: Der
+Vorlagen-Encoder gibt für jede Vorlage dasselbe gesättigte Muster aus. Im Zustand ist dann nichts zu behalten.
+(b) Gemessen ist der Zusammenhang (ungelöst = Encoder gesättigt und ohne Streuung, 15 von 15 am Boden; gelöst
+nie), nicht die Reihenfolge. Naheliegend, aber nicht belegt: Der Ausgang läuft früh in die Sättigung des tanh,
+dort ist die Steigung um drei Größenordnungen kleiner, und der Encoder lernt die Formen nicht mehr. Dafür
+fehlen Zwischenstände aus dem Training. (c) Folge für den vorigen Eintrag: Die Lösequoten der Gitter-Netze
+messen, wie oft der gemeinsame Vorlagen-Eingang (`+ref`) hängen bleibt, nicht die Güte des Gedächtnisses. Dass
+hier_s nie hängen bleibt und die layer_s-Familie in `cue` oft, ist damit eine Aussage über das Zusammenspiel
+von Bauart und Eingang; warum, ist offen. (d) Wer den Eingang lernt, behält genug: Die Form bleibt über vier
+Schritte linear lesbar (0,71–0,79), mit Abfall von 0,91–0,95 direkt nach dem Hinweis in `blind`. (e) In `cue`
+wird der erste Schritt am Hinweis-Schritt nur teilweise vorausgerechnet (R² 0,22–0,41); die Netze behalten
+vor allem, was gesucht ist. (f) vitmem und attnmem scheitern anders: in `blind` mit lebendem Encoder. Dort
+liegt der Engpass hinter dem Eingang. (g) Die lineare Auslese unterschätzt: gelöste Läufe handeln besser
+(`near` 0,89–0,93), als 0,75–0,85 Form-Auslese am Encoder vermuten lässt.
+
+**Belege.** `results/loop_state_probe.json`, `results/loop_ref_encoder.json`; Skript
+`scripts/loop_state_probe.py`.
+
 ## Laufend / offen
 
-- Was behalten die ungelösten layer_s-Läufe vom Hinweis? (Auftrag Nutzer 2026-11-16.) `scripts/loop_state_probe.py`:
-  die gespeicherten Netze (layer_s und hier_s, je 8 Seeds, beide Aufgaben) laufen über die 4500 Testfolgen;
-  nach jedem Schritt liest eine lineare Auslese (Ridge, eine Hälfte der Folgen zum Anpassen, die andere zum
-  Messen) aus dem Zustand die gesuchte Form (5 Formen, Zufall 0,2; 0,33 für jemanden, der nur die drei Körper
-  der Szene sieht) und den richtigen ersten Schritt (R²). Dieselbe Auslese auf dem Ausgang des Vorlagen-Encoders.
-  **Vorhersage vor dem Lauf (2026-11-16):** (1) Am Ausgang des Vorlagen-Encoders ist die Form in gelösten Läufen
-  zu mindestens 0,90 lesbar, in ungelösten zu mindestens 0,70 (auch ein kaum trainierter Encoder trennt die
-  Formen). (2) Im Zustand direkt nach dem Hinweis-Schritt: gelöst mindestens 0,90, ungelöst 0,40–0,80 – die
-  Vorlage kommt an. (3) Nach dem ersten Schritt des Laufs: gelöst mindestens 0,85, ungelöst höchstens 0,45 – sie
-  geht beim ersten Bild ohne Vorlage verloren. (4) hier_s: in allen 16 Läufen an allen Schritten mindestens
-  0,85. (5) In gelösten `cue`-Läufen von layer_s ist der erste Schritt nach dem Hinweis-Schritt mit R² von
-  mindestens 0,5 aus dem Zustand lesbar (das Netz rechnet ihn am Hinweis-Schritt aus), in ungelösten höchstens
-  0,2.
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

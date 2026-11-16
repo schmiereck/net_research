@@ -1,0 +1,866 @@
+[
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "attnmem+ref+rez3",
+  "seed": 0,
+  "near": 0.6891,
+  "std": 0.2692,
+  "sat": 0.071,
+  "dist_blank": 0.382
+ },
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "attnmem+ref+rez3",
+  "seed": 1,
+  "near": 0.3118,
+  "std": 0.1633,
+  "sat": 0.383,
+  "dist_blank": 0.658
+ },
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "attnmem+ref+rez3",
+  "seed": 2,
+  "near": 0.3147,
+  "std": 0.1126,
+  "sat": 0.551,
+  "dist_blank": 0.772
+ },
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "attnmem+ref+rez3",
+  "seed": 3,
+  "near": 0.7504,
+  "std": 0.3285,
+  "sat": 0.229,
+  "dist_blank": 0.546
+ },
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "attnmem+ref+rez3",
+  "seed": 4,
+  "near": 0.5487,
+  "std": 0.2184,
+  "sat": 0.23,
+  "dist_blank": 0.656
+ },
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "attnmem+ref+rez3",
+  "seed": 7,
+  "near": 0.7011,
+  "std": 0.257,
+  "sat": 0.162,
+  "dist_blank": 0.468
+ },
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "attnmem+ref+rez3",
+  "seed": 8,
+  "near": 0.684,
+  "std": 0.3272,
+  "sat": 0.229,
+  "dist_blank": 0.589
+ },
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "attnmem+ref+rez3",
+  "seed": 9,
+  "near": 0.6389,
+  "std": 0.2707,
+  "sat": 0.122,
+  "dist_blank": 0.463
+ },
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "hier_s+cell+ref+rez3",
+  "seed": 0,
+  "near": 0.8722,
+  "std": 0.3908,
+  "sat": 0.632,
+  "dist_blank": 0.965
+ },
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "hier_s+cell+ref+rez3",
+  "seed": 1,
+  "near": 0.8596,
+  "std": 0.5074,
+  "sat": 0.579,
+  "dist_blank": 0.937
+ },
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "hier_s+cell+ref+rez3",
+  "seed": 2,
+  "near": 0.884,
+  "std": 0.4642,
+  "sat": 0.606,
+  "dist_blank": 0.981
+ },
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "hier_s+cell+ref+rez3",
+  "seed": 3,
+  "near": 0.8733,
+  "std": 0.5254,
+  "sat": 0.601,
+  "dist_blank": 0.936
+ },
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "hier_s+cell+ref+rez3",
+  "seed": 4,
+  "near": 0.862,
+  "std": 0.4616,
+  "sat": 0.567,
+  "dist_blank": 0.948
+ },
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "hier_s+cell+ref+rez3",
+  "seed": 7,
+  "near": 0.8042,
+  "std": 0.5678,
+  "sat": 0.512,
+  "dist_blank": 0.904
+ },
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "hier_s+cell+ref+rez3",
+  "seed": 8,
+  "near": 0.8724,
+  "std": 0.4518,
+  "sat": 0.632,
+  "dist_blank": 0.946
+ },
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "hier_s+cell+ref+rez3",
+  "seed": 9,
+  "near": 0.8629,
+  "std": 0.5217,
+  "sat": 0.572,
+  "dist_blank": 0.881
+ },
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "layer_s+cell+ref+rez3",
+  "seed": 0,
+  "near": 0.9087,
+  "std": 0.4861,
+  "sat": 0.665,
+  "dist_blank": 0.865
+ },
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "layer_s+cell+ref+rez3",
+  "seed": 1,
+  "near": 0.3156,
+  "std": 0.0016,
+  "sat": 1.0,
+  "dist_blank": 0.921
+ },
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "layer_s+cell+ref+rez3",
+  "seed": 2,
+  "near": 0.3118,
+  "std": 0.0118,
+  "sat": 0.896,
+  "dist_blank": 0.921
+ },
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "layer_s+cell+ref+rez3",
+  "seed": 3,
+  "near": 0.8984,
+  "std": 0.458,
+  "sat": 0.656,
+  "dist_blank": 0.83
+ },
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "layer_s+cell+ref+rez3",
+  "seed": 4,
+  "near": 0.3129,
+  "std": 0.0007,
+  "sat": 1.0,
+  "dist_blank": 0.924
+ },
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "layer_s+cell+ref+rez3",
+  "seed": 7,
+  "near": 0.8998,
+  "std": 0.4239,
+  "sat": 0.693,
+  "dist_blank": 0.862
+ },
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "layer_s+cell+ref+rez3",
+  "seed": 8,
+  "near": 0.924,
+  "std": 0.6634,
+  "sat": 0.565,
+  "dist_blank": 0.855
+ },
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "layer_s+cell+ref+rez3",
+  "seed": 9,
+  "near": 0.3116,
+  "std": 0.0077,
+  "sat": 0.978,
+  "dist_blank": 0.938
+ },
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "layer_s_am4+cell+ref+rez3",
+  "seed": 0,
+  "near": 0.8427,
+  "std": 0.2545,
+  "sat": 0.662,
+  "dist_blank": 0.887
+ },
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "layer_s_am4+cell+ref+rez3",
+  "seed": 1,
+  "near": 0.3113,
+  "std": 0.0002,
+  "sat": 1.0,
+  "dist_blank": 0.98
+ },
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "layer_s_am4+cell+ref+rez3",
+  "seed": 2,
+  "near": 0.5036,
+  "std": 0.2724,
+  "sat": 0.67,
+  "dist_blank": 0.888
+ },
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "layer_s_am4+cell+ref+rez3",
+  "seed": 3,
+  "near": 0.3124,
+  "std": 0.0002,
+  "sat": 1.0,
+  "dist_blank": 0.996
+ },
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "layer_s_am4+cell+ref+rez3",
+  "seed": 4,
+  "near": 0.3176,
+  "std": 0.0486,
+  "sat": 0.798,
+  "dist_blank": 0.93
+ },
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "layer_s_am4+cell+ref+rez3",
+  "seed": 7,
+  "near": 0.864,
+  "std": 0.4277,
+  "sat": 0.598,
+  "dist_blank": 0.874
+ },
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "layer_s_am4+cell+ref+rez3",
+  "seed": 8,
+  "near": 0.3089,
+  "std": 0.0,
+  "sat": 1.0,
+  "dist_blank": 0.988
+ },
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "layer_s_am4+cell+ref+rez3",
+  "seed": 9,
+  "near": 0.3129,
+  "std": 0.0045,
+  "sat": 0.991,
+  "dist_blank": 0.991
+ },
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "layer_s_sp4+cell+ref+rez3",
+  "seed": 0,
+  "near": 0.3138,
+  "std": 0.0008,
+  "sat": 1.0,
+  "dist_blank": 0.928
+ },
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "layer_s_sp4+cell+ref+rez3",
+  "seed": 1,
+  "near": 0.3189,
+  "std": 0.0044,
+  "sat": 0.978,
+  "dist_blank": 0.941
+ },
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "layer_s_sp4+cell+ref+rez3",
+  "seed": 2,
+  "near": 0.9173,
+  "std": 0.5829,
+  "sat": 0.556,
+  "dist_blank": 0.805
+ },
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "layer_s_sp4+cell+ref+rez3",
+  "seed": 3,
+  "near": 0.3151,
+  "std": 0.0171,
+  "sat": 0.859,
+  "dist_blank": 0.941
+ },
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "layer_s_sp4+cell+ref+rez3",
+  "seed": 4,
+  "near": 0.7882,
+  "std": 0.2988,
+  "sat": 0.506,
+  "dist_blank": 0.829
+ },
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "layer_s_sp4+cell+ref+rez3",
+  "seed": 7,
+  "near": 0.752,
+  "std": 0.2423,
+  "sat": 0.648,
+  "dist_blank": 0.843
+ },
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "layer_s_sp4+cell+ref+rez3",
+  "seed": 8,
+  "near": 0.902,
+  "std": 0.3611,
+  "sat": 0.571,
+  "dist_blank": 0.762
+ },
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "layer_s_sp4+cell+ref+rez3",
+  "seed": 9,
+  "near": 0.3189,
+  "std": 0.1363,
+  "sat": 0.806,
+  "dist_blank": 0.891
+ },
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "vitmem+ref+rez3",
+  "seed": 0,
+  "near": 0.7247,
+  "std": 0.2044,
+  "sat": 0.409,
+  "dist_blank": 0.839
+ },
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "vitmem+ref+rez3",
+  "seed": 1,
+  "near": 0.3131,
+  "std": 0.0037,
+  "sat": 0.977,
+  "dist_blank": 0.995
+ },
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "vitmem+ref+rez3",
+  "seed": 2,
+  "near": 0.3109,
+  "std": 0.0582,
+  "sat": 0.76,
+  "dist_blank": 0.939
+ },
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "vitmem+ref+rez3",
+  "seed": 3,
+  "near": 0.7456,
+  "std": 0.2604,
+  "sat": 0.102,
+  "dist_blank": 0.509
+ },
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "vitmem+ref+rez3",
+  "seed": 4,
+  "near": 0.4658,
+  "std": 0.1626,
+  "sat": 0.559,
+  "dist_blank": 0.879
+ },
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "vitmem+ref+rez3",
+  "seed": 7,
+  "near": 0.3138,
+  "std": 0.0057,
+  "sat": 0.955,
+  "dist_blank": 0.98
+ },
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "vitmem+ref+rez3",
+  "seed": 8,
+  "near": 0.6284,
+  "std": 0.2346,
+  "sat": 0.256,
+  "dist_blank": 0.693
+ },
+ {
+  "task": "robot_loop_cue_f32",
+  "model": "vitmem+ref+rez3",
+  "seed": 9,
+  "near": 0.7142,
+  "std": 0.3086,
+  "sat": 0.168,
+  "dist_blank": 0.503
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "attnmem+ref+rez3",
+  "seed": 0,
+  "near": 0.742,
+  "std": 0.2758,
+  "sat": 0.018,
+  "dist_blank": 0.325
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "attnmem+ref+rez3",
+  "seed": 1,
+  "near": 0.7369,
+  "std": 0.2496,
+  "sat": 0.004,
+  "dist_blank": 0.252
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "attnmem+ref+rez3",
+  "seed": 2,
+  "near": 0.714,
+  "std": 0.1708,
+  "sat": 0.0,
+  "dist_blank": 0.167
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "attnmem+ref+rez3",
+  "seed": 3,
+  "near": 0.7024,
+  "std": 0.1722,
+  "sat": 0.0,
+  "dist_blank": 0.171
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "attnmem+ref+rez3",
+  "seed": 4,
+  "near": 0.5171,
+  "std": 0.0942,
+  "sat": 0.0,
+  "dist_blank": 0.108
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "attnmem+ref+rez3",
+  "seed": 7,
+  "near": 0.6404,
+  "std": 0.1357,
+  "sat": 0.0,
+  "dist_blank": 0.153
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "attnmem+ref+rez3",
+  "seed": 8,
+  "near": 0.7633,
+  "std": 0.233,
+  "sat": 0.001,
+  "dist_blank": 0.232
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "attnmem+ref+rez3",
+  "seed": 9,
+  "near": 0.5858,
+  "std": 0.1364,
+  "sat": 0.0,
+  "dist_blank": 0.148
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "hier_s+cell+ref+rez3",
+  "seed": 0,
+  "near": 0.8493,
+  "std": 0.6622,
+  "sat": 0.433,
+  "dist_blank": 0.756
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "hier_s+cell+ref+rez3",
+  "seed": 1,
+  "near": 0.8307,
+  "std": 0.623,
+  "sat": 0.408,
+  "dist_blank": 0.74
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "hier_s+cell+ref+rez3",
+  "seed": 2,
+  "near": 0.8696,
+  "std": 0.6398,
+  "sat": 0.435,
+  "dist_blank": 0.739
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "hier_s+cell+ref+rez3",
+  "seed": 3,
+  "near": 0.8573,
+  "std": 0.6235,
+  "sat": 0.423,
+  "dist_blank": 0.735
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "hier_s+cell+ref+rez3",
+  "seed": 4,
+  "near": 0.854,
+  "std": 0.6429,
+  "sat": 0.47,
+  "dist_blank": 0.749
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "hier_s+cell+ref+rez3",
+  "seed": 7,
+  "near": 0.8502,
+  "std": 0.6036,
+  "sat": 0.37,
+  "dist_blank": 0.695
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "hier_s+cell+ref+rez3",
+  "seed": 8,
+  "near": 0.8304,
+  "std": 0.6545,
+  "sat": 0.496,
+  "dist_blank": 0.77
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "hier_s+cell+ref+rez3",
+  "seed": 9,
+  "near": 0.8302,
+  "std": 0.6413,
+  "sat": 0.528,
+  "dist_blank": 0.784
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "layer_s+cell+ref+rez3",
+  "seed": 0,
+  "near": 0.9253,
+  "std": 0.6584,
+  "sat": 0.529,
+  "dist_blank": 0.811
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "layer_s+cell+ref+rez3",
+  "seed": 1,
+  "near": 0.9116,
+  "std": 0.6727,
+  "sat": 0.525,
+  "dist_blank": 0.783
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "layer_s+cell+ref+rez3",
+  "seed": 2,
+  "near": 0.3076,
+  "std": 0.0042,
+  "sat": 0.959,
+  "dist_blank": 0.931
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "layer_s+cell+ref+rez3",
+  "seed": 3,
+  "near": 0.8871,
+  "std": 0.447,
+  "sat": 0.56,
+  "dist_blank": 0.609
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "layer_s+cell+ref+rez3",
+  "seed": 4,
+  "near": 0.9047,
+  "std": 0.5154,
+  "sat": 0.516,
+  "dist_blank": 0.549
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "layer_s+cell+ref+rez3",
+  "seed": 7,
+  "near": 0.9247,
+  "std": 0.6156,
+  "sat": 0.557,
+  "dist_blank": 0.765
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "layer_s+cell+ref+rez3",
+  "seed": 8,
+  "near": 0.8856,
+  "std": 0.6602,
+  "sat": 0.509,
+  "dist_blank": 0.789
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "layer_s+cell+ref+rez3",
+  "seed": 9,
+  "near": 0.912,
+  "std": 0.5222,
+  "sat": 0.539,
+  "dist_blank": 0.656
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "layer_s_am4+cell+ref+rez3",
+  "seed": 0,
+  "near": 0.8722,
+  "std": 0.691,
+  "sat": 0.434,
+  "dist_blank": 0.782
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "layer_s_am4+cell+ref+rez3",
+  "seed": 1,
+  "near": 0.8544,
+  "std": 0.5195,
+  "sat": 0.504,
+  "dist_blank": 0.702
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "layer_s_am4+cell+ref+rez3",
+  "seed": 2,
+  "near": 0.7749,
+  "std": 0.7158,
+  "sat": 0.52,
+  "dist_blank": 0.816
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "layer_s_am4+cell+ref+rez3",
+  "seed": 3,
+  "near": 0.894,
+  "std": 0.672,
+  "sat": 0.498,
+  "dist_blank": 0.766
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "layer_s_am4+cell+ref+rez3",
+  "seed": 4,
+  "near": 0.8442,
+  "std": 0.6069,
+  "sat": 0.49,
+  "dist_blank": 0.727
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "layer_s_am4+cell+ref+rez3",
+  "seed": 7,
+  "near": 0.8209,
+  "std": 0.448,
+  "sat": 0.482,
+  "dist_blank": 0.678
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "layer_s_am4+cell+ref+rez3",
+  "seed": 8,
+  "near": 0.8331,
+  "std": 0.4996,
+  "sat": 0.574,
+  "dist_blank": 0.766
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "layer_s_am4+cell+ref+rez3",
+  "seed": 9,
+  "near": 0.8669,
+  "std": 0.5592,
+  "sat": 0.497,
+  "dist_blank": 0.753
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "layer_s_sp4+cell+ref+rez3",
+  "seed": 0,
+  "near": 0.8382,
+  "std": 0.5513,
+  "sat": 0.414,
+  "dist_blank": 0.669
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "layer_s_sp4+cell+ref+rez3",
+  "seed": 1,
+  "near": 0.9144,
+  "std": 0.5533,
+  "sat": 0.499,
+  "dist_blank": 0.732
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "layer_s_sp4+cell+ref+rez3",
+  "seed": 2,
+  "near": 0.92,
+  "std": 0.7103,
+  "sat": 0.524,
+  "dist_blank": 0.813
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "layer_s_sp4+cell+ref+rez3",
+  "seed": 3,
+  "near": 0.9147,
+  "std": 0.5666,
+  "sat": 0.464,
+  "dist_blank": 0.703
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "layer_s_sp4+cell+ref+rez3",
+  "seed": 4,
+  "near": 0.9009,
+  "std": 0.434,
+  "sat": 0.539,
+  "dist_blank": 0.649
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "layer_s_sp4+cell+ref+rez3",
+  "seed": 7,
+  "near": 0.9236,
+  "std": 0.6343,
+  "sat": 0.474,
+  "dist_blank": 0.763
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "layer_s_sp4+cell+ref+rez3",
+  "seed": 8,
+  "near": 0.916,
+  "std": 0.6717,
+  "sat": 0.486,
+  "dist_blank": 0.77
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "layer_s_sp4+cell+ref+rez3",
+  "seed": 9,
+  "near": 0.3162,
+  "std": 0.1692,
+  "sat": 0.69,
+  "dist_blank": 0.803
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "vitmem+ref+rez3",
+  "seed": 0,
+  "near": 0.318,
+  "std": 0.1469,
+  "sat": 0.0,
+  "dist_blank": 0.136
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "vitmem+ref+rez3",
+  "seed": 1,
+  "near": 0.7584,
+  "std": 0.3665,
+  "sat": 0.058,
+  "dist_blank": 0.435
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "vitmem+ref+rez3",
+  "seed": 2,
+  "near": 0.718,
+  "std": 0.3364,
+  "sat": 0.02,
+  "dist_blank": 0.352
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "vitmem+ref+rez3",
+  "seed": 3,
+  "near": 0.3149,
+  "std": 0.1462,
+  "sat": 0.0,
+  "dist_blank": 0.186
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "vitmem+ref+rez3",
+  "seed": 4,
+  "near": 0.3149,
+  "std": 0.1166,
+  "sat": 0.0,
+  "dist_blank": 0.11
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "vitmem+ref+rez3",
+  "seed": 7,
+  "near": 0.3836,
+  "std": 0.1787,
+  "sat": 0.0,
+  "dist_blank": 0.153
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "vitmem+ref+rez3",
+  "seed": 8,
+  "near": 0.7758,
+  "std": 0.4298,
+  "sat": 0.04,
+  "dist_blank": 0.433
+ },
+ {
+  "task": "robot_loop_blind_f32",
+  "model": "vitmem+ref+rez3",
+  "seed": 9,
+  "near": 0.5938,
+  "std": 0.2508,
+  "sat": 0.0,
+  "dist_blank": 0.211
+ }
+]
