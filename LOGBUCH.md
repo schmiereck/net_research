@@ -1683,21 +1683,74 @@ bitgenau wiederholbar; ein Seed ist also eine feste Eigenschaft des Laufs, kein 
 
 **Belege.** `results/loop_refcurve.jsonl` (11 Läufe mit `ref_curve`).
 
+## 2026-11-16 — Ursachen-Probe: Ohne tanh am Vorlagen-Encoder lösen alle Läufe
+
+**Frage.** Ist die Sättigung des tanh am Ausgang des Vorlagen-Encoders die Ursache der ungelösten Läufe?
+
+**Gemacht.** Modell-Variante `+refl` (wie `+ref` ohne den tanh; gleiche Startgewichte bei gleichem Seed).
+Dieselben elf Läufe wie im vorigen Eintrag auf `robot_loop_cue_f32`, 12000 Updates (Worker, Commit 8990e1b);
+danach die geschlossene Schleife auf den 1500 Startszenen. Vorhersage vor dem Lauf (wörtlich aus „Laufend /
+offen“):
+
+> - Ursachen-Probe: Vorlagen-Encoder ohne tanh (Auftrag Nutzer 2026-11-16). Neue Modell-Variante `+refl`
+>   (wie `+ref`, der tanh am Ausgang des Encoders fehlt; gleiche Startgewichte bei gleichem Seed, geprüft). Dieselben
+>   elf Läufe wie im vorigen Eintrag auf `robot_loop_cue_f32`, 12000 Updates: layer_s, layer_s_sp4, layer_s_am4,
+>   hier_s auf den Seeds 5 und 6, layer_s auf den Seeds 0–2; je Lauf direkter Vergleich mit dem `+ref`-Lauf
+>   gleichen Seeds (dort lösten von den neun Läufen der layer_s-Familie drei, einer davon spät). Danach die
+>   geschlossene Schleife. Vorab gesehen (lokaler Kurztest, layer_s Seed 5, 300 Updates): Betrag des Ausgangs
+>   0,33 bei Update 250 (mit tanh davor 0,3).
+>   **Vorhersage vor dem Lauf (2026-11-16):** (1) Ohne tanh lösen mindestens 7 der 9 Läufe der layer_s-Familie
+>   (Folgen-Wertung am Ende über 0,67), darunter mindestens 4 der 6, die mit tanh ungelöst blieben. (2) Die
+>   gelösten Läufe überschreiten 0,67 vor Update 5000. (3) Die layer_s-Familie treibt den Ausgang weiter früh auf
+>   große gemeinsame Werte: mittlerer Betrag bei Update 1000 mindestens 2 in mindestens 6 der 9 Läufe (der Antrieb
+>   bleibt, nur die Sackgasse fehlt). (4) hier_s löst beide Läufe, Endwert innerhalb ±0,03 um den `+ref`-Lauf
+>   (0,77 und 0,75). (5) Gelöste layer_s- und layer_s_sp4-Läufe enden bei 0,78–0,82 und in der Schleife bei
+>   `near` nach 4 Schritten 0,88–0,93.
+
+**Ergebnis.** Je Lauf mit tanh (`+ref`) und ohne (`+refl`): Folgen-Wertung am Ende, erstes Update über 0,67,
+mittlerer Betrag des Encoder-Werts bei Update 1000 (mit tanh: vor dem tanh); Schleife `near` nach 4 Schritten.
+
+| | Ende `+ref` → `+refl` | über 0,67 ab `+ref` → `+refl` | Betrag bei 1000 `+ref` → `+refl` | Schleife `+refl` (`+ref`) |
+|---|---|---|---|---|
+| layer_s s0 | 0,80 → 0,80 | 3250 → 3500 | 1,4 → 0,5 | 0,90 (0,91) |
+| layer_s s1 | 0,65 → 0,80 | nie → 3000 | 3,0 → 0,9 | 0,89 (0,32) |
+| layer_s s2 | 0,66 → 0,79 | nie → 3750 | 5,4 → 1,6 | 0,87 (0,31) |
+| layer_s s5 | 0,68 → 0,79 | 8250 → 3500 | 2,8 → 0,9 | 0,88 |
+| layer_s s6 | 0,65 → 0,80 | nie → 2750 | 3,3 → 0,8 | 0,90 |
+| layer_s_sp4 s5 | 0,65 → 0,79 | nie → 3250 | 3,3 → 1,5 | 0,88 |
+| layer_s_sp4 s6 | 0,81 → 0,80 | 2750 → 2500 | 2,0 → 0,7 | 0,90 |
+| layer_s_am4 s5 | 0,65 → 0,76 | nie → 3750 | 4,6 → 1,0 | 0,84 |
+| layer_s_am4 s6 | 0,64 → 0,75 | nie → 4750 | 3,3 → 1,2 | 0,82 |
+| hier_s s5 | 0,77 → 0,77 | 3500 → 3750 | 0,4 → 0,4 | 0,85 |
+| hier_s s6 | 0,75 → 0,75 | 4500 → 4750 | 0,3 → 0,3 | 0,81 |
+
+Falscher Körper in der Schleife: layer_s und layer_s_sp4 0,10–0,12, layer_s_am4 0,15–0,17, hier_s 0,15–0,18.
+Am Ende liegt die Streuung des Ausgangs über die Vorlagen bei 0,6–1,5 (mit tanh in gelösten Läufen 0,3–0,5).
+
+**Vergleich mit der Vorhersage.** (1) Getroffen: 9 von 9, alle 6 zuvor ungelösten. (2) Getroffen:
+2500–4750. (3) Verfehlt: Der Betrag bei Update 1000 liegt in allen neun Läufen unter 2 (0,5–1,6); ohne tanh
+treibt die layer_s-Familie den Ausgang nicht auf große Werte. (4) Getroffen: 0,77 und 0,75, wie mit tanh.
+(5) Folgen-Wertung getroffen (0,79–0,80); Schleife 0,87–0,90, ein Lauf knapp unter der Spanne (0,87).
+
+**Schluss.** (a) Die Ursache ist belegt: Bei gleichen Startgewichten und gleichem Seed lösen ohne tanh alle
+sechs Läufe, die mit tanh hängen blieben, und zwar so früh wie die anderen (Update 2750–4750). Das Hängenbleiben
+war eine Sackgasse des Encoder-Ausgangs, keine Eigenschaft der Gedächtnis-Bauarten. (b) Die großen Werte vor
+dem tanh waren selbst eine Folge des tanh: Ohne ihn bleibt der Betrag bei 0,5–1,6. Meine Vermutung aus dem
+vorigen Eintrag („der Antrieb zu großen Werten bleibt“) ist in dieser Form widerlegt; naheliegend ist, dass
+die Netze einen Ausgang der Größe 1 brauchen und der tanh dafür immer größere Werte verlangt. Nicht geprüft.
+(c) Läufe, die schon mit tanh lösten, ändern sich kaum (Endwert ±0,01, Beginn ±250 Updates; hier_s
+unverändert). In der Schleife liegt layer_s s0 bei 0,90 gegen 0,91. (d) Die Lösequoten der zwei Einträge davor
+(hier_s 16 von 16, layer_s-Familie 10–11 von 16) beschreiben den `+ref`-Eingang, nicht das Gedächtnis. Für den
+Vergleich der Gedächtnis-Bauarten müssen `cue` und `blind` mit `+refl` auf den Auswerte-Seeds neu laufen.
+(e) Erster Eindruck auf den Abstimm-Seeds (keine Auswertung): layer_s und layer_s_sp4 0,87–0,90,
+layer_s_am4 0,82–0,84, hier_s 0,81–0,85 – die Reihenfolge des Einzelschritts. (f) Offen: ob der tanh auch
+in den älteren `+ref`-Aufgaben Läufe gekostet hat (dort ist die Vorlage dauernd sichtbar; ein Lauf ohne
+Streuung am Encoder wäre aufgefallen als Wert am Boden) und ob vitmem und attnmem von `+refl` profitieren.
+
+**Belege.** `results/loop_refcurve.jsonl` (22 Läufe, je mit `ref_curve`), `results/finds_loop.jsonl` (Zeilen
+`robot_loop_cue_f32` mit `+refl`); Netze in `results/checkpoints/robot_loop_cue_f32`.
+
 ## Laufend / offen
 
-- Ursachen-Probe: Vorlagen-Encoder ohne tanh (Auftrag Nutzer 2026-11-16). Neue Modell-Variante `+refl`
-  (wie `+ref`, der tanh am Ausgang des Encoders fehlt; gleiche Startgewichte bei gleichem Seed, geprüft). Dieselben
-  elf Läufe wie im vorigen Eintrag auf `robot_loop_cue_f32`, 12000 Updates: layer_s, layer_s_sp4, layer_s_am4,
-  hier_s auf den Seeds 5 und 6, layer_s auf den Seeds 0–2; je Lauf direkter Vergleich mit dem `+ref`-Lauf
-  gleichen Seeds (dort lösten von den neun Läufen der layer_s-Familie drei, einer davon spät). Danach die
-  geschlossene Schleife. Vorab gesehen (lokaler Kurztest, layer_s Seed 5, 300 Updates): Betrag des Ausgangs
-  0,33 bei Update 250 (mit tanh davor 0,3).
-  **Vorhersage vor dem Lauf (2026-11-16):** (1) Ohne tanh lösen mindestens 7 der 9 Läufe der layer_s-Familie
-  (Folgen-Wertung am Ende über 0,67), darunter mindestens 4 der 6, die mit tanh ungelöst blieben. (2) Die
-  gelösten Läufe überschreiten 0,67 vor Update 5000. (3) Die layer_s-Familie treibt den Ausgang weiter früh auf
-  große gemeinsame Werte: mittlerer Betrag bei Update 1000 mindestens 2 in mindestens 6 der 9 Läufe (der Antrieb
-  bleibt, nur die Sackgasse fehlt). (4) hier_s löst beide Läufe, Endwert innerhalb ±0,03 um den `+ref`-Lauf
-  (0,77 und 0,75). (5) Gelöste layer_s- und layer_s_sp4-Läufe enden bei 0,78–0,82 und in der Schleife bei
-  `near` nach 4 Schritten 0,88–0,93.
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
