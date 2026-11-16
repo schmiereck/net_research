@@ -1752,5 +1752,16 @@ Streuung am Encoder wäre aufgefallen als Wert am Boden) und ob vitmem und attnm
 
 ## Laufend / offen
 
+- Vergleich der Gedächtnis-Bauarten ohne die Eingangs-Sackgasse (Auftrag Nutzer 2026-11-16):
+  `robot_loop_cue_f32` und `robot_loop_blind_f32` mit `+refl`, sechs Netze mit Gedächtnis (layer_s, hier_s,
+  layer_s_sp4, layer_s_am4, vitmem, attnmem), Auswerte-Seeds 0–2, 12000 Updates (layer_s auf `cue` liegt aus dem
+  vorigen Eintrag schon vor: `near` 0,90 / 0,89 / 0,87). Danach die geschlossene Schleife auf den 1500
+  Startszenen; „gelöst“ = `near` nach 4 Schritten über 0,6.
+  **Vorhersage vor dem Lauf (2026-11-16):** (1) Alle 24 Läufe der vier Gitter-Netze sind gelöst. (2) `near` nach
+  4 Schritten, Mittel über Seeds, in beiden Aufgaben: layer_s und layer_s_sp4 0,87–0,92, layer_s_am4 0,80–0,87,
+  hier_s 0,80–0,87. (3) layer_s_sp4 liegt innerhalb ±0,02 um layer_s, layer_s_am4 mindestens 0,03 darunter: Die
+  Gedächtnis-Varianten bringen keinen Vorteil. (4) Je Gitter-Netz unterscheiden sich `cue` und `blind` im Mittel
+  um höchstens 0,03. (5) vitmem und attnmem lösen weiter nicht alle Läufe (ihr Scheitern in `blind` lag nicht
+  am Encoder): vitmem höchstens 4 von 6, attnmem mindestens 4 von 6; gelöste Läufe 0,60–0,78.
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
