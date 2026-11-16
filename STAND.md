@@ -202,8 +202,12 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   6), höchstens 0,65 = löst (4 von 4). hier_s sättigt in dieser Phase gar nicht.
   **Ursache belegt (2026-11-16): Variante `+refl` (Encoder ohne tanh), gleiche Seeds und Startgewichte: 9 von 9
   Läufen der layer_s-Familie lösen** (mit tanh 3), auch alle 6 zuvor ungelösten; hier_s unverändert. Die
-  Lösequoten mit `+ref` beschreiben also den Eingang, nicht das Gedächtnis; der Vergleich der Bauarten braucht
-  `+refl` auf den Auswerte-Seeds.
+  Lösequoten mit `+ref` beschreiben also den Eingang, nicht das Gedächtnis.
+  **Vergleich mit `+refl`, Seeds 0–2 (2026-11-17), `near` nach 4 Schritten `cue` / `blind`:** layer_s 0,89 / 0,91,
+  layer_s_sp4 0,88 / 0,91, hier_s 0,86 / 0,86, layer_s_am4 0,81 / 0,85, attnmem 0,68 / 0,72, vitmem 0,53 / 0,65
+  (3 von 6 Läufen gelöst), ohne Gedächtnis 0,32. Alle 24 Gitter-Läufe gelöst. Die Reihenfolge ist die des
+  ersten Schritts; sp4 und am4 bringen keinen Vorteil; nur vitmem leidet deutlich unter dem Merken. Für die
+  Gitter-Netze ist die Aufgabe als Gedächtnis-Test zu leicht (ein Inhalt, vier Schritte).
 - **Blickziel am Flächenschwerpunkt** (`robot_finds_c_f32`, 2026-11-14): exakt +0,04–0,05 (layer_s 0,74), der
   Formeffekt schrumpft von bis zu 0,29 auf bis zu 0,18, verschwindet aber nicht (L und U bleiben zurück).
   Zusammen mit einem Ausgang je Wert addiert sich beides: Formsuche exakt 0,76–0,81 (layer_s 0,81).

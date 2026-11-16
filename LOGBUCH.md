@@ -1750,18 +1750,70 @@ Streuung am Encoder wäre aufgefallen als Wert am Boden) und ob vitmem und attnm
 **Belege.** `results/loop_refcurve.jsonl` (22 Läufe, je mit `ref_curve`), `results/finds_loop.jsonl` (Zeilen
 `robot_loop_cue_f32` mit `+refl`); Netze in `results/checkpoints/robot_loop_cue_f32`.
 
+## 2026-11-17 — Gedächtnis-Bauarten in der Schleife mit einmal gezeigter Vorlage, ohne die Eingangs-Sackgasse
+
+**Frage.** Wie ordnen sich die Netze mit Gedächtnis, wenn der Vorlagen-Eingang nicht mehr hängen bleibt?
+
+**Gemacht.** `robot_loop_cue_f32` und `robot_loop_blind_f32` mit `+refl` (Encoder ohne tanh), sechs Netze mit
+Gedächtnis, Seeds 0–2, 12000 Updates (Worker, Commit a2209fd; layer_s auf `cue` aus dem vorigen Eintrag).
+Geschlossene Schleife auf den 1500 Startszenen. Vorhersage vor dem Lauf (wörtlich aus „Laufend / offen“):
+
+> - Vergleich der Gedächtnis-Bauarten ohne die Eingangs-Sackgasse (Auftrag Nutzer 2026-11-16):
+>   `robot_loop_cue_f32` und `robot_loop_blind_f32` mit `+refl`, sechs Netze mit Gedächtnis (layer_s, hier_s,
+>   layer_s_sp4, layer_s_am4, vitmem, attnmem), Auswerte-Seeds 0–2, 12000 Updates (layer_s auf `cue` liegt aus dem
+>   vorigen Eintrag schon vor: `near` 0,90 / 0,89 / 0,87). Danach die geschlossene Schleife auf den 1500
+>   Startszenen; „gelöst“ = `near` nach 4 Schritten über 0,6.
+>   **Vorhersage vor dem Lauf (2026-11-16):** (1) Alle 24 Läufe der vier Gitter-Netze sind gelöst. (2) `near` nach
+>   4 Schritten, Mittel über Seeds, in beiden Aufgaben: layer_s und layer_s_sp4 0,87–0,92, layer_s_am4 0,80–0,87,
+>   hier_s 0,80–0,87. (3) layer_s_sp4 liegt innerhalb ±0,02 um layer_s, layer_s_am4 mindestens 0,03 darunter: Die
+>   Gedächtnis-Varianten bringen keinen Vorteil. (4) Je Gitter-Netz unterscheiden sich `cue` und `blind` im Mittel
+>   um höchstens 0,03. (5) vitmem und attnmem lösen weiter nicht alle Läufe (ihr Scheitern in `blind` lag nicht
+>   am Encoder): vitmem höchstens 4 von 6, attnmem mindestens 4 von 6; gelöste Läufe 0,60–0,78.
+
+**Ergebnis.** `near` nach 4 Schritten je Seed (0 / 1 / 2) und Mittel; in Klammern das Mittel mit `+ref` (tanh)
+auf denselben Seeds.
+
+| | `cue` | Mittel | `blind` | Mittel | `near` nach Schritt 1 (`cue` / `blind`) |
+|---|---|---|---|---|---|
+| layer_s | 0,90 / 0,89 / 0,87 | 0,89 (0,51) | 0,90 / 0,92 / 0,89 | 0,91 (0,72) | 0,85 / 0,86 |
+| layer_s_sp4 | 0,85 / 0,87 / 0,92 | 0,88 (0,52) | 0,89 / 0,92 / 0,92 | 0,91 (0,89) | 0,84 / 0,87 |
+| hier_s | 0,86 / 0,86 / 0,87 | 0,86 (0,87) | 0,85 / 0,85 / 0,87 | 0,86 (0,85) | 0,81 / 0,79 |
+| layer_s_am4 | 0,85 / 0,78 / 0,81 | 0,81 (0,55) | 0,84 / 0,87 / 0,84 | 0,85 (0,83) | 0,76 / 0,79 |
+| attnmem | 0,69 / 0,67 / 0,67 | 0,68 (0,44) | 0,76 / 0,72 / 0,68 | 0,72 (0,73) | 0,53 / 0,57 |
+| vitmem | 0,70 / 0,40 / 0,48 | 0,53 (0,45) | 0,64 / 0,57 / 0,74 | 0,65 (0,60) | 0,37 / 0,49 |
+| cnn, vit (ohne Gedächtnis, `+ref`) | | 0,32–0,33 | | 0,32–0,33 | 0,20 |
+
+Exakt nach 4 Schritten: layer_s 0,71 / 0,73, layer_s_sp4 0,70 / 0,72, hier_s 0,67 / 0,67, layer_s_am4 0,63 /
+0,65, attnmem 0,51 / 0,55, vitmem 0,40 / 0,50. Falscher Körper (Mittel über Seeds): layer_s und layer_s_sp4 0,09–0,12, hier_s
+0,13–0,14, layer_s_am4 0,15–0,18, attnmem 0,26–0,30, vitmem 0,33–0,44. Zum Vergleich die Schleife mit dauernd
+sichtbarer Vorlage (`robot_loop_f32`, `+ref`): layer_s 0,93, layer_s_sp4 0,94, layer_s_am4 0,90, hier_s 0,89,
+vitmem 0,82, attnmem 0,76.
+
+**Vergleich mit der Vorhersage.** (1) Getroffen: 24 von 24. (2) Getroffen: layer_s 0,89 / 0,91, layer_s_sp4
+0,88 / 0,91, layer_s_am4 0,81 / 0,85, hier_s 0,86 / 0,86. (3) Getroffen: layer_s_sp4 −0,01 / 0,00, layer_s_am4
+−0,08 / −0,06. (4) Für drei Netze getroffen (0,01–0,03), layer_s_am4 0,04. (5) Getroffen: vitmem 3 von 6,
+attnmem 6 von 6, gelöste Läufe 0,64–0,76.
+
+**Schluss.** (a) Reihenfolge der Bauarten in der Aufgabe, die Gedächtnis braucht: layer_s = layer_s_sp4
+(0,88–0,91) vor hier_s (0,86) und layer_s_am4 (0,81–0,85), dann attnmem (0,68–0,72), dann vitmem (0,53–0,65);
+ohne Gedächtnis 0,32–0,33. (b) Das ist die Reihenfolge des ersten Schritts: Die Abstände stehen schon nach
+Schritt 1 fest; über die Schritte 2–4 gewinnen die Gitter-Netze 0,04–0,06, attnmem und vitmem 0,15. Die Aufgabe misst bei den Gitter-Netzen vor allem,
+wie gut die Vorlage über EINEN Schritt in die Suche eingeht; das Behalten über vier Schritte trennt sie nicht.
+(c) Preis des Merkens gegenüber dauernd sichtbarer Vorlage: Gitter-Netze 0,02–0,09 (layer_s 0,02–0,04,
+hier_s 0,03, layer_s_am4 0,05–0,09), attnmem 0,04–0,08, vitmem 0,17–0,29 (Vergleich über verschiedene
+Encoder-Varianten, daher grob). vitmem ist das einzige Netz, dem das Merken selbst deutlich schadet; es löst
+auch mit `+refl` nur 3 von 6 Läufen. (d) layer_s_sp4 und layer_s_am4 bringen gegenüber layer_s keinen
+Vorteil; am4 ist 0,06–0,08 schlechter. Für diese Aufgabe genügt das Gedächtnis von layer_s. (e) `+refl`
+schadet nirgends: hier_s und attnmem `blind` bleiben gleich (±0,01), alle anderen gewinnen. attnmem löst in
+`cue` jetzt 3 statt 1 von 3 Läufen – auch dort hing der Encoder. (f) Der falsche Körper bleibt die Fehlerart:
+im Mittel 0,09–0,12 bei den besten Netzen, und die Schleife verlässt ihn kaum (`near` steigt bei den
+Gitter-Netzen von Schritt 1 zu 4 nur um 0,04–0,06). (g) Um Gedächtnis-Bauarten zu trennen, ist die Aufgabe für die Gitter-Netze zu leicht: ein Inhalt,
+vier Schritte. Schwerere Stufen wären längere Läufe oder mehr als ein zu behaltender Inhalt.
+
+**Belege.** `results/finds_loop.jsonl` (Zeilen `robot_loop_cue_f32`, `robot_loop_blind_f32` mit `+refl`),
+`results/loop_refcurve.jsonl`; Netze in `results/checkpoints/robot_loop_cue_f32` und `robot_loop_blind_f32`.
+
 ## Laufend / offen
 
-- Vergleich der Gedächtnis-Bauarten ohne die Eingangs-Sackgasse (Auftrag Nutzer 2026-11-16):
-  `robot_loop_cue_f32` und `robot_loop_blind_f32` mit `+refl`, sechs Netze mit Gedächtnis (layer_s, hier_s,
-  layer_s_sp4, layer_s_am4, vitmem, attnmem), Auswerte-Seeds 0–2, 12000 Updates (layer_s auf `cue` liegt aus dem
-  vorigen Eintrag schon vor: `near` 0,90 / 0,89 / 0,87). Danach die geschlossene Schleife auf den 1500
-  Startszenen; „gelöst“ = `near` nach 4 Schritten über 0,6.
-  **Vorhersage vor dem Lauf (2026-11-16):** (1) Alle 24 Läufe der vier Gitter-Netze sind gelöst. (2) `near` nach
-  4 Schritten, Mittel über Seeds, in beiden Aufgaben: layer_s und layer_s_sp4 0,87–0,92, layer_s_am4 0,80–0,87,
-  hier_s 0,80–0,87. (3) layer_s_sp4 liegt innerhalb ±0,02 um layer_s, layer_s_am4 mindestens 0,03 darunter: Die
-  Gedächtnis-Varianten bringen keinen Vorteil. (4) Je Gitter-Netz unterscheiden sich `cue` und `blind` im Mittel
-  um höchstens 0,03. (5) vitmem und attnmem lösen weiter nicht alle Läufe (ihr Scheitern in `blind` lag nicht
-  am Encoder): vitmem höchstens 4 von 6, attnmem mindestens 4 von 6; gelöste Läufe 0,60–0,78.
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
