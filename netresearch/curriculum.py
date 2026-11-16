@@ -27,6 +27,7 @@ def parse(plan):
 
 def job(args):
     plan, model_name, seed, watch, name = args
+    import numpy as np
     import torch
     torch.set_num_threads(1)
     from .models import build_model
@@ -41,7 +42,22 @@ def job(args):
         model = build_model(model_name, 100_000, seed=seed)
         watch = watch or phases[-1][0]
         wt = {t: make_task(t) for t in watch}
-        curve, done, t0 = [], 0, time.time()
+        curve, ref_curve, done, t0 = [], [], 0, time.time()
+        ref_pics = None
+        if hasattr(model, "ref_enc"):                    # pictures of the wanted object to watch the encoder with
+            b = next(iter(wt.values())).sample(256, np.random.default_rng(4242), split="test")
+            if "ref" in b:
+                r = torch.tensor(b["ref"].reshape(-1, *b["ref"].shape[-3:]))
+                ref_pics = r[r.flatten(1).amax(1) > 0][:512].float()         # without the blank ones
+
+        def watch_ref(u):
+            if ref_pics is not None:
+                with torch.no_grad():
+                    pre = model.ref_enc.net[:-1](ref_pics)
+                out = torch.tanh(pre)
+                ref_curve.append([u, round(out.std(0).mean().item(), 4),
+                                  round((out.abs() > 0.95).float().mean().item(), 4),
+                                  round(pre.abs().mean().item(), 3), round(pre.std(0).mean().item(), 3)])
         for k, (names, updates) in enumerate(phases):
             specs = [make_task(t).spec for t in names]
             if any(s.pop for s in specs) and sum(s.role == "symbol" for s in specs) > 1:
@@ -51,6 +67,7 @@ def job(args):
                         for j, t in enumerate(names)]
 
             def on_eval(i, done=done):
+                watch_ref(done + i)
                 if i > 0:
                     curve.append([done + i, {t: round(quick_score(model, task), 4) for t, task in wt.items()}])
             train_loop(model, learners, updates, 2e-3, 10 ** 9, on_eval, 250)
@@ -60,11 +77,15 @@ def job(args):
         parts = {t: m["parts"] for t, m in fm.items() if "parts" in m}
         near = {t: [round(m["near"], 4), round(m["step_err"], 4)] for t, m in fm.items() if "near" in m}
         curve.append([done, final])
+        watch_ref(done)
         if name:
             save_checkpoint(model, model_name, name, seed, list(final.values())[-1])
         return {"plan": plan, "task": plan, "model": model_name, "seed": seed, "updates": done, "final": final, "parts": parts,
                 "near": near,          # step tasks: [share at most one cell off, mean error in cells]
-                "time": round(time.time() - t0, 1), "curve": curve}
+                "time": round(time.time() - t0, 1), "curve": curve,
+                # picture encoder ("+ref") at every evaluation: [update, spread of the output over pictures,
+                # share of output values beyond +-0.95, mean |value before the tanh|, its spread over pictures]
+                **({"ref_curve": ref_curve} if ref_curve else {})}
     except Exception:  # noqa: BLE001
         return {"plan": plan, "model": model_name, "seed": seed, "error": traceback.format_exc()}
 
