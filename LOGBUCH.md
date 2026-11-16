@@ -1685,5 +1685,19 @@ bitgenau wiederholbar; ein Seed ist also eine feste Eigenschaft des Laufs, kein 
 
 ## Laufend / offen
 
+- Ursachen-Probe: Vorlagen-Encoder ohne tanh (Auftrag Nutzer 2026-11-16). Neue Modell-Variante `+refl`
+  (wie `+ref`, der tanh am Ausgang des Encoders fehlt; gleiche Startgewichte bei gleichem Seed, geprüft). Dieselben
+  elf Läufe wie im vorigen Eintrag auf `robot_loop_cue_f32`, 12000 Updates: layer_s, layer_s_sp4, layer_s_am4,
+  hier_s auf den Seeds 5 und 6, layer_s auf den Seeds 0–2; je Lauf direkter Vergleich mit dem `+ref`-Lauf
+  gleichen Seeds (dort lösten von den neun Läufen der layer_s-Familie drei, einer davon spät). Danach die
+  geschlossene Schleife. Vorab gesehen (lokaler Kurztest, layer_s Seed 5, 300 Updates): Betrag des Ausgangs
+  0,33 bei Update 250 (mit tanh davor 0,3).
+  **Vorhersage vor dem Lauf (2026-11-16):** (1) Ohne tanh lösen mindestens 7 der 9 Läufe der layer_s-Familie
+  (Folgen-Wertung am Ende über 0,67), darunter mindestens 4 der 6, die mit tanh ungelöst blieben. (2) Die
+  gelösten Läufe überschreiten 0,67 vor Update 5000. (3) Die layer_s-Familie treibt den Ausgang weiter früh auf
+  große gemeinsame Werte: mittlerer Betrag bei Update 1000 mindestens 2 in mindestens 6 der 9 Läufe (der Antrieb
+  bleibt, nur die Sackgasse fehlt). (4) hier_s löst beide Läufe, Endwert innerhalb ±0,03 um den `+ref`-Lauf
+  (0,77 und 0,75). (5) Gelöste layer_s- und layer_s_sp4-Läufe enden bei 0,78–0,82 und in der Schleife bei
+  `near` nach 4 Schritten 0,88–0,93.
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

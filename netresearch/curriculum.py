@@ -54,7 +54,7 @@ def job(args):
             if ref_pics is not None:
                 with torch.no_grad():
                     pre = model.ref_enc.net[:-1](ref_pics)
-                out = torch.tanh(pre)
+                out = model.ref_enc.net[-1](pre)             # tanh ("+ref") or nothing ("+refl")
                 ref_curve.append([u, round(out.std(0).mean().item(), 4),
                                   round((out.abs() > 0.95).float().mean().item(), 4),
                                   round(pre.abs().mean().item(), 3), round(pre.std(0).mean().item(), 3)])
