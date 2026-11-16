@@ -56,7 +56,7 @@ def retry(fn, *args, tries=10, wait=3.0):
     for i in range(tries):
         try:
             return fn(*args)
-        except PermissionError:
+        except OSError:                                    # also OSError 22 on a file OneDrive is just moving
             if i == tries - 1:
                 raise
             time.sleep(wait)
@@ -142,7 +142,8 @@ class Worker:
                 job = read_json(p)
             except (OSError, ValueError):
                 continue
-            if job.get("host") == HOST:
+            stale = "host" not in job and time.time() - p.stat().st_mtime > 300     # a claim that died half way
+            if job.get("host") == HOST or stale:
                 log(f"requeue interrupted job {job['id']}")
                 replace(p, self.share / "jobs" / "queue" / p.name)
 
@@ -153,7 +154,12 @@ class Worker:
                 os.replace(p, dst)
             except OSError:
                 continue                                   # taken by another worker
-            job = read_json(dst)
+            try:
+                job = retry(read_json, dst)
+            except (OSError, ValueError) as e:             # unreadable just now: back to the queue, next round
+                log(f"cannot read {dst.name} ({e}); back to the queue")
+                retry(os.replace, dst, p)
+                continue
             job.update(host=HOST, started=now())
             write_json(dst, job)
             return job, dst
