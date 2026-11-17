@@ -157,6 +157,21 @@ zuerst zu sehr auf Bilderkennung in der Fovea ausgerichtet; beide Ebenen getrenn
 | C | **Neuronaler Zellautomat**: gleiche Zelle, viele Schritte je Bild | bekannt | nah an den Gittern mit geteilten Modulen; prüft „Tiefe durch Wiederholung“ | `count`, `push_easy` |
 | C | **Predictive-Coding-Netz** (lokale Lernregel, aus dem Roboter-Projekt) | bekannt | lernt ohne Backprop; Vergleich mit der Brücke in die andere Richtung | Sieb A1, `servo` |
 
+## Spezialisierte Module im Verbund (Idee Nutzer, 2026-11-17)
+
+Statt einer Architektur, die alles kann: Module, die je auf eine Rolle spezialisiert sind (Wahrnehmung / Fovea,
+Servo-Regler, Planung / Gedächtnis), mit möglichst einheitlicher Kommunikation. Teilweise gibt es das schon
+(`+ref`-Encoder vor dem Gedächtnis-Gitter, `+cell`-Port); der tanh-Befund (2026-11-16) zeigt, dass die
+Schnittstelle selbst eine Sackgasse sein kann. **Kombinationen nicht stumpf durchprobieren**, sondern nur solche,
+die mit Begründung sinnvoll erscheinen (Nutzer).
+
+| Prio | Thema | Status | Notiz |
+|---|---|---|---|
+| P2 | **Schnittstelle festlegen**: Größe, Takt (was passiert zwischen zwei langsamen Takten: halten / mitteln / Ereignis), Gradient über die Grenze ja / nein (gemeinsames oder getrenntes Training), kein begrenzender Ausgang am Port | offen | Nach der Zwei-Ziele-Studie. Spezialisieren nach Signalart (räumlich, wenige glatte Kanäle, abstrakte Zustände), nicht nach Aufgabe: Prüffrage „gilt der Grund für das Modul auch für Aufgaben, die wir noch nicht kennen?“ |
+| P2 | **Rollen-Benchmarks** benennen: Wahrnehmung und Gedächtnis haben Stufen; für den Servo fehlt eine reine Regler-Stufe in NetResearch (ohne Drucksensor) | offen | |
+| P2 | **Hypothese „Rollensieger gewinnt im Verbund“** prüfen: zwei bis drei begründete Kombinationen auf einer Aufgabe, die zwei Rollen braucht; Reihenfolge vorher aus den Rollen-Ergebnissen vorhersagen | offen | Hält sie, reichen Rollen-Benchmarks plus wenige Verbund-Tests. Hält sie nicht, zählt das Zusammenspiel mehr als die Teile |
+| P2 | **Zwei parallele Hälften**: eine „Übersicht“ (ganze Szene grob, merkt, wenn global etwas schiefzugehen droht oder sich etwas ändert) und ein „Detail“-Teil (Fovea, anfahren, greifen, Aufmerksamkeit auf die Aufgabe) | offen | Vorbild: ventrales Aufmerksamkeits-/Salienz-Netz (reizgetrieben, unterbricht bei Unerwartetem) neben dem dorsalen (zielgerichtet); Peripherie vs. Fovea. Übersicht → Detail: Unterbrechung / Priorität und Kontext; Detail → Übersicht: aktuelles Ziel (damit „unerwartet“ definiert ist). Änderung erkennen = Vorhersagefehler, Bezug zu Weltmodell und Gefahr-Signal (PLAN_TRAINER, T4). Braucht eine Aufgabe, in der sich während der Detail-Arbeit außerhalb der Fovea etwas ändert und Umsteuern verlangt; fairer Vergleich: ALLE Netze bekommen Fovea + grobe Peripherie, die Frage ist, ob die Aufteilung sie besser nutzt als ein Netz mit beiden Eingängen |
+
 ## Offene Grundsatzfragen
 
 * Welches Basisnetz für den Trainer? Hängt von den Gedächtnis-Ergebnissen ab.
