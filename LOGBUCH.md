@@ -1888,5 +1888,15 @@ Körper“ ist, unterscheidet die Auswertung noch nicht. (f) Prognose-Bezug: Die
 
 ## Laufend / offen
 
+- B-Fehler aufteilen (Auftrag Nutzer 2026-11-17), reine Auswertung der Netze aus dem Eintrag davor:
+  `finds_loop_eval.py` ordnet jeden Lauf zur Halbzeit und am Ende ein: nahe A / nahe B / nahe dem dritten Körper C
+  / bei keinem / aus dem Bild; zusätzlich das Ende nur für Läufe, die A gelöst haben. Vor dem vollen Lauf
+  gesehen: ein Probelauf auf 50 Szenen mit layer_s Seed 0 (Ende: B 0,78, bei A 0,05, C 0,15; zur Halbzeit
+  „schon bei B“ 0,05; bei gelöstem A am Ende C 0,16, bei A 0,00).
+  **Vorhersage vor dem Lauf (2026-11-17, für die übrigen Netze):** (1) Bei allen vier Gitter-Netzen ist C am Ende
+  der größte Fehler-Anteil, „bei A geblieben“ höchstens 0,07. (2) Bei gelöstem A ist „bei A geblieben“ bei allen
+  Gitter-Netzen höchstens 0,02: Der Wechsel selbst gelingt, verwechselt wird die Form. (3) Vertauschte
+  Reihenfolge (zur Halbzeit schon bei B) liegt bei den Gitter-Netzen bei 0,03–0,10. (4) attnmem und vitmem: die
+  Fehler verteilen sich ungefähr gleich auf A und C (je 0,20–0,35), sie unterscheiden die Formen kaum.
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

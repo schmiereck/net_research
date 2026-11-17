@@ -77,6 +77,7 @@ def loop(d, lo, hi, fine, steps, policy, two=False):
         goal = lambda p, t: body[0][p] if t < steps // 2 else body[1][p]   # noqa: E731
     P = len(idx)
     end_a = np.zeros((P, 4))
+    where = np.zeros((P, 2, 3), bool)                   # two goals: near A / B / third body C, at half time and end
     gaze = d["gaze"][idx].astype(float)
     truth, ans, out = np.zeros((P, steps + 1, 4)), np.zeros((P, steps, 2), np.int64), np.zeros((P, steps + 1), bool)
     for t in range(steps + 1):
@@ -84,6 +85,10 @@ def loop(d, lo, hi, fine, steps, policy, two=False):
             truth[p, t] = measure(gaze[p], d["pos"][idx[p]], goal(p, t))
             if two and t == steps // 2:
                 end_a[p] = measure(gaze[p], d["pos"][idx[p]], body[0][p])
+            if two and t in (steps // 2, steps):
+                for j, k in enumerate((body[0][p], body[1][p], 3 - body[0][p] - body[1][p])):
+                    dx, dy = measure(gaze[p], d["pos"][idx[p]], k)[:2]
+                    where[p, int(t == steps), j] = max(abs(dx), abs(dy)) <= 1
         if t == steps:
             break
         if policy is None:
@@ -99,10 +104,20 @@ def loop(d, lo, hi, fine, steps, policy, two=False):
                 gaze[p] = g
             else:
                 out[p, t + 1:] = True
-    return (truth, ans, out, end_a) if two else (truth, ans, out)
+    return (truth, ans, out, end_a, where) if two else (truth, ans, out)
 
 
-def summary(truth, ans, out, end_a=None):
+def split(where, ok, first):
+    """Where a run stands, in this order of precedence: near the goal `first` (0 = A, 1 = B), near the other goal,
+    near the third body C, near none of them, out of the image. Shares of all runs [5]."""
+    o = 1 - first
+    goal, other, third = where[:, first] & ok, where[:, o] & ~where[:, first] & ok, \
+        where[:, 2] & ~where[:, first] & ~where[:, o] & ok
+    none = ok & ~(goal | other | third)
+    return [round(float(x.mean()), 4) for x in (goal, other, third, none, ~ok)]
+
+
+def summary(truth, ans, out, end_a=None, where=None):
     ok = ~out
     r = np.abs(truth[:, :, :2]).max(-1)
     px = np.where(ok, truth[:, :, 2], np.nan)
@@ -117,6 +132,10 @@ def summary(truth, ans, out, end_a=None):
         extra = {"near_a": g((ra <= 1) & oka), "exact_a": g((ra == 0) & oka),
                  "other_a": g(end_a[:, 3].astype(bool) & oka),
                  "near_both": g((ra <= 1) & oka & (r[:, -1] <= 1) & ok[:, -1])}
+    if where is not None:            # [A, B, C, none, out]: half time from A's view, end from B's; end given A solved
+        sa = (ra <= 1) & oka
+        extra.update({"split_half": split(where[:, 0], ok[:, h], 0), "split_end": split(where[:, 1], ok[:, -1], 1),
+                      "split_end_a_ok": split(where[sa, 1], ok[sa, -1], 1), "share_a_ok": g(sa)})
     return {**extra, "exact": f(((r == 0) & ok).mean(0)), "near": f(((r <= 1) & ok).mean(0)),
             "px_median": f(np.nanmedian(px, 0)), "px_mean": f(np.nanmean(px, 0)),
             "other": f((truth[:, :, 3].astype(bool) & ok).mean(0)), "out": f(out.mean(0)),
@@ -196,6 +215,12 @@ def main():
         for name, rows in per.items():
             print(f"  {name:<26} " + " ".join(f"{np.mean([x[q] for x in rows]):.2f}"
                                              for q in ("near_a", "exact_a", "other_a", "near_both")))
+        for q, head in (("split_half", "half time: near A / near B (too early) / near C / none / out"),
+                        ("split_end", "end: near B / near A (stayed) / near C / none / out"),
+                        ("split_end_a_ok", "end, runs with A near at half time: B / A / C / none / out")):
+            print(f"\n{head}")
+            for name, rows in per.items():
+                print(f"  {name:<26} {f(np.mean([x[q] for x in rows], 0))}")
     for q in ("exact", "near", "px_median", "other", "out", "rest", "flip"):
         print(f"\n{q}")
         for name, rows in per.items():
