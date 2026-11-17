@@ -209,8 +209,12 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   ersten Schritts; sp4 und am4 bringen keinen Vorteil; nur vitmem leidet deutlich unter dem Merken. Für die
   Gitter-Netze ist die Aufgabe als Gedächtnis-Test zu leicht (ein Inhalt, vier Schritte).
   **`+refl` ist ab 2026-11-17 der Standard für Aufgaben mit Vorlage** (Entscheidung des Nutzers); `+ref` nur noch
-  für den Vergleich mit älteren Ergebnissen. Schwerere Stufe in Arbeit: `robot_loop_two_f32` (zwei Ziele
-  nacheinander, beide Vorlagen nur vor dem Lauf).
+  für den Vergleich mit älteren Ergebnissen.
+  **Zwei Ziele nacheinander (`robot_loop_two_f32`, 2026-11-17, Seeds 0–2):** beide Vorlagen nur vor dem Lauf,
+  3 Schritte zu A, 3 zu B. `near_both` layer_s = layer_s_sp4 0,72 > layer_s_am4 0,57 ≈ hier_s 0,55 >> attnmem
+  0,25 ≈ vitmem 0,23 (A 0,77–0,86, B 0,65–0,79 bei den Gitter-Netzen). Diese Stufe trennt die Bauarten; alle 12
+  Gitter-Läufe lösen beide Ziele, attnmem und vitmem in 4 von 6 Läufen nur Zufall. Notizblock und
+  Inhaltsadressierung bringen nichts gegenüber layer_s.
 - **Blickziel am Flächenschwerpunkt** (`robot_finds_c_f32`, 2026-11-14): exakt +0,04–0,05 (layer_s 0,74), der
   Formeffekt schrumpft von bis zu 0,29 auf bis zu 0,18, verschwindet aber nicht (L und U bleiben zurück).
   Zusammen mit einem Ausgang je Wert addiert sich beides: Formsuche exakt 0,76–0,81 (layer_s 0,81).

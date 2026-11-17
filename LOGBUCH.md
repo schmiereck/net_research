@@ -1813,24 +1813,80 @@ vier Schritte. Schwerere Stufen wären längere Läufe oder mehr als ein zu beha
 **Belege.** `results/finds_loop.jsonl` (Zeilen `robot_loop_cue_f32`, `robot_loop_blind_f32` mit `+refl`),
 `results/loop_refcurve.jsonl`; Netze in `results/checkpoints/robot_loop_cue_f32` und `robot_loop_blind_f32`.
 
+## 2026-11-17 — Zwei Ziele nacheinander: die Gedächtnis-Bauarten trennen sich
+
+**Frage.** Trennen sich die Gedächtnis-Bauarten, wenn zwei Inhalte (die Formen von A und B) in fester
+Reihenfolge behalten werden müssen, B über fünf Schritte?
+
+**Gemacht.** `robot_loop_two_f32` (neu, `scripts/make_loop_set.py --two`), sechs Netze mit Gedächtnis, `+refl+rez3`,
+Seeds 0–2, 12000 Updates (Worker, Commit e60843c). Geschlossene Schleife auf den 1500 Startszenen mit allen 6
+geordneten Paaren je Szene (`scripts/finds_loop_eval.py --task robot_loop_two_f32`). Vorhersage vor dem Lauf
+(wörtlich aus „Laufend / offen“):
+
+> - Schwerere Gedächtnis-Stufe: zwei Ziele nacheinander (Auftrag Nutzer 2026-11-17; ab jetzt `+refl` als
+>   Standard für Vorlagen-Aufgaben). Aufgabe `robot_loop_two_f32` (`scripts/make_loop_set.py --two`): zwei
+>   Hinweis-Schritte mit den Vorlagen von A und B (Bild leer), dann ein Blicklauf mit 6 Bildern ohne Vorlage; an
+>   den ersten 3 ist der Schritt zu A richtig, an den letzten 3 der zu B. Der Lehrer wie zuvor, er hält B im
+>   Blickfeld, solange er A ansteuert (Paare, bei denen das nicht geht, fallen weg: 4 %). 30736 Trainingsfolgen
+>   (2 geordnete Paare je Szene), Test 8615. Sechs Netze mit Gedächtnis, `+refl+rez3`, Seeds 0–2, 12000 Updates.
+>   Schleife auf den 1500 Startszenen, alle 6 geordneten Paare je Szene: A nach 3 Schritten (`near_a`), B nach 6
+>   Schritten, beide (`near_both`). Orakel: 1,00 / 1,00 / 1,00. Wer immer „bleib“ sagt, ist auf den Folgen in etwa
+>   0,33 der Bilder exakt.
+>   **Vorhersage vor dem Lauf (2026-11-17):** (1) Alle 12 Läufe von layer_s, layer_s_sp4, hier_s und layer_s_am4
+>   lösen A (`near_a` über 0,6). (2) A nach 3 Schritten liegt je Netz höchstens 0,05 unter dem Wert nach 4 Schritten
+>   in `blind` mit `+refl` (layer_s 0,91, layer_s_sp4 0,91, hier_s 0,86, layer_s_am4 0,85). (3) B nach 6 Schritten
+>   ist die schwere Hälfte: layer_s 0,60–0,85, im Mittel mindestens 0,05 unter A; `near_both` bei layer_s
+>   0,55–0,80. (4) Erstmals trennen sich die Gitter-Varianten: Bei B liegen layer_s_sp4 oder layer_s_am4 mindestens
+>   0,05 über oder unter layer_s (Richtung offen). (5) Mindestens ein Lauf der Gitter-Netze landet bei B am
+>   Boden (B ungefähr Zufall unter den zwei übrigen Körpern: `near` bei B höchstens 0,5), während A gelöst ist.
+>   (6) vitmem und attnmem: `near_both` höchstens 0,45.
+
+**Ergebnis.** A = `near` gegen A nach 3 Schritten (`near_a`), B = `near` gegen B nach 6 Schritten, beide =
+`near_both`; je Seed 0 / 1 / 2 und Mittel. Letzte Spalte: `near` nach Schritt 1, in Klammern derselbe Wert in
+`blind` mit einem Ziel (`+refl`, Eintrag davor).
+
+| | A | Mittel | B | Mittel | beide | Mittel | Schritt 1 (ein Ziel) |
+|---|---|---|---|---|---|---|---|
+| layer_s | 0,87 / 0,85 / 0,86 | 0,86 | 0,80 / 0,77 / 0,80 | 0,79 | 0,73 / 0,70 / 0,73 | 0,72 | 0,81 (0,86) |
+| layer_s_sp4 | 0,85 / 0,86 / 0,85 | 0,85 | 0,78 / 0,81 / 0,79 | 0,79 | 0,71 / 0,73 / 0,71 | 0,72 | 0,80 (0,87) |
+| hier_s | 0,79 / 0,75 / 0,77 | 0,77 | 0,67 / 0,63 / 0,66 | 0,65 | 0,57 / 0,52 / 0,55 | 0,55 | 0,68 (0,79) |
+| layer_s_am4 | 0,76 / 0,79 / 0,75 | 0,77 | 0,65 / 0,70 / 0,66 | 0,67 | 0,54 / 0,61 / 0,56 | 0,57 | 0,69 (0,79) |
+| attnmem | 0,32 / 0,60 / 0,38 | 0,43 | 0,31 / 0,60 / 0,36 | 0,43 | 0,15 / 0,42 / 0,19 | 0,25 | 0,28 (0,57) |
+| vitmem | 0,58 / 0,35 / 0,32 | 0,42 | 0,58 / 0,32 / 0,30 | 0,40 | 0,40 / 0,16 / 0,14 | 0,23 | 0,26 (0,49) |
+| Orakel | | 1,00 | | 1,00 | | 1,00 | 0,99 |
+
+Der Wechsel ist der schwächste Schritt: `near` gegen B nach Schritt 4 (dem ersten Schritt zu B) layer_s und
+layer_s_sp4 0,52–0,53, layer_s_am4 0,39, hier_s 0,36, attnmem und vitmem 0,20–0,22 (Orakel 0,85: B liegt
+nicht immer in Reichweite eines Schritts). Falscher Körper am Ende: layer_s und layer_s_sp4 0,20, hier_s und
+layer_s_am4 0,32, attnmem und vitmem 0,55–0,57; bei A (nach 3 Schritten) 0,13–0,14 / 0,22–0,23 / 0,54–0,56.
+Zufall unter drei Körpern ist `near` 0,33; vier der sechs Läufe von attnmem und vitmem liegen dort (0,30–0,38).
+Streuung des Encoder-Ausgangs über die Vorlagen am Ende: Gitter-Netze 0,6–1,4, attnmem und vitmem 0,07–0,16
+(mit einem Ziel 0,16–0,47).
+
+**Vergleich mit der Vorhersage.** (1) Getroffen: 12 von 12 (0,75–0,87). (2) Für layer_s knapp getroffen (−0,05),
+sonst verfehlt: layer_s_sp4 −0,06, layer_s_am4 −0,08, hier_s −0,09. Das zweite Ziel kostet schon bei A mehr als
+erwartet. (3) Getroffen: B layer_s 0,79, 0,07 unter A; `near_both` 0,72. (4) Getroffen, aber nur durch
+layer_s_am4 (−0,12); layer_s_sp4 liegt gleichauf (0,79). (5) Verfehlt: Kein Gitter-Lauf fällt bei B ab, der
+schwächste liegt bei 0,63 (hier_s Seed 1). (6) Getroffen: attnmem 0,25, vitmem 0,23.
+
+**Schluss.** (a) Die Stufe trennt die Bauarten deutlich stärker als die mit einem Ziel: `near_both` layer_s =
+layer_s_sp4 0,72 > layer_s_am4 0,57 ≈ hier_s 0,55 >> attnmem 0,25 ≈ vitmem 0,23. Mit einem Ziel lagen die vier
+Gitter-Netze innerhalb von 0,06. (b) Die Gitter-Netze behalten zwei Formen in Reihenfolge; keiner der 12 Läufe
+scheitert an B. Der Abfall verteilt sich: Schon A nach Schritt 1 ist 0,05–0,11 schwächer als mit einem Ziel
+(ein zweiter Inhalt stört den ersten), B verliert gegenüber A weitere 0,06–0,12. (c) Die Inhaltsadressierung
+(layer_s_am4), gebaut für mehrere gleichzeitige Inhalte, hilft hier nicht; sie liegt 0,15 unter layer_s. Auch
+der Notizblock (layer_s_sp4) bringt nichts. Die Rekurrenz von layer_s genügt für zwei Formen. hier_s fällt
+gegenüber einem Ziel am stärksten zurück (Abstand zu layer_s 0,05 → 0,17). (d) attnmem und vitmem scheitern in
+vier von sechs Läufen ganz (Zufall), die anderen zwei erreichen 0,58–0,60. Ihr Encoder-Ausgang unterscheidet die
+Vorlagen kaum (Streuung 0,07–0,16); ob das Ursache oder Folge ist, ist nicht geprüft. (e) Die verbleibende
+Fehlerart ist wie bisher der falsche Körper; ob der B-Fehler am Ende „bei A geblieben“ oder „zum dritten
+Körper“ ist, unterscheidet die Auswertung noch nicht. (f) Prognose-Bezug: Die Reihenfolge mit einem Ziel (layer_s
+≈ sp4 > hier_s ≈ am4 > attnmem > vitmem) sagt die mit zwei Zielen richtig vorher, die Abstände aber nicht.
+
+**Belege.** `results/finds_loop.jsonl` (Zeilen `robot_loop_two_f32`), `results/loop_refcurve.jsonl` (18 Läufe mit
+`ref_curve`); Netze in `results/checkpoints/robot_loop_two_f32`.
+
 ## Laufend / offen
 
-- Schwerere Gedächtnis-Stufe: zwei Ziele nacheinander (Auftrag Nutzer 2026-11-17; ab jetzt `+refl` als
-  Standard für Vorlagen-Aufgaben). Aufgabe `robot_loop_two_f32` (`scripts/make_loop_set.py --two`): zwei
-  Hinweis-Schritte mit den Vorlagen von A und B (Bild leer), dann ein Blicklauf mit 6 Bildern ohne Vorlage; an
-  den ersten 3 ist der Schritt zu A richtig, an den letzten 3 der zu B. Der Lehrer wie zuvor, er hält B im
-  Blickfeld, solange er A ansteuert (Paare, bei denen das nicht geht, fallen weg: 4 %). 30736 Trainingsfolgen
-  (2 geordnete Paare je Szene), Test 8615. Sechs Netze mit Gedächtnis, `+refl+rez3`, Seeds 0–2, 12000 Updates.
-  Schleife auf den 1500 Startszenen, alle 6 geordneten Paare je Szene: A nach 3 Schritten (`near_a`), B nach 6
-  Schritten, beide (`near_both`). Orakel: 1,00 / 1,00 / 1,00. Wer immer „bleib“ sagt, ist auf den Folgen in etwa
-  0,33 der Bilder exakt.
-  **Vorhersage vor dem Lauf (2026-11-17):** (1) Alle 12 Läufe von layer_s, layer_s_sp4, hier_s und layer_s_am4
-  lösen A (`near_a` über 0,6). (2) A nach 3 Schritten liegt je Netz höchstens 0,05 unter dem Wert nach 4 Schritten
-  in `blind` mit `+refl` (layer_s 0,91, layer_s_sp4 0,91, hier_s 0,86, layer_s_am4 0,85). (3) B nach 6 Schritten
-  ist die schwere Hälfte: layer_s 0,60–0,85, im Mittel mindestens 0,05 unter A; `near_both` bei layer_s
-  0,55–0,80. (4) Erstmals trennen sich die Gitter-Varianten: Bei B liegen layer_s_sp4 oder layer_s_am4 mindestens
-  0,05 über oder unter layer_s (Richtung offen). (5) Mindestens ein Lauf der Gitter-Netze landet bei B am
-  Boden (B ungefähr Zufall unter den zwei übrigen Körpern: `near` bei B höchstens 0,5), während A gelöst ist.
-  (6) vitmem und attnmem: `near_both` höchstens 0,45.
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
