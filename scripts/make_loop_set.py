@@ -22,7 +22,13 @@ Training: 2 ordered pairs (A, B) per scene, test: all 6.
 -> data/robot/gazeloop2_train.npz / gazeloop2_test.npz: f32 [N, 2 * steps, 3, 32, 32], steps [N, 2 * steps, 2]
    (to A in the first half, to B in the second), refs [N, 2, 2, 3, 16, 16] (A and B, two pictures each),
    body int8 [N, 2], shape int8 [N, 2], scene int32 [N].
+
+With --goals 3: three goals one after the other (robot_loop_three_f32), any sequence of the three bodies without
+the same body twice in a row: A, B, C or A, B, A (12 per scene); the teacher keeps every body still to come in
+view. Training: 2 of the 12 sequences per scene, test: all 12.
+-> data/robot/gazeloop3_*.npz, shapes as above with 3 in place of 2.
 """
+import itertools
 import argparse
 import sys
 from pathlib import Path
@@ -93,22 +99,29 @@ def teacher_step(gaze, pos, k, keep, rng):
     return None
 
 
-def sequences_two(d, steps, rng, per_scene):
-    """Runs with two goals: `steps` views towards A, then `steps` views towards B."""
-    pairs = [(a, b) for a in range(3) for b in range(3) if a != b]
+def orders(goals):
+    """All goal sequences over the three bodies without the same body twice in a row: 6 for two goals, 12 for
+    three (the 6 orders of all three bodies and the 6 of the kind A, B, A). With returns the last goal cannot be
+    found by elimination ("the body I have not been to"); it needs the last picture."""
+    return [o for o in itertools.product(range(3), repeat=goals) if all(x != y for x, y in zip(o, o[1:]))]
+
+
+def sequences_two(d, steps, rng, per_scene, goals=2):
+    """Runs with several goals: `steps` views towards A, then `steps` views towards B (then C)."""
+    pairs = orders(goals)
     views, lab, meta, dropped = [], [], [], 0
     for i in range(len(d["obs"])):
         sat, pos = fv.integral(d["big"][i]), d["pos"][i]
-        chosen = pairs if per_scene >= 6 else [pairs[j] for j in rng.permutation(6)[:per_scene]]
-        for a, b in chosen:
+        chosen = pairs if per_scene >= len(pairs) else [pairs[j] for j in rng.permutation(len(pairs))[:per_scene]]
+        for order in chosen:
             gaze, v, s = d["gaze"][i].astype(float), [], []
-            for t in range(2 * steps):
-                k = a if t < steps else b
+            for t in range(goals * steps):
+                k = order[t // steps]
                 ok, true = in_view(gaze, pos[k])
-                assert ok, (i, a, b, t)
+                assert ok, (i, order, t)
                 v.append(fv.sample_fine(sat, gaze))
                 s.append(true)
-                gaze = teacher_step(gaze, pos, k, (a, b) if t < steps else (b,), rng)
+                gaze = teacher_step(gaze, pos, k, order[t // steps:], rng)
                 if gaze is None:
                     break
             if gaze is None:
@@ -116,7 +129,7 @@ def sequences_two(d, steps, rng, per_scene):
                 continue
             views.append(np.stack(v))
             lab.append(np.array(s, np.int8))
-            meta.append((i, a, b))
+            meta.append((i, *order))
     m = np.array(meta)
     return {"f32": np.stack(views), "steps": np.stack(lab), "refs": d["refs"][m[:, 0][:, None], m[:, 1:]],
             "body": m[:, 1:].astype(np.int8), "shape": d["cells"][m[:, 0][:, None], 9 + m[:, 1:]].astype(np.int8),
@@ -129,7 +142,10 @@ def main():
     ap.add_argument("--test", help="name of a test set with camera images, e.g. gazeshapec_test_img")
     ap.add_argument("--steps", type=int, default=4)
     ap.add_argument("--two", action="store_true", help="two wanted bodies one after the other (gazeloop2_*)")
+    ap.add_argument("--goals", type=int, default=1, help="wanted bodies one after the other (2: as --two, 3)")
     a = ap.parse_args()
+    a.goals = 2 if a.two else a.goals
+    a.two = a.goals > 1
     jobs = []
     if a.train:
         jobs.append(("train", sorted(Path(a.train).glob("*_train*_img.npz")), 1))
@@ -141,7 +157,7 @@ def main():
             d = np.load(f)
             d = {q: d[q] for q in ("obs", "gaze", "pos", "cells", "refs", "big")}
             if a.two:
-                p, dropped = sequences_two(d, a.steps, rng, 2 if split == "train" else 6)
+                p, dropped = sequences_two(d, a.steps, rng, 2 if split == "train" else 12, a.goals)
                 p["scene"] += sum(n for n, _ in sizes)
                 sizes.append((len(d["obs"]), dropped))
                 parts.append(p)
@@ -150,9 +166,9 @@ def main():
             print(f"  {Path(f).name}: {len(d['obs'])} scenes", flush=True)
         out = {q: np.concatenate([p[q] for p in parts]) for q in parts[0]}
         if a.two:
-            np.savez_compressed(ROOT / f"gazeloop2_{split}.npz", **out)
+            np.savez_compressed(ROOT / f"gazeloop{a.goals}_{split}.npz", **out)
             m = np.abs(out["steps"]).max(-1)
-            print(f"gazeloop2_{split}: {len(m)} sequences ({sum(x for _, x in sizes)} pairs left out); share of "
+            print(f"gazeloop{a.goals}_{split}: {len(m)} sequences ({sum(x for _, x in sizes)} orders left out); share of "
                   f"views with the goal in the centre cell, per step:", np.round((m == 0).mean(0), 2),
                   "at most one cell off:", np.round((m <= 1).mean(0), 2), flush=True)
             continue

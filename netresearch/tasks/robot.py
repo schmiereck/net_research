@@ -569,7 +569,7 @@ class RobotLoopTwoF32(RobotLoopF32):
     two bodies A and B one after the other (view blank, answers not counted), then 6 views of one run of the eye
     without any picture: at the first 3 the right answer is the step to A, at the last 3 the step to B. The net
     has to keep both shapes, their order and how far the run has got; B has to be kept over 5 steps."""
-    name, T, cue = "robot_loop_two_f32", 8, "two"
+    name, T, cue, G = "robot_loop_two_f32", 8, "two", 2
 
     def __init__(self):
         super().__init__()
@@ -579,22 +579,38 @@ class RobotLoopTwoF32(RobotLoopF32):
 
     def _load(self, split):
         if split not in self._data:
-            self._data[split] = dict(np.load(data_path(f"gazeloop2_{split}.npz")))
+            self._data[split] = dict(np.load(data_path(f"gazeloop{self.G}_{split}.npz")))
         return self._data[split]
 
     def make(self, d, i, view=None):
-        n = len(i)
-        v = self._rng.integers(0, 2, size=(n, 2)) if view is None else np.full((n, 2), view)
-        s = d["steps"][i].astype(np.int64).transpose(1, 0, 2)                       # [6, B, 2]
+        n, G = len(i), self.G
+        v = self._rng.integers(0, 2, size=(n, G)) if view is None else np.full((n, G), view)
+        s = d["steps"][i].astype(np.int64).transpose(1, 0, 2)                       # [T - G, B, 2]
         run = d["f32"][i].astype(np.float32).transpose(1, 0, 2, 3, 4) / 255.0
         ref = np.zeros((self.T, n, 3, 16, 16), np.float32)
-        for k in range(2):
+        for k in range(G):
             ref[k] = d["refs"][i, k, v[:, k]].astype(np.float32) / 255.0
-        target = command_bits(s[..., 0].ravel(), s[..., 1].ravel()).reshape(6, n, -1)
+        target = command_bits(s[..., 0].ravel(), s[..., 1].ravel()).reshape(len(s), n, -1)
         mask = np.ones((self.T, n), np.float32)
-        mask[:2] = 0.0
-        return {"obs": np.concatenate([np.zeros_like(run[:2]), run]), "ref": ref,
-                "target": np.concatenate([target[:2], target]), "mask": mask}
+        mask[:G] = 0.0
+        return {"obs": np.concatenate([np.zeros_like(run[:G]), run]), "ref": ref,
+                "target": np.concatenate([target[:G], target]), "mask": mask}
+
+
+class RobotLoopThreeF32(RobotLoopTwoF32):
+    """Three goals one after the other (data gazeloop3_*, scripts/make_loop_set.py --goals 3): three cue steps
+    show three pictures (view blank), then 9 views of one run of the eye without a picture: 3 steps to the first
+    goal, 3 to the second, 3 to the third. The goals are any sequence of the scene's three bodies without the same
+    body twice in a row (A, B, C or A, B, A), so the third goal cannot be found by elimination: the net has to keep
+    the third picture over 8 steps, besides the first two and their order."""
+    name, T, cue, G = "robot_loop_three_f32", 12, "three", 3
+
+    def __init__(self):
+        super().__init__()
+        self.spec.description = ("three cue steps with the pictures of three goals (view blank; A, B, C or A, B, A), "
+                                 "then 9 views along a run of gaze steps without a picture -> the gaze shift "
+                                 "(dx, dy) that centres the first goal (views 1-3), the second (4-6), the third "
+                                 "(7-9)")
 
 
 IN_TASKS = {c.name: c for c in (RobotShapeAtIn, RobotShapeAtIn12, RobotShapeAtInF32, RobotShapeAtIn12F32,

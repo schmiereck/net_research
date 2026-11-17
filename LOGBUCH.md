@@ -1951,5 +1951,22 @@ deterministisch).
 
 ## Laufend / offen
 
+- Drei Ziele nacheinander (Auftrag Nutzer 2026-11-17): Aufgabe `robot_loop_three_f32`
+  (`scripts/make_loop_set.py --goals 3`): drei Hinweis-Schritte mit drei Vorlagen (Bild leer), dann 9 Bilder
+  eines Blicklaufs ohne Vorlage, je 3 Schritte zum ersten, zweiten, dritten Ziel. Die Ziele sind jede Folge der
+  drei Körper ohne direkte Wiederholung: A, B, C oder A, B, A (12 je Szene). Die Folgen mit Rückkehr sind nötig,
+  weil sonst das dritte Ziel per Ausschluss („wo ich noch nicht war“) ohne Form zu finden wäre; genau das tun
+  attnmem und vitmem auf zwei Zielen. Der Lehrer hält alle noch kommenden Ziele im Blickfeld (Folgen, bei denen
+  das nicht geht, fallen weg: 11 %). 28750 Trainingsfolgen (2 je Szene), Test 16201. Sechs Netze wie bei zwei
+  Zielen, `+refl+rez3`, Seeds 0–2, 12000 Updates. Schleife auf den 1500 Startszenen, alle 12 Folgen je Szene;
+  gemessen je Ziel am Ende seiner Schritte (`near_goal`), alle drei (`near_all`), getrennt nach A, B, C und
+  A, B, A; Fehler-Aufteilung je Ziel. Orakel 1,00 überall. Zufall ohne jede Form, aber mit Wissen um den
+  Wechsel: A 1/3, B 1/2, drittes Ziel 1/2, alle drei etwa 0,08.
+  **Vorhersage vor dem Lauf (2026-11-17):** (1) layer_s: `near_goal` A 0,78–0,86, B 0,68–0,80, drittes Ziel
+  0,60–0,78; `near_all` 0,40–0,62. (2) Reihenfolge wie bei zwei Zielen: layer_s und layer_s_sp4 innerhalb
+  ±0,03 bei `near_all`, hier_s und layer_s_am4 mindestens 0,08 darunter. (3) attnmem und vitmem: `near_all`
+  höchstens 0,20. (4) Bei den Gitter-Netzen ist das dritte Ziel bei gelöstem A und B in den Folgen A, B, A um
+  mindestens 0,03 leichter als in A, B, C (die Form von A kam zweimal). (5) Kein Gitter-Lauf bricht ein: In
+  allen 12 liegt das dritte Ziel bei `near` mindestens 0,5.
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
