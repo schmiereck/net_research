@@ -1886,17 +1886,70 @@ Körper“ ist, unterscheidet die Auswertung noch nicht. (f) Prognose-Bezug: Die
 **Belege.** `results/finds_loop.jsonl` (Zeilen `robot_loop_two_f32`), `results/loop_refcurve.jsonl` (18 Läufe mit
 `ref_curve`); Netze in `results/checkpoints/robot_loop_two_f32`.
 
+## 2026-11-17 — Zwei Ziele: Woraus die Fehler bestehen
+
+**Frage.** Wenn ein Netz B verfehlt: Ist es bei A geblieben (der Wechsel misslingt) oder zum dritten Körper C
+gegangen (die Form von B ist verwechselt oder vergessen)?
+
+**Gemacht.** Reine Auswertung der 18 Netze aus dem Eintrag davor. `scripts/finds_loop_eval.py` ordnet jeden
+Lauf zur Halbzeit (nach 3 Schritten) und am Ende (nach 6) ein: nahe dem Ziel, nahe dem anderen Ziel, nahe C, bei
+keinem, aus dem Bild (in dieser Rangfolge; „nahe“ = höchstens eine Zelle). Dazu das Ende nur für Läufe, die A zur
+Halbzeit erreicht haben. 1500 Startszenen, alle 6 geordneten Paare (Commit 2f9f203). Vorhersage vor dem Lauf
+(wörtlich aus „Laufend / offen“):
+
+> - B-Fehler aufteilen (Auftrag Nutzer 2026-11-17), reine Auswertung der Netze aus dem Eintrag davor:
+>   `finds_loop_eval.py` ordnet jeden Lauf zur Halbzeit und am Ende ein: nahe A / nahe B / nahe dem dritten Körper C
+>   / bei keinem / aus dem Bild; zusätzlich das Ende nur für Läufe, die A gelöst haben. Vor dem vollen Lauf
+>   gesehen: ein Probelauf auf 50 Szenen mit layer_s Seed 0 (Ende: B 0,78, bei A 0,05, C 0,15; zur Halbzeit
+>   „schon bei B“ 0,05; bei gelöstem A am Ende C 0,16, bei A 0,00).
+>   **Vorhersage vor dem Lauf (2026-11-17, für die übrigen Netze):** (1) Bei allen vier Gitter-Netzen ist C am Ende
+>   der größte Fehler-Anteil, „bei A geblieben“ höchstens 0,07. (2) Bei gelöstem A ist „bei A geblieben“ bei allen
+>   Gitter-Netzen höchstens 0,02: Der Wechsel selbst gelingt, verwechselt wird die Form. (3) Vertauschte
+>   Reihenfolge (zur Halbzeit schon bei B) liegt bei den Gitter-Netzen bei 0,03–0,10. (4) attnmem und vitmem: die
+>   Fehler verteilen sich ungefähr gleich auf A und C (je 0,20–0,35), sie unterscheiden die Formen kaum.
+
+**Ergebnis.** Anteile aller Läufe, Mittel über die Seeds 0–2 (die Seeds streuen bei den Gitter-Netzen um
+höchstens 0,03).
+
+| | Halbzeit: A / schon B / C / keiner | Ende: B / A / C / keiner | Ende bei gelöstem A: B / A / C / keiner |
+|---|---|---|---|
+| layer_s | 0,86 / 0,05 / 0,07 / 0,02 | 0,79 / 0,05 / 0,13 / 0,03 | 0,83 / 0,00 / 0,14 / 0,03 |
+| layer_s_sp4 | 0,85 / 0,05 / 0,08 / 0,02 | 0,79 / 0,05 / 0,13 / 0,03 | 0,84 / 0,00 / 0,13 / 0,02 |
+| hier_s | 0,77 / 0,08 / 0,12 / 0,03 | 0,65 / 0,08 / 0,20 / 0,06 | 0,72 / 0,01 / 0,22 / 0,05 |
+| layer_s_am4 | 0,77 / 0,09 / 0,12 / 0,03 | 0,67 / 0,09 / 0,19 / 0,04 | 0,74 / 0,01 / 0,21 / 0,04 |
+| attnmem | 0,43 / 0,23 / 0,26 / 0,08 | 0,43 / 0,23 / 0,27 / 0,07 | 0,55 / 0,02 / 0,38 / 0,06 |
+| vitmem | 0,42 / 0,26 / 0,27 / 0,05 | 0,40 / 0,25 / 0,28 / 0,07 | 0,53 / 0,01 / 0,39 / 0,07 |
+
+Aus dem Bild läuft kein Netz (höchstens 0,0002). In den Läufen von attnmem und vitmem, die bei Zufall liegen
+(attnmem Seeds 0 und 2, vitmem Seeds 1 und 2), teilen sich die Läufe mit gelöstem A am Ende fast genau hälftig
+auf B und C (0,45–0,50 / 0,42–0,46); bei A bleiben dort 0,01–0,02.
+
+**Vergleich mit der Vorhersage.** (1) Teilweise getroffen: C ist bei allen vier Gitter-Netzen der größte
+Fehler-Anteil (0,13–0,20). „Am Ende bei A“ liegt aber bei hier_s (0,08) und layer_s_am4 (0,09) über 0,07; nur
+layer_s und layer_s_sp4 (0,05) halten die Grenze. (2) Getroffen: 0,00–0,01. (3) Getroffen: 0,05–0,09.
+(4) Getroffen: A 0,23–0,25, C 0,27–0,28; die Deutung („unterscheiden die Formen kaum“) gilt, aber der A-Anteil
+ist kein Hängenbleiben, siehe (b).
+
+**Schluss.** (a) Der Wechsel von A zu B gelingt immer: Wer A erreicht hat, bleibt dort in höchstens 2 % der
+Läufe, bei allen sechs Netzen. Zähler und Umschalten sind gelernt; die Fehler liegen bei den Formen.
+(b) „Am Ende bei A“ entspricht in jedem Netz fast genau „zur Halbzeit schon bei B“ (0,05 / 0,05 bis 0,25 /
+0,26), und bei gelöstem A kommt es nicht vor. Das passt zu vertauschter Reihenfolge: zuerst B, dann A, also beide
+Formen behalten, nur die Reihenfolge verwechselt. Je Lauf verknüpft habe ich das nicht. (c) Der Hauptfehler der
+Gitter-Netze ist C: zur Halbzeit 0,07–0,12 und am Ende bei gelöstem A 0,13–0,22. Die Form von B wird im Lauf
+öfter verwechselt oder vergessen als die von A (C-Anteil am Ende etwa doppelt so hoch). Die Fehler bestehen also
+aus Reihenfolge (0,05–0,09) und Form (0,13–0,20 am Ende); hier_s und layer_s_am4 verlieren gegenüber layer_s in
+beiden. (d) attnmem und vitmem in den Läufen bei Zufall: Sie verlassen A sicher und wählen dann blind zwischen
+B und C. Sie behalten also „wo ich war, gehe ich nicht wieder hin“ und die Zeit des Wechsels, aber keine Form.
+Das passt zur kaum streuenden Encoder-Ausgabe (Eintrag davor) und spricht dafür, dass bei ihnen die Vorlage
+nicht ins Gedächtnis kommt, nicht dass das Gedächtnis fehlt. Geprüft ist das nicht. (e) Für die nächste Stufe
+heißt das: Mehr Formen zum Behalten (drei Ziele) trifft die Schwachstelle direkt; längere Läufe allein prüfen
+eher den Zähler, der schon trägt.
+
+**Belege.** `results/finds_loop.jsonl` (Zeilen `robot_loop_two_f32` mit `split_half`, `split_end`,
+`split_end_a_ok`; die übrigen Werte dieser Zeilen gleichen den Zeilen des Eintrags davor, die Schleife ist
+deterministisch).
+
 ## Laufend / offen
 
-- B-Fehler aufteilen (Auftrag Nutzer 2026-11-17), reine Auswertung der Netze aus dem Eintrag davor:
-  `finds_loop_eval.py` ordnet jeden Lauf zur Halbzeit und am Ende ein: nahe A / nahe B / nahe dem dritten Körper C
-  / bei keinem / aus dem Bild; zusätzlich das Ende nur für Läufe, die A gelöst haben. Vor dem vollen Lauf
-  gesehen: ein Probelauf auf 50 Szenen mit layer_s Seed 0 (Ende: B 0,78, bei A 0,05, C 0,15; zur Halbzeit
-  „schon bei B“ 0,05; bei gelöstem A am Ende C 0,16, bei A 0,00).
-  **Vorhersage vor dem Lauf (2026-11-17, für die übrigen Netze):** (1) Bei allen vier Gitter-Netzen ist C am Ende
-  der größte Fehler-Anteil, „bei A geblieben“ höchstens 0,07. (2) Bei gelöstem A ist „bei A geblieben“ bei allen
-  Gitter-Netzen höchstens 0,02: Der Wechsel selbst gelingt, verwechselt wird die Form. (3) Vertauschte
-  Reihenfolge (zur Halbzeit schon bei B) liegt bei den Gitter-Netzen bei 0,03–0,10. (4) attnmem und vitmem: die
-  Fehler verteilen sich ungefähr gleich auf A und C (je 0,20–0,35), sie unterscheiden die Formen kaum.
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

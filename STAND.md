@@ -215,6 +215,10 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   0,25 ≈ vitmem 0,23 (A 0,77–0,86, B 0,65–0,79 bei den Gitter-Netzen). Diese Stufe trennt die Bauarten; alle 12
   Gitter-Läufe lösen beide Ziele, attnmem und vitmem in 4 von 6 Läufen nur Zufall. Notizblock und
   Inhaltsadressierung bringen nichts gegenüber layer_s.
+  **Fehler aufgeteilt:** Der Wechsel A → B gelingt immer (bei gelöstem A bleiben höchstens 2 % bei A). Fehler
+  der Gitter-Netze: Reihenfolge vertauscht 0,05–0,09, Form verwechselt (dritter Körper) 0,13–0,20 am Ende.
+  attnmem und vitmem in den gescheiterten Läufen: verlassen A sicher, wählen dann blind zwischen B und C, sie
+  behalten keine Form.
 - **Blickziel am Flächenschwerpunkt** (`robot_finds_c_f32`, 2026-11-14): exakt +0,04–0,05 (layer_s 0,74), der
   Formeffekt schrumpft von bis zu 0,29 auf bis zu 0,18, verschwindet aber nicht (L und U bleiben zurück).
   Zusammen mit einem Ausgang je Wert addiert sich beides: Formsuche exakt 0,76–0,81 (layer_s 0,81).
