@@ -14,6 +14,14 @@ step. The label of every view is the true step from THAT gaze to the wanted body
 -> data/robot/gazeloop_train.npz / gazeloop_test.npz: f32 uint8 [N, steps, 3, 32, 32], steps int8 [N, steps, 2],
    refs uint8 [N, 2, 3, 16, 16] (the two pictures of the wanted body), body int8 [N] (which of the three),
    shape int8 [N] (its shape index).
+
+With --two: TWO wanted bodies one after the other (for the task robot_loop_two_f32). `steps` views with the first
+body A as the goal, then `steps` views with the second body B as the goal, in one run of the eye; the teacher is
+the same, and it keeps B in view while it goes for A (a pair where the true step to A loses B is left out).
+Training: 2 ordered pairs (A, B) per scene, test: all 6.
+-> data/robot/gazeloop2_train.npz / gazeloop2_test.npz: f32 [N, 2 * steps, 3, 32, 32], steps [N, 2 * steps, 2]
+   (to A in the first half, to B in the second), refs [N, 2, 2, 3, 16, 16] (A and B, two pictures each),
+   body int8 [N, 2], shape int8 [N, 2], scene int32 [N].
 """
 import argparse
 import sys
@@ -66,11 +74,61 @@ def sequences(d, steps, rng):
             "shape": d["cells"][idx, 9 + body].astype(np.int8)}
 
 
+def teacher_step(gaze, pos, k, keep, rng):
+    """One step of the noisy teacher towards body k; the bodies in `keep` must stay in view. Returns the new
+    gaze, or None if even the true step loses one of them."""
+    ok, true = in_view(gaze, pos[k])
+    u, step = rng.random(), true
+    if u < P_OTHER:
+        o = (k + 1 + int(rng.integers(0, 2))) % 3
+        ok, s = in_view(gaze, pos[o])
+        step = s if ok else true
+    elif u < P_OTHER + P_NEAR:
+        e = DIRS[int(rng.integers(0, len(DIRS)))]
+        step = (int(np.clip(true[0] + e[0], -8, 7)), int(np.clip(true[1] + e[1], -8, 7)))
+    for s in (step, true):
+        g = fv.shift(gaze, *s)
+        if 0 <= g[0] < fv.RES and 0 <= g[1] < fv.RES and all(in_view(g, pos[j])[0] for j in keep):
+            return g
+    return None
+
+
+def sequences_two(d, steps, rng, per_scene):
+    """Runs with two goals: `steps` views towards A, then `steps` views towards B."""
+    pairs = [(a, b) for a in range(3) for b in range(3) if a != b]
+    views, lab, meta, dropped = [], [], [], 0
+    for i in range(len(d["obs"])):
+        sat, pos = fv.integral(d["big"][i]), d["pos"][i]
+        chosen = pairs if per_scene >= 6 else [pairs[j] for j in rng.permutation(6)[:per_scene]]
+        for a, b in chosen:
+            gaze, v, s = d["gaze"][i].astype(float), [], []
+            for t in range(2 * steps):
+                k = a if t < steps else b
+                ok, true = in_view(gaze, pos[k])
+                assert ok, (i, a, b, t)
+                v.append(fv.sample_fine(sat, gaze))
+                s.append(true)
+                gaze = teacher_step(gaze, pos, k, (a, b) if t < steps else (b,), rng)
+                if gaze is None:
+                    break
+            if gaze is None:
+                dropped += 1
+                continue
+            views.append(np.stack(v))
+            lab.append(np.array(s, np.int8))
+            meta.append((i, a, b))
+    m = np.array(meta)
+    return {"f32": np.stack(views), "steps": np.stack(lab), "refs": d["refs"][m[:, 0][:, None], m[:, 1:]],
+            "body": m[:, 1:].astype(np.int8), "shape": d["cells"][m[:, 0][:, None], 9 + m[:, 1:]].astype(np.int8),
+            "scene": m[:, 0].astype(np.int32)}, dropped
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--train", help="folder with gazeshapec_train*_img.npz parts")
     ap.add_argument("--test", help="name of a test set with camera images, e.g. gazeshapec_test_img")
     ap.add_argument("--steps", type=int, default=4)
+    ap.add_argument("--two", action="store_true", help="two wanted bodies one after the other (gazeloop2_*)")
     a = ap.parse_args()
     jobs = []
     if a.train:
@@ -78,13 +136,26 @@ def main():
     if a.test:
         jobs.append(("test", [data_path(a.test + ".npz")], 2))
     for split, files, seed in jobs:
-        rng, parts = np.random.default_rng(seed), []
+        rng, parts, sizes = np.random.default_rng(seed), [], []
         for f in files:
             d = np.load(f)
             d = {q: d[q] for q in ("obs", "gaze", "pos", "cells", "refs", "big")}
-            parts.append(sequences(d, a.steps, rng))
+            if a.two:
+                p, dropped = sequences_two(d, a.steps, rng, 2 if split == "train" else 6)
+                p["scene"] += sum(n for n, _ in sizes)
+                sizes.append((len(d["obs"]), dropped))
+                parts.append(p)
+            else:
+                parts.append(sequences(d, a.steps, rng))
             print(f"  {Path(f).name}: {len(d['obs'])} scenes", flush=True)
         out = {q: np.concatenate([p[q] for p in parts]) for q in parts[0]}
+        if a.two:
+            np.savez_compressed(ROOT / f"gazeloop2_{split}.npz", **out)
+            m = np.abs(out["steps"]).max(-1)
+            print(f"gazeloop2_{split}: {len(m)} sequences ({sum(x for _, x in sizes)} pairs left out); share of "
+                  f"views with the goal in the centre cell, per step:", np.round((m == 0).mean(0), 2),
+                  "at most one cell off:", np.round((m <= 1).mean(0), 2), flush=True)
+            continue
         np.savez_compressed(ROOT / f"gazeloop_{split}.npz", **out)
         m = np.abs(out["steps"]).max(-1)
         print(f"gazeloop_{split}: {len(m)} sequences; share of views with the body in the centre cell, per step:",

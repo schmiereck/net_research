@@ -13,7 +13,7 @@ from .memory import (CrossMem, Delay, KeepFixed, KeepShift, Match, MatchShift, R
 from .patterns import BitSeq, Count, Cycle, CycleMem, NumSeq
 from .robot import (RobotFind, RobotFindColor, RobotFindImage, RobotFindShape, RobotFindShapeF32,
                     RobotFindShapeParts, RobotFindShapePartsF32, RobotGaze, RobotShapeAt, RobotShapeAtF32, IN_TASKS,
-                    RobotLoopBlindF32, RobotLoopCueF32, RobotLoopF32,
+                    RobotLoopBlindF32, RobotLoopCueF32, RobotLoopF32, RobotLoopTwoF32,
                     RobotLook, RobotLookMem, RobotReach, RobotReachBig, RobotReachParts,
                     RobotReachPartsBig, RobotShape, RobotShapeEdge, RobotShapeEdgeBig,
                     RobotShapeEdgeF32, RobotShapeEdgeF32Big, RobotShapeF32, RobotShapeZ2, RobotShapeZ4)
@@ -62,6 +62,7 @@ TASKS = {
     "robot_loop_f32": RobotLoopF32,
     "robot_loop_cue_f32": RobotLoopCueF32,
     "robot_loop_blind_f32": RobotLoopBlindF32,
+    "robot_loop_two_f32": RobotLoopTwoF32,
     **POP_TASKS,
     "robot_reach_parts": RobotReachParts,
     "robot_reach_big": RobotReachBig,
@@ -116,7 +117,7 @@ TASKS = {
 # instead of two 4-bit numbers. "<name>_bits" is the task in the old code: the reference for all results before
 # that date, and the one to combine with the "*_parts" auxiliary tasks (those live in the symbol area, too).
 STEP_TASKS = ("servo", "robot_gaze", "robot_reach", "robot_reach_big", "robot_find", "robot_findc", "robot_findi",
-              "robot_finds", "robot_finds_f32", "robot_loop_f32", "robot_loop_cue_f32", "robot_loop_blind_f32",
+              "robot_finds", "robot_finds_f32", "robot_loop_f32", "robot_loop_cue_f32", "robot_loop_blind_f32", "robot_loop_two_f32",
               *(n for n in IN_TASKS if n.startswith("robot_finds")))
 for _n in STEP_TASKS:
     TASKS[_n + "_bits"] = bits_variant(TASKS[_n], _n + "_bits")

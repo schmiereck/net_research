@@ -564,6 +564,39 @@ class RobotLoopBlindF32(RobotLoopCueF32):
     name, cue = "robot_loop_blind_f32", "blind"
 
 
+class RobotLoopTwoF32(RobotLoopF32):
+    """Two things to keep (data gazeloop2_*, scripts/make_loop_set.py --two): two cue steps show the pictures of
+    two bodies A and B one after the other (view blank, answers not counted), then 6 views of one run of the eye
+    without any picture: at the first 3 the right answer is the step to A, at the last 3 the step to B. The net
+    has to keep both shapes, their order and how far the run has got; B has to be kept over 5 steps."""
+    name, T, cue = "robot_loop_two_f32", 8, "two"
+
+    def __init__(self):
+        super().__init__()
+        self.spec.description = ("two cue steps with the pictures of two bodies A, B (view blank), then 6 views "
+                                 "along a run of gaze steps without a picture -> the gaze shift (dx, dy) that "
+                                 "centres A (first 3 views), then B (last 3)")
+
+    def _load(self, split):
+        if split not in self._data:
+            self._data[split] = dict(np.load(data_path(f"gazeloop2_{split}.npz")))
+        return self._data[split]
+
+    def make(self, d, i, view=None):
+        n = len(i)
+        v = self._rng.integers(0, 2, size=(n, 2)) if view is None else np.full((n, 2), view)
+        s = d["steps"][i].astype(np.int64).transpose(1, 0, 2)                       # [6, B, 2]
+        run = d["f32"][i].astype(np.float32).transpose(1, 0, 2, 3, 4) / 255.0
+        ref = np.zeros((self.T, n, 3, 16, 16), np.float32)
+        for k in range(2):
+            ref[k] = d["refs"][i, k, v[:, k]].astype(np.float32) / 255.0
+        target = command_bits(s[..., 0].ravel(), s[..., 1].ravel()).reshape(6, n, -1)
+        mask = np.ones((self.T, n), np.float32)
+        mask[:2] = 0.0
+        return {"obs": np.concatenate([np.zeros_like(run[:2]), run]), "ref": ref,
+                "target": np.concatenate([target[:2], target]), "mask": mask}
+
+
 IN_TASKS = {c.name: c for c in (RobotShapeAtIn, RobotShapeAtIn12, RobotShapeAtInF32, RobotShapeAtIn12F32,
                                 RobotFindShapeC, RobotFindShapeCF32, RobotFindShapeMF32,
                                 RobotFindShapeIn, RobotFindShapeIn12, RobotFindShapeInF32, RobotFindShapeIn12F32)}
