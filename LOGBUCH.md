@@ -2451,6 +2451,24 @@ zusammen: Die Netze bauen eine Karte mit Verlauf; ein Körper, auf dem der Blick
 
 ## Laufend / offen
 
+- Erster Test im Roboter-Projekt: Blickschleife mit drei Zielen live im MuJoCo-Simulator, mit bewegtem Arm
+  (Wunsch Nutzer 2026-11-18). Skript `rdf_thalamus_sml/src/pc_cvnn/netresearch_live_loop.py` (Simulator-Seite)
+  und `scripts/policy_server.py` (Netz-Seite; zwei Prozesse, weil die Umgebungen getrennt sind). 150 frische
+  Szenen (Saat 77000, Aufbau wie `gazeshapec`), alle 12 Folgen, Kamerabild bei jedem Schritt neu gerendert, Fovea
+  mit der NetResearch-Geometrie neu abgetastet. Bedingung `static`: Arm bleibt in der Ruhelage (entspricht dem
+  Prüfstand, aber live). Bedingung `live`: Nach jedem Ziel führt der Arm den Greifpunkt kinematisch 5 cm über den
+  Körper, auf dem der Blick liegt; die Hand ist beim Suchen des nächsten Ziels im Bild (im Prüfstand nie). Netze:
+  layer_s_sp4 und layer_s mit 24000 Updates (Seeds 0–2), vitmem und attnmem mit 12000 (Seeds 0–2). Vor dem Lauf
+  gesehen: Orakel 1,00 in beiden Bedingungen (5 Szenen), hier_s 12000 Seed 0 auf 3 Szenen zum Testen; geprüft,
+  dass im Live-Fall ab dem zweiten Ziel alle Bilder anders sind (Bild des Arms über dem Körper im Notizordner).
+  Kein act23-Lauf, kein Lernzustand berührt.
+  **Vorhersage vor dem Lauf (2026-11-18):** (1) `static` gibt den Prüfstand wieder: `near_all` je Netz innerhalb
+  ±0,06 um den Prüfstandswert (sp4 0,71 / 0,75 / 0,73, layer_s 0,72 / 0,21 / 0,64, vitmem 0,45 / 0,07 / 0,32,
+  attnmem 0,07 / 0,32 / 0,37). (2) `live`: Das erste Ziel bleibt gleich (±0,02), danach fällt es: `near_all` sinkt
+  bei den gelösten Gitter-Läufen um 0,05–0,20. (3) Die Rangfolge der Bauarten (Mittel über die Seeds) bleibt live
+  wie im Prüfstand: sp4 > layer_s > vitmem, attnmem. (4) Über die 12 Netze sagt der Prüfstandswert den Live-Wert
+  vorher: Spearman ρ ≥ 0,8.
+
 - Breiter Port-Anfang für attnmem und vitmem (Prüfung der Henne-Ei-Deutung, 2026-11-18, eigene Entscheidung während
   der Pause des Nutzers): Bei attnmem und vitmem geht die Adresse durch zwei klein beginnende lineare Abbildungen
   (Ende des Vorlagen-Encoders, dann `cmd_in` als Muster auf dem Bild); die Gitter-Netze haben `+cell` (eine
