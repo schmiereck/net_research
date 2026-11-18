@@ -2231,5 +2231,21 @@ Skript `scripts/loop_goals_probe.py`.
 
 ## Laufend / offen
 
+- Form oder Lage, und der Notizblock (Auftrag Nutzer 2026-11-18): reine Auswertung derselben 12 Netze (24000
+  Updates). Neues Skript `scripts/loop_where_probe.py`: Orakel-Läufe (der Blick nimmt den wahren Schritt, alle Netze
+  sehen dieselben Bilder), 3000 Läufe über alle 12 Folgen. Lineare Ridge-Auslese nach jedem Schritt: Form jedes
+  Ziels (Anteil richtig) und Lage jedes Ziels als Pixel-Abstand vom Blickpunkt (R², Mittel beider Achsen); Kontrolle:
+  Lage des Körpers, der kein Ziel ist (Folgen A, B, A). Boden „view“: dieselbe Auslese aus dem Zustand nach nur dem
+  aktuellen Bild, frisches Gedächtnis, leere Vorlage. Bei sp4 zusätzlich getrennt aus dem Gitter (2176 Werte), aus
+  dem Notizblock (128 Werte) und aus 128 zufälligen Gitter-Werten. Vor dem Lauf gesehen nur Probeläufe zum Testen
+  des Skripts an hier_s und sp4 mit 12000 Updates (300 Läufe), nicht an den untersuchten Netzen.
+  **Vorhersage vor dem Lauf (2026-11-18):** (1) Lage statt Form: In allen 9 gelösten Läufen ist die Lage von C nach
+  Schritt 8 (Blick auf B) um mindestens 0,15 R² besser lesbar als im Boden „view“. (2) In den 3 eingebrochenen
+  layer_s-Läufen liegt die Lage von C nach Schritt 8 höchstens 0,05 über dem Boden. (3) Der Boden für die Lage
+  eines Ziels liegt nach den Schritten 5 und 8 bei höchstens 0,30 R². (4) Notizblock: Bei sp4 ist die Form von B
+  nach Schritt 5 aus dem Notizblock allein um mindestens 0,10 besser lesbar als aus 128 zufälligen Gitter-Werten,
+  in mindestens 5 der 6 Läufe. (5) Die Form-Auslese auf Orakel-Läufen wiederholt das Bild der Lehrer-Läufe: B nach
+  Schritt 5 in den eingebrochenen Läufen höchstens 0,12 über 0,26, in den gelösten mindestens 0,45.
+
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
