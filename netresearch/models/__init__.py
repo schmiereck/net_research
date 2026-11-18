@@ -140,7 +140,7 @@ def split_size(name):
     differently sized nets are different model names everywhere (results, checkpoints). A '+cmd' suffix of the
     base name (command port, see attach_cmd) is removed here; has_cmd(name) tells whether it was there."""
     base, _, size = name.partition("@")
-    for suf in ("+cmd", "+cell", "+refl", "+ref", "+ret0", "+ret1", "+ret2", "+ret3", "+rez1", "+rez2", "+rez3"):
+    for suf in ("+cmd", "+cell", "+refl", "+ref", "+pw", "+ret0", "+ret1", "+ret2", "+ret3", "+rez1", "+rez2", "+rez3"):
         base = base.replace(suf, "")
     return base, (int(float(size.rstrip("k")) * 1000) if size else None)
 
@@ -234,7 +234,28 @@ def construct(name, width):
         model.retina = Retina(int(name.split("+ret")[1][0]))
     if "+rez" in name:                                         # the same, as a correction to the 2 x 2 mean
         model.retina = Retina(int(name.split("+rez")[1][0]), residual=True)
+    if "+pw" in name:                                          # wide port: larger start of the address path
+        scale_port(model, PORT_WIDE)
     return model
+
+
+PORT_WIDE = 4.0
+
+
+def scale_port(model, k):
+    """'+pw' (probe, 2026-11-18): the address path starts k times larger - the last linear map of the address
+    encoder and, for nets with the image command port (attach_cmd), its linear map. All encoders start with an
+    output spread of about 0.01; for attnmem / vitmem the address then passes two such small maps before it is a
+    faint pattern on the image, and in some runs it stays there (results: LOGBUCH 2026-11-18). Tests whether the
+    start, not the architecture, decides. Same parameters, only their initial size changes."""
+    with torch.no_grad():
+        if hasattr(model, "ref_enc"):
+            lin = model.ref_enc.net[-2]
+            lin.weight.mul_(k)
+            lin.bias.mul_(k)
+        if hasattr(model, "cmd_in"):
+            model.cmd_in.weight.mul_(k)
+            model.cmd_in.bias.mul_(k)
 
 
 def build_model(name, target_params=100_000, seed=0):

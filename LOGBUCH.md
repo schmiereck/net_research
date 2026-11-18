@@ -2451,6 +2451,20 @@ zusammen: Die Netze bauen eine Karte mit Verlauf; ein Körper, auf dem der Blick
 
 ## Laufend / offen
 
+- Breiter Port-Anfang für attnmem und vitmem (Prüfung der Henne-Ei-Deutung, 2026-11-18, eigene Entscheidung während
+  der Pause des Nutzers): Bei attnmem und vitmem geht die Adresse durch zwei klein beginnende lineare Abbildungen
+  (Ende des Vorlagen-Encoders, dann `cmd_in` als Muster auf dem Bild); die Gitter-Netze haben `+cell` (eine
+  Abbildung in jede Zelle). Neuer Namens-Zusatz `+pw`: beide Abbildungen starten 4-mal größer (gleiche Parameter;
+  Faktor vorher festgelegt, nicht abgestimmt). Am Anfang: Encoder-Streuung 0,010 → 0,038 (vitmem 0,030), Muster
+  auf dem Bild 0,005 → 0,087. Worker: `attnmem+refl+pw+rez3` und `vitmem+refl+pw+rez3` Seeds 0–4, 7, dazu
+  `attnmem+refl+rez3` und `vitmem+refl+rez3` Seeds 3, 4, 7 (mit den vorhandenen 0–2 sechs je Netz), drei Ziele,
+  12000 Updates. „Gelöst“ = `near_all` ≥ 0,20 (bisher Zufallsläufe 0,07, gelöste 0,32–0,45). Das ist eine Prüfung
+  der Ursache, kein Vorschlag für den Standard; ob `+pw` übernommen wird, entscheidet der Nutzer.
+  **Vorhersage vor dem Lauf (2026-11-18):** (1) Ohne `+pw` lösen attnmem und vitmem je 3 bis 5 von 6. (2) Mit
+  `+pw` lösen sie zusammen mindestens 11 von 12. (3) Mit `+pw` liegt die Encoder-Streuung bei Update 2000 in allen
+  12 Läufen bei mindestens 0,05 (ohne: 0,007–0,022). (4) Die gelösten Läufe mit `+pw` liegen im Mittel innerhalb
+  ±0,08 um die gelösten ohne: Der Anfang entscheidet, ob gelernt wird, kaum wie gut.
+
 - Rest der Messung „Wird ein falscher Körper verlassen?“ (abgebrochen 2026-11-18 wegen Speichermangel): die
   Läufe `robot_loop_cue_f32`, `robot_loop_blind_f32` (6 Netze `+refl`, Seeds 0–2) und drei Ziele (24000
   Updates) mit `recover`; es gelten die Punkte (3) und (4) der Vorhersage im Eintrag „Falscher Körper“ vom
