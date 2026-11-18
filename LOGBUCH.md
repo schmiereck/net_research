@@ -2311,5 +2311,19 @@ Quellen `all`, `view`, bei sp4 `p0` Gitter, `p1` Notizblock, `p0r128`), Skript `
 
 ## Laufend / offen
 
+- Warum attnmem und vitmem je Seed ganz oder gar nicht lernen (Auftrag Nutzer 2026-11-18): reine Auswertung der
+  18 Netze aus „Drei Ziele nacheinander“ (12000 Updates, Seeds 0–2) mit `scripts/loop_goals_probe.py` (Lehrer-Läufe,
+  Form je Ziel nach jedem Schritt, Encoder) und `scripts/loop_where_probe.py` (Orakel-Läufe, Form und Lage, Boden
+  „view“). Bei Zufall liegen dort drei Läufe in ALLEN Zielen, auch A (0,31–0,36): attnmem Seed 0, vitmem Seed 1,
+  layer_s_am4 Seed 2; das ist ein anderes Fehlerbild als bei layer_s („nur A“).
+  **Vorhersage vor dem Lauf (2026-11-18):** (1) Die drei Läufe bei Zufall schreiben die Form schon nicht: A ist
+  direkt nach seinem Hinweis-Schritt (nach Schritt 0) höchstens 0,35 lesbar. (2) Ursache ist der Eingang: Die
+  Encoder-Streuung dieser Läufe ist höchstens halb so groß wie die der anderen Läufe derselben Bauart. (3) Die
+  gelösten Läufe von attnmem und vitmem (attnmem 1, 2; vitmem 0, 2) halten die Formen über den Lauf: B nach
+  Schritt 5 ≥ 0,45, C nach Schritt 8 ≥ 0,40 (Lehrer-Läufe). (4) hier_s (alle drei Seeds) und layer_s_am4 Seed 0
+  zeigen das Muster der eingebrochenen layer_s-Läufe: A nach Schritt 2 ≥ 0,60, B nach Schritt 5 ≤ 0,38.
+  (5) Die Karte (Lage von A nach Schritt 8, Orakel-Läufe) ist bei attnmem und vitmem um mindestens 0,10 R²
+  schwächer als bei den Gitter-Netzen (Mittel je Bauart).
+
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
