@@ -2309,42 +2309,151 @@ Speicher für Aufträge. Geprüft ist das an einer Aufgabe und einer Bauart.
 **Belege.** `results/loop_where_probe.jsonl` (12 Zeilen; `read[Quelle][shape|place|nogoal][Schritt][Ziel]`,
 Quellen `all`, `view`, bei sp4 `p0` Gitter, `p1` Notizblock, `p0r128`), Skript `scripts/loop_where_probe.py`.
 
+## 2026-11-18 — attnmem und vitmem: ganz oder gar nicht hängt am Vorlagen-Encoder, der zu langsam aus dem Anfang wächst
+
+**Frage.** Warum lernen attnmem und vitmem die Drei-Ziele-Stufe je Seed ganz oder gar nicht, und was
+unterscheidet ihre Läufe bei Zufall von den eingebrochenen layer_s-Läufen („nur A“)?
+
+**Gemacht.** Reine Auswertung der 18 Netze mit 12000 Updates (Seeds 0–2), lokal: `loop_goals_probe.py` (3000
+Lehrer-Folgen) und `loop_where_probe.py` (3000 Orakel-Läufe), dazu die Encoder-Streuung über das Training aus
+`results/loop_refcurve.jsonl` (`ref_curve`, alle 250 Updates aufgezeichnet). Panne: Der lokale Lauf wurde wegen
+Speichermangel vom System abgebrochen. Die Form-Auslese ist vollständig (18 Netze), die Lage-Auslese nur für 11
+(es fehlen layer_s_am4 Seed 2, layer_s und layer_s_sp4 alle Seeds); nicht neu gestartet. Vorhersage vor dem Lauf
+(wörtlich aus „Laufend / offen“):
+
+> - Warum attnmem und vitmem je Seed ganz oder gar nicht lernen (Auftrag Nutzer 2026-11-18): reine Auswertung der
+>   18 Netze aus „Drei Ziele nacheinander“ (12000 Updates, Seeds 0–2) mit `scripts/loop_goals_probe.py` (Lehrer-Läufe,
+>   Form je Ziel nach jedem Schritt, Encoder) und `scripts/loop_where_probe.py` (Orakel-Läufe, Form und Lage, Boden
+>   „view“). Bei Zufall liegen dort drei Läufe in ALLEN Zielen, auch A (0,31–0,36): attnmem Seed 0, vitmem Seed 1,
+>   layer_s_am4 Seed 2; das ist ein anderes Fehlerbild als bei layer_s („nur A“).
+>   **Vorhersage vor dem Lauf (2026-11-18):** (1) Die drei Läufe bei Zufall schreiben die Form schon nicht: A ist
+>   direkt nach seinem Hinweis-Schritt (nach Schritt 0) höchstens 0,35 lesbar. (2) Ursache ist der Eingang: Die
+>   Encoder-Streuung dieser Läufe ist höchstens halb so groß wie die der anderen Läufe derselben Bauart. (3) Die
+>   gelösten Läufe von attnmem und vitmem (attnmem 1, 2; vitmem 0, 2) halten die Formen über den Lauf: B nach
+>   Schritt 5 ≥ 0,45, C nach Schritt 8 ≥ 0,40 (Lehrer-Läufe). (4) hier_s (alle drei Seeds) und layer_s_am4 Seed 0
+>   zeigen das Muster der eingebrochenen layer_s-Läufe: A nach Schritt 2 ≥ 0,60, B nach Schritt 5 ≤ 0,38.
+>   (5) Die Karte (Lage von A nach Schritt 8, Orakel-Läufe) ist bei attnmem und vitmem um mindestens 0,10 R²
+>   schwächer als bei den Gitter-Netzen (Mittel je Bauart).
+
+**Ergebnis.** Form-Auslese (Lehrer-Läufe, Boden A 0,19, B 0,26, C 0,33) und Encoder am Ende des Trainings.
+
+| | Seed | `near_all` | Encoder-Streuung | Encoder-Auslese | A nach 0 | B nach 5 | C nach 8 |
+|---|---|---|---|---|---|---|---|
+| attnmem | 0 | 0,07 | 0,046 | 0,37–0,40 | 0,42 | 0,39 | 0,37 |
+| attnmem | 1 | 0,32 | 0,094 | 0,50–0,54 | 0,71 | 0,66 | 0,62 |
+| attnmem | 2 | 0,37 | 0,101 | 0,55–0,57 | 0,80 | 0,74 | 0,67 |
+| vitmem | 0 | 0,45 | 0,236 | 0,51–0,55 | 0,89 | 0,86 | 0,82 |
+| vitmem | 1 | 0,07 | 0,043 | 0,34–0,37 | 0,39 | 0,38 | 0,34 |
+| vitmem | 2 | 0,32 | 0,145 | 0,49–0,56 | 0,79 | 0,74 | 0,71 |
+| layer_s_am4 | 0 | 0,14 | 0,51 | 0,53–0,56 | 0,86 | 0,60 | 0,32 |
+| layer_s_am4 | 1 | 0,35 | 0,75 | 0,56–0,58 | 0,90 | 0,73 | 0,48 |
+| layer_s_am4 | 2 | 0,08 | 0,44 | 0,41–0,42 | 0,51 | 0,35 | 0,35 |
+| hier_s | 0–2 | 0,13–0,15 | 0,39–0,41 | 0,51–0,58 | 0,79–0,86 | 0,25–0,28 | 0,22–0,23 |
+| layer_s | 0–2 | 0,18–0,59 | 0,82–0,98 | 0,55–0,62 | 0,87–0,93 | 0,30–0,52 | 0,24–0,41 |
+
+Encoder-Streuung über das Training: Alle Netze beginnen bei etwa 0,01. Bei den Gitter-Netzen wächst sie bis
+Update 2000 auf 0,02–0,28 (layer_s 0,27–0,28) und bis 4000 auf 0,21–0,80 (außer layer_s_am4 Seed 2). Bei attnmem und vitmem liegt sie bei
+Update 2000 noch bei 0,007–0,022 und bei 4000 bei 0,015–0,041; danach wächst sie in den gelösten Läufen auf
+0,09–0,24, in den Läufen bei Zufall nur auf 0,043–0,046. Der Trainingswert steigt bis 4000 in allen sechs Läufen
+gleich (0,54–0,56) und trennt sich erst danach. layer_s_am4 Seed 2 wächst ebenfalls spät (0,041 bei 4000, 0,44
+am Ende). Lage (Orakel-Läufe, R²): A nach Schritt 8 bei attnmem und vitmem 0,95–0,98 (Boden „view“ 0,69–0,71),
+bei hier_s und am4 0,91–0,97 (Boden 0,34–0,40).
+
+**Vergleich mit der Vorhersage.** (1) Nicht getroffen: In den drei Läufen bei Zufall ist A nach seinem
+Hinweis-Schritt 0,39–0,51 lesbar, nicht höchstens 0,35 (aber weit unter den gelösten Läufen von attnmem und vitmem, 0,71–0,89). (2) Teilweise:
+attnmem Seed 0 (0,046 gegen 0,094–0,101) und vitmem Seed 1 (0,043 gegen 0,145–0,236) erfüllen „höchstens halb so
+groß“; layer_s_am4 Seed 2 nicht (0,44 gegen 0,51–0,75). (3) Getroffen: B nach 5 0,66–0,86, C nach 8 0,62–0,82.
+(4) Teilweise: hier_s getroffen (A nach 2 0,81–0,88, B nach 5 0,25–0,28); layer_s_am4 Seed 0 nicht (B nach 5
+0,60; es verliert erst C, nach 8 0,32). (5) Nicht getroffen: Die Karte ist bei attnmem und vitmem nicht schwächer,
+sondern stärker (0,95–0,98 gegen 0,91–0,97); gemessen nur gegen hier_s und am4, da die übrigen Zeilen fehlen.
+Zusammen: 1 getroffen, 2 teilweise, 2 nicht.
+
+**Schluss.** (a) Die Läufe von attnmem und vitmem bei Zufall scheitern am Eingang: Ihr Vorlagen-Encoder bleibt
+fast ohne Streuung (0,043–0,046), die Form kommt kaum ins Gedächtnis (A gleich nach dem Hinweis 0,39–0,42), also
+findet das Netz nicht einmal A. Das ist ein anderes Fehlerbild als bei layer_s (dort schreibt der Encoder gut,
+die Bilder verdrängen danach B und C). (b) Ursache vermutlich eine Henne-Ei-Falle am Anfang: Alle Encoder
+beginnen bei Streuung 0,01. Bei den Gitter-Netzen wächst sie in den ersten 2000 Updates, bei attnmem und vitmem
+kaum; erst ab etwa 4000 trennt sie sich, und wer bis 12000 nicht genug Streuung aufgebaut hat, bleibt bei Zufall.
+Plausibel: Der Encoder bekommt nur dann Gradient, wenn das Gedächtnis ihn liest, und das Gedächtnis liest ihn
+erst, wenn er etwas unterscheidet. Ob die Streuung Ursache oder Folge ist, trennen die Kurven nicht sicher, weil
+beide zugleich wachsen; geprüft wäre es mit einem Encoder, der mit größerer Streuung beginnt, oder mit längerem
+Training. (c) Gelernt halten attnmem und vitmem die Formen über den ganzen Lauf besser als jedes Gitter-Netz (B nach
+5 bis 0,86, C nach 8 bis 0,82, ohne Abfall). Ihr Speicher wird von den Bildern nicht verdrängt. Ihre Schwäche liegt
+dann nicht im Behalten, sondern im Nutzen: Je Ziel finden sie es nur zu 0,56–0,70. (d) layer_s_am4 Seed 2 ist ein
+dritter Fall: Encoder spät, aber am Ende brauchbar (0,44), A halb lesbar (0,51), trotzdem bei Zufall; die Form wird
+nicht genutzt. (e) Die Karte der Szene haben alle Bauarten; bei attnmem und vitmem steckt sie schon im Zustand nach
+einem einzigen Bild (Boden 0,69–0,71), bei den Gitter-Netzen entsteht sie über die Schritte. (f) Für die Agenda
+„Schnittstelle festlegen“: Neben „kein begrenzender Ausgang am Port“ (tanh-Befund) gehört dazu „genug
+Anfangs-Streuung am Port“, sonst hängt das Lernen am Zufall des Trainingswegs.
+
+**Belege.** `results/loop_goals_probe.jsonl` (18 Zeilen `"ckpt": "robot_loop_three_f32"`),
+`results/loop_where_probe.jsonl` (11 Zeilen dazu), `results/loop_refcurve.jsonl` (`ref_curve` der Läufe
+`robot_loop_three_f32:12000`).
+
+## 2026-11-18 — Falscher Körper: Netze mit Gedächtnis verlassen ihn seltener als Netze ohne (Teil-Messung)
+
+**Frage.** Hält die alte Aussage „der falsche Körper wird kaum verlassen“ auch je Lauf, und ändert ein Gedächtnis
+mit gemerkter Vorlage daran etwas?
+
+**Gemacht.** `finds_loop_eval.py` mit der neuen Größe `recover` (Commit 7cd968b). Panne: Der lokale Lauf wurde
+wegen Speichermangel vom System abgebrochen; fertig ist nur `robot_loop_f32` (8 Netze, Seeds 0–2, 1500
+Startszenen). `robot_loop_cue_f32`, `robot_loop_blind_f32` und drei Ziele fehlen; die Punkte (3) und (4) der
+Vorhersage sind daher nicht gemessen und bleiben unter „Laufend / offen“. Vorhersage vor dem Lauf (wörtlich aus
+„Laufend / offen“):
+
+> - Wird ein falscher Körper verlassen? (Punkt aus der Agenda, Auftrag Nutzer 2026-11-18): Die alte Aussage „der
+>   falsche Körper wird kaum verlassen“ (Eintrag `robot_loop_f32`, 2026-11-15) stützte sich nur auf den Gesamtanteil
+>   „falscher Körper“ je Schritt (0,09 → 0,07), nicht auf einzelne Läufe; Wege hinaus und hinein heben sich dort
+>   auf. Neu in `finds_loop_eval.py` (`recover`): je Ziel-Strecke die Läufe, die nach dem ersten Schritt der Strecke
+>   auf einem falschen Körper stehen (und nicht nahe dem Ziel), und davon der Anteil nahe dem Ziel bzw. noch auf
+>   einem falschen Körper am Ende der Strecke; dazu: nahe nach dem ersten Schritt, davon am Ende auf einem falschen
+>   Körper. Läufe: `robot_loop_f32` (8 Netze, Seeds 0–2, 4 Schritte), `robot_loop_cue_f32` und
+>   `robot_loop_blind_f32` mit `+refl` (Seeds 0–2), `robot_loop_three_f32` mit 24000 Updates (layer_s und sp4, 6
+>   Seeds). Vor dem Lauf gesehen nur Probeläufe zum Testen des Codes: cnn Seed 0 auf `robot_loop_f32`, 30 Szenen
+>   (falsch nach Schritt 1 0,13, davon am Ende nahe 0,33, noch falsch 0,58), layer_s 24000 Seed 0 auf drei Zielen,
+>   5 Szenen.
+>   **Vorhersage vor dem Lauf (2026-11-18):** (1) `robot_loop_f32`: Von den Läufen, die nach Schritt 1 auf einem
+>   falschen Körper stehen, sind nach Schritt 4 bei allen Netzen höchstens 0,40 nahe dem Ziel und mindestens 0,50
+>   noch auf einem falschen Körper. Die alte Aussage hält also auch je Lauf. (2) Abdriften kommt kaum vor: Wer nach
+>   dem ersten Schritt nahe ist, steht am Ende in höchstens 0,03 auf einem falschen Körper (alle Aufgaben und Netze).
+>   (3) Mit gemerkter Vorlage (`robot_loop_cue_f32`, `robot_loop_blind_f32`) verlassen die Gitter-Netze den falschen
+>   Körper nicht öfter: nahe am Ende höchstens 0,10 über cnn auf `robot_loop_f32`. (4) Drei Ziele, sp4: Bei den
+>   Strecken zu B und zum dritten Ziel ist von den Läufen auf einem falschen Körper nach dem ersten Schritt am Ende
+>   höchstens 0,30 nahe dem Ziel. Grund für (1), (3), (4): Wer auf einem falschen Körper steht, hält ihn für das
+>   Ziel; der Fehler liegt in der Erkennung, die bei jedem Schritt gleich ausfällt, nicht in der Schleife.
+
+**Ergebnis.** `robot_loop_f32`, Mittel über die Seeds (Spanne höchstens 0,05).
+
+| | falsch nach Schritt 1 | davon nahe nach 4 | davon noch falsch nach 4 | nahe nach 1 | davon falsch nach 4 |
+|---|---|---|---|---|---|
+| vit (ohne Gedächtnis) | 0,13 | 0,32 | 0,64 | 0,82 | 0,002 |
+| cnn (ohne Gedächtnis) | 0,09 | 0,26 | 0,71 | 0,87 | 0,001 |
+| vitmem | 0,20 | 0,16 | 0,82 | 0,73 | 0,001 |
+| hier_s | 0,12 | 0,12 | 0,87 | 0,84 | 0,001 |
+| layer_s_sp4 | 0,07 | 0,11 | 0,88 | 0,90 | 0,000 |
+| attnmem | 0,25 | 0,10 | 0,88 | 0,65 | 0,003 |
+| layer_s_am4 | 0,10 | 0,09 | 0,89 | 0,86 | 0,000 |
+| layer_s | 0,07 | 0,09 | 0,89 | 0,90 | 0,000 |
+
+**Vergleich mit der Vorhersage.** (1) Getroffen: nahe am Ende 0,09–0,32 (höchstens 0,40), noch falsch 0,64–0,89
+(mindestens 0,50). (2) Getroffen für `robot_loop_f32` (0,000–0,003); für die anderen Aufgaben nicht gemessen.
+(3) und (4) nicht gemessen.
+
+**Schluss.** (a) Die alte Aussage hält je Lauf: Wer nach dem ersten Schritt auf einem falschen Körper steht, steht
+dort nach drei weiteren Schritten in 0,64–0,89 der Fälle noch. Abdriften vom richtigen Körper gibt es praktisch
+nicht. (b) Neu: Die Netze ohne Gedächtnis kommen öfter weg (cnn 0,26, vit 0,32) als alle Netze mit Gedächtnis
+(0,09–0,16). Das Gedächtnis hält die einmal getroffene Entscheidung fest. Das passt zum Eintrag zu
+`robot_loop_f32` (der Zustand dient als Schrittzähler und Zustand „angekommen“). (c) Mit dem Befund zu drei Zielen
+zusammen: Die Netze bauen eine Karte mit Verlauf; ein Körper, auf dem der Blick einmal ruht, gilt danach als
+„erreicht“. Ob eine gemerkte Vorlage das ändert, sagen erst die fehlenden Läufe.
+
+**Belege.** `results/finds_loop.jsonl` (Zeilen `robot_loop_f32` mit `recover`).
+
 ## Laufend / offen
 
-- Wird ein falscher Körper verlassen? (Punkt aus der Agenda, Auftrag Nutzer 2026-11-18): Die alte Aussage „der
-  falsche Körper wird kaum verlassen“ (Eintrag `robot_loop_f32`, 2026-11-15) stützte sich nur auf den Gesamtanteil
-  „falscher Körper“ je Schritt (0,09 → 0,07), nicht auf einzelne Läufe; Wege hinaus und hinein heben sich dort
-  auf. Neu in `finds_loop_eval.py` (`recover`): je Ziel-Strecke die Läufe, die nach dem ersten Schritt der Strecke
-  auf einem falschen Körper stehen (und nicht nahe dem Ziel), und davon der Anteil nahe dem Ziel bzw. noch auf
-  einem falschen Körper am Ende der Strecke; dazu: nahe nach dem ersten Schritt, davon am Ende auf einem falschen
-  Körper. Läufe: `robot_loop_f32` (8 Netze, Seeds 0–2, 4 Schritte), `robot_loop_cue_f32` und
-  `robot_loop_blind_f32` mit `+refl` (Seeds 0–2), `robot_loop_three_f32` mit 24000 Updates (layer_s und sp4, 6
-  Seeds). Vor dem Lauf gesehen nur Probeläufe zum Testen des Codes: cnn Seed 0 auf `robot_loop_f32`, 30 Szenen
-  (falsch nach Schritt 1 0,13, davon am Ende nahe 0,33, noch falsch 0,58), layer_s 24000 Seed 0 auf drei Zielen,
-  5 Szenen.
-  **Vorhersage vor dem Lauf (2026-11-18):** (1) `robot_loop_f32`: Von den Läufen, die nach Schritt 1 auf einem
-  falschen Körper stehen, sind nach Schritt 4 bei allen Netzen höchstens 0,40 nahe dem Ziel und mindestens 0,50
-  noch auf einem falschen Körper. Die alte Aussage hält also auch je Lauf. (2) Abdriften kommt kaum vor: Wer nach
-  dem ersten Schritt nahe ist, steht am Ende in höchstens 0,03 auf einem falschen Körper (alle Aufgaben und Netze).
-  (3) Mit gemerkter Vorlage (`robot_loop_cue_f32`, `robot_loop_blind_f32`) verlassen die Gitter-Netze den falschen
-  Körper nicht öfter: nahe am Ende höchstens 0,10 über cnn auf `robot_loop_f32`. (4) Drei Ziele, sp4: Bei den
-  Strecken zu B und zum dritten Ziel ist von den Läufen auf einem falschen Körper nach dem ersten Schritt am Ende
-  höchstens 0,30 nahe dem Ziel. Grund für (1), (3), (4): Wer auf einem falschen Körper steht, hält ihn für das
-  Ziel; der Fehler liegt in der Erkennung, die bei jedem Schritt gleich ausfällt, nicht in der Schleife.
-
-- Warum attnmem und vitmem je Seed ganz oder gar nicht lernen (Auftrag Nutzer 2026-11-18): reine Auswertung der
-  18 Netze aus „Drei Ziele nacheinander“ (12000 Updates, Seeds 0–2) mit `scripts/loop_goals_probe.py` (Lehrer-Läufe,
-  Form je Ziel nach jedem Schritt, Encoder) und `scripts/loop_where_probe.py` (Orakel-Läufe, Form und Lage, Boden
-  „view“). Bei Zufall liegen dort drei Läufe in ALLEN Zielen, auch A (0,31–0,36): attnmem Seed 0, vitmem Seed 1,
-  layer_s_am4 Seed 2; das ist ein anderes Fehlerbild als bei layer_s („nur A“).
-  **Vorhersage vor dem Lauf (2026-11-18):** (1) Die drei Läufe bei Zufall schreiben die Form schon nicht: A ist
-  direkt nach seinem Hinweis-Schritt (nach Schritt 0) höchstens 0,35 lesbar. (2) Ursache ist der Eingang: Die
-  Encoder-Streuung dieser Läufe ist höchstens halb so groß wie die der anderen Läufe derselben Bauart. (3) Die
-  gelösten Läufe von attnmem und vitmem (attnmem 1, 2; vitmem 0, 2) halten die Formen über den Lauf: B nach
-  Schritt 5 ≥ 0,45, C nach Schritt 8 ≥ 0,40 (Lehrer-Läufe). (4) hier_s (alle drei Seeds) und layer_s_am4 Seed 0
-  zeigen das Muster der eingebrochenen layer_s-Läufe: A nach Schritt 2 ≥ 0,60, B nach Schritt 5 ≤ 0,38.
-  (5) Die Karte (Lage von A nach Schritt 8, Orakel-Läufe) ist bei attnmem und vitmem um mindestens 0,10 R²
-  schwächer als bei den Gitter-Netzen (Mittel je Bauart).
-
+- Rest der Messung „Wird ein falscher Körper verlassen?“ (abgebrochen 2026-11-18 wegen Speichermangel): die
+  Läufe `robot_loop_cue_f32`, `robot_loop_blind_f32` (6 Netze `+refl`, Seeds 0–2) und drei Ziele (24000
+  Updates) mit `recover`; es gelten die Punkte (3) und (4) der Vorhersage im Eintrag „Falscher Körper“ vom
+  2026-11-18, unverändert.
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

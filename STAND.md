@@ -243,6 +243,14 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   die Form können sie A, B, C aber nicht von A, B, A unterscheiden. Bei sp4 teilt sich die Arbeit von selbst:
   Gitter = Karte, Notizblock = Formen (B direkt nach dem Losgehen aus 128 Notizblock-Werten 0,66–0,75 lesbar,
   aus 128 Gitter-Werten 0,42–0,47).
+  **attnmem und vitmem, ganz oder gar nicht (2026-11-18):** Die Läufe bei Zufall scheitern am Eingang: Der
+  Vorlagen-Encoder bleibt fast ohne Streuung (0,04 gegen 0,09–0,24), die Form kommt kaum ins Gedächtnis. Alle
+  Encoder beginnen bei 0,01; bei den Gitter-Netzen wächst die Streuung in den ersten 2000 Updates, bei attnmem und
+  vitmem erst ab etwa 4000. Gelernt halten attnmem und vitmem die Formen über den ganzen Lauf besser als jedes
+  Gitter-Netz (nicht verdrängt), nutzen sie aber schlechter.
+  **Falscher Körper (2026-11-18, nur `robot_loop_f32` gemessen):** Wer nach dem ersten Schritt auf einem falschen
+  Körper steht, bleibt dort meist (0,64–0,89); Netze ohne Gedächtnis kommen öfter weg (0,26–0,32) als Netze mit
+  (0,09–0,16).
 - **Blickziel am Flächenschwerpunkt** (`robot_finds_c_f32`, 2026-11-14): exakt +0,04–0,05 (layer_s 0,74), der
   Formeffekt schrumpft von bis zu 0,29 auf bis zu 0,18, verschwindet aber nicht (L und U bleiben zurück).
   Zusammen mit einem Ausgang je Wert addiert sich beides: Formsuche exakt 0,76–0,81 (layer_s 0,81).
