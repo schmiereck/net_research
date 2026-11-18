@@ -2155,5 +2155,22 @@ Seeds 0–4 und 7), `results/loop_refcurve.jsonl` (12 Läufe `robot_loop_three_f
 
 ## Laufend / offen
 
+- Warum layer_s oft nur das erste Ziel behält (Auftrag Nutzer 2026-11-18): reine Auswertung der 12 Netze mit
+  24000 Updates (layer_s und sp4, Seeds 0–4, 7; layer_s 1, 3, 4 eingebrochen). Neues Skript
+  `scripts/loop_goals_probe.py`: die Netze laufen mit Lehrer-Blicken über 3000 Testfolgen (Vorlagen-Ansicht 0); nach
+  jedem der 12 Schritte liest eine lineare Auslese (Ridge wie in `loop_state_probe.py`, auf der Hälfte der Szenen
+  angepasst, auf der anderen gemessen) die Form jedes Ziels aus dem Zustand. Ziel C nur in Folgen A, B, C. Boden =
+  was die früheren Formen allein verraten: A 0,17, B 0,27, C 0,35 (Probe an hier_s 12000, 400 Folgen, nur zum
+  Testen des Skripts). Dazu Streuung und Auslese des Vorlagen-Encoders. Unterscheidet: nicht geschrieben (gleich
+  nach dem eigenen Hinweis-Schritt nicht lesbar), überschrieben (danach nicht mehr), nicht genutzt (lesbar, aber
+  das Netz geht woandershin).
+  **Vorhersage vor dem Lauf (2026-11-18):** (1) Der Encoder ist nicht die Ursache: Streuung und Encoder-Auslese
+  der eingebrochenen layer_s-Läufe liegen innerhalb ±20 % (relativ) der gelösten. (2) Überschrieben, nicht
+  ungeschrieben: In den eingebrochenen Läufen ist B direkt nach seinem Hinweis-Schritt (Schritt 1) lesbar (≥ 0,50),
+  am Ende der A-Strecke (nach Schritt 5) aber höchstens 0,10 über dem Boden. (3) In allen gelösten Läufen (layer_s
+  und sp4) ist B nach Schritt 5 ≥ 0,50 und C nach Schritt 8 ≥ 0,50 lesbar. (4) A ist in allen 12 Läufen nach
+  Schritt 2 (letzter Hinweis) ≥ 0,60 lesbar. (5) sp4 hält B nach Schritt 5 im Mittel mindestens so gut wie die
+  gelösten layer_s-Läufe.
+
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
