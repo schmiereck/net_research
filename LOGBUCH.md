@@ -2093,16 +2093,67 @@ Updates, um (b) zu prüfen; nicht gestartet.
 `results/loop_refcurve.jsonl` (6 Läufe `robot_loop_three_f32:24000` mit Kurven); Netze in
 `results/checkpoints/robot_loop_three_f32_24k`.
 
-## Laufend / offen
+## 2026-11-18 — Drei Ziele, Lösequote mit sechs Seeds: sp4 6 von 6, layer_s 3 von 6
 
-- Lösequote bei drei Zielen mit 24000 Updates (Auftrag Nutzer 2026-11-18): layer_s und layer_s_sp4
-  (`+cell+refl+rez3`), drei weitere Seeds 3, 4, 7 (5 und 6 bleiben für Abstimmung frei, wie bei der Studie mit
-  acht Seeds), sonst wie im Eintrag davor; zusammen mit Seeds 0–2 sechs Läufe je Netz. „Gelöst“ = `near_all` ≥ 0,45
-  (bisher liegen eingebrochene Läufe bei 0,18–0,21, gelöste bei 0,52–0,75).
-  **Vorhersage vor dem Lauf (2026-11-18):** (1) sp4 löst 5 oder 6 von 6, layer_s 3 bis 5 von 6; sp4 löst
-  mindestens einen Lauf mehr als layer_s. (2) Die gelösten Läufe von sp4 liegen im Mittel mindestens 0,03 über
-  denen von layer_s. (3) Jeder eingebrochene Lauf hat das bekannte Muster: A ≥ 0,80, drittes Ziel ≤ 0,45,
-  Trainingswert `final` ≤ 0,66. (4) Alle gelösten Läufe beider Netze: `near_all` 0,60–0,78.
+**Frage.** Lernt layer_s_sp4 drei Ziele nacheinander bei 24000 Updates zuverlässiger als layer_s, oder war
+„3 von 3 gegen 2 von 3“ im Eintrag davor Zufall?
+
+**Gemacht.** Wie im Eintrag davor, drei weitere Seeds 3, 4, 7 je Netz (Job `20261118-121830-three24k_seeds`,
+Commit 552a890), Schleife mit `finds_loop_eval.py --ckpt robot_loop_three_f32_24k --seeds 3 4 7`. Zusammen mit
+den Seeds 0–2 sechs Läufe je Netz. Vorhersage vor dem Lauf (wörtlich aus „Laufend / offen“):
+
+> - Lösequote bei drei Zielen mit 24000 Updates (Auftrag Nutzer 2026-11-18): layer_s und layer_s_sp4
+>   (`+cell+refl+rez3`), drei weitere Seeds 3, 4, 7 (5 und 6 bleiben für Abstimmung frei, wie bei der Studie mit
+>   acht Seeds), sonst wie im Eintrag davor; zusammen mit Seeds 0–2 sechs Läufe je Netz. „Gelöst“ = `near_all` ≥ 0,45
+>   (bisher liegen eingebrochene Läufe bei 0,18–0,21, gelöste bei 0,52–0,75).
+>   **Vorhersage vor dem Lauf (2026-11-18):** (1) sp4 löst 5 oder 6 von 6, layer_s 3 bis 5 von 6; sp4 löst
+>   mindestens einen Lauf mehr als layer_s. (2) Die gelösten Läufe von sp4 liegen im Mittel mindestens 0,03 über
+>   denen von layer_s. (3) Jeder eingebrochene Lauf hat das bekannte Muster: A ≥ 0,80, drittes Ziel ≤ 0,45,
+>   Trainingswert `final` ≤ 0,66. (4) Alle gelösten Läufe beider Netze: `near_all` 0,60–0,78.
+
+**Ergebnis.** Alle sechs Läufe je Netz; Seeds 3, 4, 7 neu.
+
+| | Seed | A | B | drittes | `near_all` | `final` | drittes in A, B, C bei gelöstem A und B: C / früher |
+|---|---|---|---|---|---|---|---|
+| layer_s | 0 | 0,90 | 0,84 | 0,83 | 0,72 | 0,740 | 0,90 / 0,08 |
+| layer_s | 1 | 0,88 | 0,47 | 0,37 | 0,21 | 0,647 | 0,41 / 0,56 |
+| layer_s | 2 | 0,87 | 0,80 | 0,77 | 0,64 | 0,717 | 0,86 / 0,12 |
+| layer_s | 3 | 0,86 | 0,52 | 0,38 | 0,23 | 0,646 | 0,42 / 0,56 |
+| layer_s | 4 | 0,87 | 0,53 | 0,40 | 0,24 | 0,651 | 0,45 / 0,52 |
+| layer_s | 7 | 0,91 | 0,86 | 0,84 | 0,74 | 0,752 | 0,90 / 0,08 |
+| layer_s_sp4 | 0 | 0,89 | 0,84 | 0,83 | 0,71 | 0,742 | 0,90 / 0,08 |
+| layer_s_sp4 | 1 | 0,91 | 0,86 | 0,86 | 0,75 | 0,747 | 0,92 / 0,06 |
+| layer_s_sp4 | 2 | 0,89 | 0,86 | 0,85 | 0,73 | 0,745 | 0,92 / 0,07 |
+| layer_s_sp4 | 3 | 0,91 | 0,87 | 0,86 | 0,76 | 0,755 | 0,92 / 0,07 |
+| layer_s_sp4 | 4 | 0,90 | 0,86 | 0,85 | 0,75 | 0,750 | 0,92 / 0,07 |
+| layer_s_sp4 | 7 | 0,89 | 0,85 | 0,84 | 0,73 | 0,738 | 0,92 / 0,07 |
+
+Gelöst (`near_all` ≥ 0,45): sp4 6 von 6 (0,71–0,76, Mittel 0,74), layer_s 3 von 6 (0,64–0,74, Mittel 0,70).
+Die Läufe sind klar zweigeteilt: eingebrochen 0,21–0,24 bei `final` 0,646–0,651, gelöst ab 0,64 bei `final` ab
+0,717; dazwischen liegt nichts. Exakter Test nach Fisher (einseitig, 6/6 gegen 3/6): p = 0,09.
+
+**Vergleich mit der Vorhersage.** (1) Getroffen: sp4 6 von 6, layer_s 3 von 6 (untere Grenze), sp4 drei Läufe
+mehr. (2) Getroffen: gelöste Läufe sp4 0,74 gegen layer_s 0,70, +0,04. (3) Getroffen: alle drei eingebrochenen
+Läufe A 0,86–0,88, drittes Ziel 0,37–0,40, `final` 0,646–0,651. (4) Getroffen: gelöste Läufe 0,64–0,76.
+
+**Schluss.** (a) Mit 24000 Updates lernt layer_s_sp4 die Stufe in 6 von 6 Läufen, layer_s in 3 von 6. Das ist der
+erste Unterschied zwischen beiden auf der ganzen Leiter der Blickschleife. Mit p = 0,09 bei sechs Läufen je Netz
+ist er ein deutlicher Hinweis, aber kein sicherer Befund. Für die Rangfolge der Gedächtnis-Bauarten heißt das:
+Der Notizblock hilft hier beim Lernen, kaum beim Ergebnis (gelöste Läufe +0,04). (b) Ein eingebrochener Lauf ist
+ein eigener, stabiler Zustand: A sicher, dann beim dritten Ziel in A, B, C mehr als die Hälfte zurück zu einem
+früheren Ziel, also dieselbe Neigung wie hier_s und layer_s_am4 im Eintrag „Drei Ziele nacheinander“. Das Netz
+behält die Form von A, aber nicht die von B und C. (c) Der Trainingswert trennt gelöst und eingebrochen sauber
+(Lücke 0,651 bis 0,717); er reicht hier als Lösungs-Kennzeichen, ohne die Schleife zu fahren. (d) Prognose-Bezug:
+Auf dieser Stufe sagt die Bauart die Zuverlässigkeit vorher, nicht die erreichte Höhe. Für den Roboter wäre
+das die Frage, ob ein Netz beim Nachtrainieren verlässlich ankommt. (e) Offen: Warum layer_s in einem Teil der
+Läufe nur A behält. Vermutung: Die Formen von B und C müssen durch dasselbe Gitter-Gedächtnis, das schon A hält,
+und der Notizblock gibt ihnen einen eigenen Platz; geprüft ist das nicht.
+
+**Belege.** `results/finds_loop.jsonl` (Zeilen `robot_loop_three_f32` mit `"ckpt": "robot_loop_three_f32_24k"`,
+Seeds 0–4 und 7), `results/loop_refcurve.jsonl` (12 Läufe `robot_loop_three_f32:24000`); Netze in
+`results/checkpoints/robot_loop_three_f32_24k`.
+
+## Laufend / offen
 
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

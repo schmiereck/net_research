@@ -230,6 +230,10 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   ein anderer Seed bricht ein (Seed 1 0,21 statt Seed 2): Ob der Sprung gelingt, hängt bei layer_s vom
   Trainingsweg ab. Erstmals liegt der Notizblock (sp4) klar vor layer_s; auf dieser Stufe entscheidet die
   Trainingslänge über die Rangfolge.
+  **Lösequote mit sechs Seeds (2026-11-18, 24000 Updates):** sp4 6 von 6 gelöst (`near_all` 0,71–0,76), layer_s
+  3 von 6 (gelöste 0,64–0,74, eingebrochene 0,21–0,24; Fisher einseitig p = 0,09). Eingebrochene Läufe behalten nur
+  A und gehen beim dritten Ziel meist zurück; der Trainingswert trennt beide Zustände sauber (0,651 gegen 0,717).
+  Der Notizblock hilft beim Lernen, kaum beim Ergebnis (gelöste Läufe +0,04).
 - **Blickziel am Flächenschwerpunkt** (`robot_finds_c_f32`, 2026-11-14): exakt +0,04–0,05 (layer_s 0,74), der
   Formeffekt schrumpft von bis zu 0,29 auf bis zu 0,18, verschwindet aber nicht (L und U bleiben zurück).
   Zusammen mit einem Ausgang je Wert addiert sich beides: Formsuche exakt 0,76–0,81 (layer_s 0,81).
