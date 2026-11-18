@@ -2311,6 +2311,27 @@ Quellen `all`, `view`, bei sp4 `p0` Gitter, `p1` Notizblock, `p0r128`), Skript `
 
 ## Laufend / offen
 
+- Wird ein falscher Körper verlassen? (Punkt aus der Agenda, Auftrag Nutzer 2026-11-18): Die alte Aussage „der
+  falsche Körper wird kaum verlassen“ (Eintrag `robot_loop_f32`, 2026-11-15) stützte sich nur auf den Gesamtanteil
+  „falscher Körper“ je Schritt (0,09 → 0,07), nicht auf einzelne Läufe; Wege hinaus und hinein heben sich dort
+  auf. Neu in `finds_loop_eval.py` (`recover`): je Ziel-Strecke die Läufe, die nach dem ersten Schritt der Strecke
+  auf einem falschen Körper stehen (und nicht nahe dem Ziel), und davon der Anteil nahe dem Ziel bzw. noch auf
+  einem falschen Körper am Ende der Strecke; dazu: nahe nach dem ersten Schritt, davon am Ende auf einem falschen
+  Körper. Läufe: `robot_loop_f32` (8 Netze, Seeds 0–2, 4 Schritte), `robot_loop_cue_f32` und
+  `robot_loop_blind_f32` mit `+refl` (Seeds 0–2), `robot_loop_three_f32` mit 24000 Updates (layer_s und sp4, 6
+  Seeds). Vor dem Lauf gesehen nur Probeläufe zum Testen des Codes: cnn Seed 0 auf `robot_loop_f32`, 30 Szenen
+  (falsch nach Schritt 1 0,13, davon am Ende nahe 0,33, noch falsch 0,58), layer_s 24000 Seed 0 auf drei Zielen,
+  5 Szenen.
+  **Vorhersage vor dem Lauf (2026-11-18):** (1) `robot_loop_f32`: Von den Läufen, die nach Schritt 1 auf einem
+  falschen Körper stehen, sind nach Schritt 4 bei allen Netzen höchstens 0,40 nahe dem Ziel und mindestens 0,50
+  noch auf einem falschen Körper. Die alte Aussage hält also auch je Lauf. (2) Abdriften kommt kaum vor: Wer nach
+  dem ersten Schritt nahe ist, steht am Ende in höchstens 0,03 auf einem falschen Körper (alle Aufgaben und Netze).
+  (3) Mit gemerkter Vorlage (`robot_loop_cue_f32`, `robot_loop_blind_f32`) verlassen die Gitter-Netze den falschen
+  Körper nicht öfter: nahe am Ende höchstens 0,10 über cnn auf `robot_loop_f32`. (4) Drei Ziele, sp4: Bei den
+  Strecken zu B und zum dritten Ziel ist von den Läufen auf einem falschen Körper nach dem ersten Schritt am Ende
+  höchstens 0,30 nahe dem Ziel. Grund für (1), (3), (4): Wer auf einem falschen Körper steht, hält ihn für das
+  Ziel; der Fehler liegt in der Erkennung, die bei jedem Schritt gleich ausfällt, nicht in der Schleife.
+
 - Warum attnmem und vitmem je Seed ganz oder gar nicht lernen (Auftrag Nutzer 2026-11-18): reine Auswertung der
   18 Netze aus „Drei Ziele nacheinander“ (12000 Updates, Seeds 0–2) mit `scripts/loop_goals_probe.py` (Lehrer-Läufe,
   Form je Ziel nach jedem Schritt, Encoder) und `scripts/loop_where_probe.py` (Orakel-Läufe, Form und Lage, Boden

@@ -131,6 +131,29 @@ def shares(c, ok):
             for x in [(c == k) & ok for k in range(5)] + [~ok]]
 
 
+def recover(truth, ok, r, seg_end=None):
+    """Does a net leave a wrong body again? Per goal (segment of steps): [share of runs on a wrong body after the
+    first step of the segment (and not near the goal), of those: near the goal at the end of the segment, of those:
+    still on a wrong body at the end, share of runs near the goal after the first step, of those: on a wrong body
+    at the end]. "Wrong body" as in measure(): another body is nearest and the goal is more than 8 px away."""
+    G = 1 if seg_end is None else seg_end.shape[1]
+    seg = (truth.shape[1] - 1) // G
+    res = []
+    for j in range(G):
+        s, e = j * seg + 1, (j + 1) * seg
+        wrong = truth[:, s, 3].astype(bool) & ok[:, s] & (r[:, s] > 1)
+        near0 = (r[:, s] <= 1) & ok[:, s]
+        if seg_end is None:
+            near_e, wrong_e = (r[:, e] <= 1) & ok[:, e], truth[:, e, 3].astype(bool) & ok[:, e]
+        else:
+            near_e = (np.abs(seg_end[:, j, :2]).max(-1) <= 1) & ok[:, e]
+            wrong_e = seg_end[:, j, 3].astype(bool) & ok[:, e]
+        c = lambda a, b: round(float(a[b].mean()), 4) if b.any() else float("nan")   # noqa: E731
+        res.append([round(float(wrong.mean()), 4), c(near_e, wrong), c(wrong_e, wrong),
+                    round(float(near0.mean()), 4), c(wrong_e, near0)])
+    return res
+
+
 def summary(truth, ans, out, seg_end=None, cls=None, ret=None):
     ok = ~out
     r = np.abs(truth[:, :, :2]).max(-1)
@@ -162,7 +185,7 @@ def summary(truth, ans, out, seg_end=None, cls=None, ret=None):
                           "other_a": extra["other_goal"][0], "near_both": extra["near_all"],
                           "split_half": pick(s0, 2), "split_end": pick(s1, 1), "split_end_a_ok": pick(s1a, 1),
                           "share_a_ok": extra["near_goal"][0]})
-    return {**extra, "exact": f(((r == 0) & ok).mean(0)), "near": f(((r <= 1) & ok).mean(0)),
+    return {**extra, "recover": recover(truth, ok, r, seg_end), "exact": f(((r == 0) & ok).mean(0)), "near": f(((r <= 1) & ok).mean(0)),
             "px_median": f(np.nanmedian(px, 0)), "px_mean": f(np.nanmean(px, 0)),
             "other": f((truth[:, :, 3].astype(bool) & ok).mean(0)), "out": f(out.mean(0)),
             "rest": f((ans == 0).all(-1).mean(0)), "flip": f(flip.mean(0))}
@@ -258,6 +281,12 @@ def main():
                 print(f"\ngoal {'ABC'[j]}, {head}: near it / an earlier goal / a later goal / no goal / none / out")
                 for name, rows in per.items():
                     print(f"  {name:<26} {f(np.nanmean([x[q][j] for x in rows], 0))}")
+    print("\nwrong body after the first step of each goal's steps: share / of those near the goal at the end / still"
+          " wrong at the end | near after the first step: share / of those wrong at the end")
+    for name, rows in per.items():
+        v = np.nanmean([x["recover"] for x in rows], 0)
+        print(f"  {name:<26} " + "  ".join(f"{'ABC'[j] if goals > 1 else '-'}: {v[j][0]:.2f} {v[j][1]:.2f} "
+                                           f"{v[j][2]:.2f} | {v[j][3]:.2f} {v[j][4]:.2f}" for j in range(len(v))))
     for q in ("exact", "near", "px_median", "other", "out", "rest", "flip"):
         print(f"\n{q}")
         for name, rows in per.items():
