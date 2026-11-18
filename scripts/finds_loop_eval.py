@@ -174,6 +174,7 @@ def main():
     ap.add_argument("--seeds", nargs="+", type=int, default=[0, 1, 2])
     ap.add_argument("--steps", type=int, default=None, help="default 4; 3 per goal for a task with several goals")
     ap.add_argument("--scenes", type=int, default=1500)
+    ap.add_argument("--ckpt", default=None, help="checkpoint folder (default: the task name; for --save-as runs)")
     ap.add_argument("--models", nargs="*", help="only these nets (default: every stored net of the task)")
     ap.add_argument("--images", default="gazeshapec", help="scene set with camera images (<name>_test_img.npz)")
     ap.add_argument("--amnesia", action="store_true", help="wipe the net's memory before every step (control)")
@@ -191,10 +192,10 @@ def main():
         assert (fv.sample(fv.integral(d["img"][i]), d["gaze"][i]) == d["obs"][i]).all(), i
         assert (fv.sample_fine(fv.integral(d["big"][i]), d["gaze"][i]) == d["f32"][i]).all(), i
     nets = []
-    for p in sorted((ROOT / "results" / "checkpoints" / a.task).glob("*.pt")):
+    for p in sorted((ROOT / "results" / "checkpoints" / (a.ckpt or a.task)).glob("*.pt")):
         name, seed = re.fullmatch(r"(.+)_s(\d+)", p.stem).groups()
         if int(seed) in a.seeds and (not a.models or name in a.models):
-            nets.append((name, int(seed), load_checkpoint(name, a.task, int(seed))))
+            nets.append((name, int(seed), load_checkpoint(name, a.ckpt or a.task, int(seed))))
     print(f"{a.task}: {n} scenes x {3 * 2 ** (goals - 1)} runs, {a.steps} steps, {len(nets)} nets", flush=True)
 
     def policy(model):
@@ -233,7 +234,7 @@ def main():
         for (name, seed), ps in parts.items():
             s = summary(*(np.concatenate(x) for x in zip(*ps)))
             per[name].append(s)
-            out.write(json.dumps({"task": a.task + ("/amnesia" if a.amnesia else ""), "model": name, "seed": seed, "scenes": n, "steps": a.steps, **s}) + "\n")
+            out.write(json.dumps({"task": a.task + ("/amnesia" if a.amnesia else ""), "model": name, "seed": seed, **({"ckpt": a.ckpt} if a.ckpt else {}), "scenes": n, "steps": a.steps, **s}) + "\n")
     f = lambda v: " ".join(f"{x:.2f}" for x in v)                       # noqa: E731
     print(f"\nmean over seeds; columns = before step 1, after step 1 .. {a.steps}")
     if goals > 1:

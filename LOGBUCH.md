@@ -2031,5 +2031,15 @@ prüfen; nicht gestartet.
 
 ## Laufend / offen
 
+- Drei Ziele mit 24000 Updates (Auftrag Nutzer 2026-11-18): dieselbe Aufgabe `robot_loop_three_f32` wie im
+  Eintrag davor, nur layer_s und layer_s_sp4 (`+cell+refl+rez3`), Seeds 0–2, 24000 statt 12000 Updates,
+  Checkpoints unter `robot_loop_three_f32_24k` (`finds_loop_eval.py --ckpt`). Prüft, ob Seed 2 bei 12000 Updates
+  den Sprung (Trainingswert 0,62 → 0,70) nur noch nicht gemacht hatte. Schleife wie zuvor, 1500 Szenen, 12 Folgen.
+  **Vorhersage vor dem Lauf (2026-11-18):** (1) Seed 2 macht den Sprung bei beiden Netzen: `near_all` ≥ 0,45,
+  Trainingswert `final` ≥ 0,68. (2) Seeds 0 und 1 gewinnen höchstens wenig: `near_all` je Lauf zwischen dem
+  12000er-Wert −0,02 und +0,08. (3) Damit streuen die drei Seeds je Netz um höchstens 0,10 bei `near_all`,
+  Mittel 0,52–0,65. (4) layer_s und sp4 bleiben innerhalb ±0,04 im Mittel. (5) Beim dritten Ziel in A, B, C
+  (bei gelöstem A und B) bleibt „zurück zu einem früheren Ziel“ der Hauptfehler, 0,15–0,28.
+
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
