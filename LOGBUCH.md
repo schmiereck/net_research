@@ -2449,25 +2449,78 @@ zusammen: Die Netze bauen eine Karte mit Verlauf; ein Körper, auf dem der Blick
 
 **Belege.** `results/finds_loop.jsonl` (Zeilen `robot_loop_f32` mit `recover`).
 
-## Laufend / offen
+### 2026-11-19 — Erster Live-Test im Roboter-Simulator: Prüfstand sagt die Rangfolge vorher, der Arm im Bild kostet die Gitter-Netze ein Viertel
 
-- Erster Test im Roboter-Projekt: Blickschleife mit drei Zielen live im MuJoCo-Simulator, mit bewegtem Arm
-  (Wunsch Nutzer 2026-11-18). Skript `rdf_thalamus_sml/src/pc_cvnn/netresearch_live_loop.py` (Simulator-Seite)
-  und `scripts/policy_server.py` (Netz-Seite; zwei Prozesse, weil die Umgebungen getrennt sind). 150 frische
-  Szenen (Saat 77000, Aufbau wie `gazeshapec`), alle 12 Folgen, Kamerabild bei jedem Schritt neu gerendert, Fovea
-  mit der NetResearch-Geometrie neu abgetastet. Bedingung `static`: Arm bleibt in der Ruhelage (entspricht dem
-  Prüfstand, aber live). Bedingung `live`: Nach jedem Ziel führt der Arm den Greifpunkt kinematisch 5 cm über den
-  Körper, auf dem der Blick liegt; die Hand ist beim Suchen des nächsten Ziels im Bild (im Prüfstand nie). Netze:
-  layer_s_sp4 und layer_s mit 24000 Updates (Seeds 0–2), vitmem und attnmem mit 12000 (Seeds 0–2). Vor dem Lauf
-  gesehen: Orakel 1,00 in beiden Bedingungen (5 Szenen), hier_s 12000 Seed 0 auf 3 Szenen zum Testen; geprüft,
-  dass im Live-Fall ab dem zweiten Ziel alle Bilder anders sind (Bild des Arms über dem Körper im Notizordner).
-  Kein act23-Lauf, kein Lernzustand berührt.
-  **Vorhersage vor dem Lauf (2026-11-18):** (1) `static` gibt den Prüfstand wieder: `near_all` je Netz innerhalb
-  ±0,06 um den Prüfstandswert (sp4 0,71 / 0,75 / 0,73, layer_s 0,72 / 0,21 / 0,64, vitmem 0,45 / 0,07 / 0,32,
-  attnmem 0,07 / 0,32 / 0,37). (2) `live`: Das erste Ziel bleibt gleich (±0,02), danach fällt es: `near_all` sinkt
-  bei den gelösten Gitter-Läufen um 0,05–0,20. (3) Die Rangfolge der Bauarten (Mittel über die Seeds) bleibt live
-  wie im Prüfstand: sp4 > layer_s > vitmem, attnmem. (4) Über die 12 Netze sagt der Prüfstandswert den Live-Wert
-  vorher: Spearman ρ ≥ 0,8.
+**Frage.** Sagt der Prüfstand (`robot_loop_three_f32`) vorher, wie die Netze die Blickschleife mit drei Zielen live
+im MuJoCo-Simulator des Roboter-Projekts lösen, auch wenn der Arm sich bewegt und ins Bild kommt?
+
+**Gemacht.** `rdf_thalamus_sml/src/pc_cvnn/netresearch_live_loop.py` (Robot-Commit 2c3f7e1) gegen
+`scripts/policy_server.py` (Commit 0e93819), 150 Szenen, alle 12 Folgen, 12 Netze, je `static` und `live`.
+Laufzeit etwa 75 Minuten lokal. Vorhersage vor dem Lauf (wörtlich aus „Laufend / offen“):
+
+> - Erster Test im Roboter-Projekt: Blickschleife mit drei Zielen live im MuJoCo-Simulator, mit bewegtem Arm
+>   (Wunsch Nutzer 2026-11-18). Skript `rdf_thalamus_sml/src/pc_cvnn/netresearch_live_loop.py` (Simulator-Seite)
+>   und `scripts/policy_server.py` (Netz-Seite; zwei Prozesse, weil die Umgebungen getrennt sind). 150 frische
+>   Szenen (Saat 77000, Aufbau wie `gazeshapec`), alle 12 Folgen, Kamerabild bei jedem Schritt neu gerendert, Fovea
+>   mit der NetResearch-Geometrie neu abgetastet. Bedingung `static`: Arm bleibt in der Ruhelage (entspricht dem
+>   Prüfstand, aber live). Bedingung `live`: Nach jedem Ziel führt der Arm den Greifpunkt kinematisch 5 cm über den
+>   Körper, auf dem der Blick liegt; die Hand ist beim Suchen des nächsten Ziels im Bild (im Prüfstand nie). Netze:
+>   layer_s_sp4 und layer_s mit 24000 Updates (Seeds 0–2), vitmem und attnmem mit 12000 (Seeds 0–2). Vor dem Lauf
+>   gesehen: Orakel 1,00 in beiden Bedingungen (5 Szenen), hier_s 12000 Seed 0 auf 3 Szenen zum Testen; geprüft,
+>   dass im Live-Fall ab dem zweiten Ziel alle Bilder anders sind (Bild des Arms über dem Körper im Notizordner).
+>   Kein act23-Lauf, kein Lernzustand berührt.
+>   **Vorhersage vor dem Lauf (2026-11-18):** (1) `static` gibt den Prüfstand wieder: `near_all` je Netz innerhalb
+>   ±0,06 um den Prüfstandswert (sp4 0,71 / 0,75 / 0,73, layer_s 0,72 / 0,21 / 0,64, vitmem 0,45 / 0,07 / 0,32,
+>   attnmem 0,07 / 0,32 / 0,37). (2) `live`: Das erste Ziel bleibt gleich (±0,02), danach fällt es: `near_all` sinkt
+>   bei den gelösten Gitter-Läufen um 0,05–0,20. (3) Die Rangfolge der Bauarten (Mittel über die Seeds) bleibt live
+>   wie im Prüfstand: sp4 > layer_s > vitmem, attnmem. (4) Über die 12 Netze sagt der Prüfstandswert den Live-Wert
+>   vorher: Spearman ρ ≥ 0,8.
+
+**Ergebnis.** Orakel 1,00 in beiden Bedingungen. `near_all` (Prüfstand = `finds_loop_eval`, 1500 Startszenen):
+
+| Netz | Seed | Prüfstand | static | live | Verlust live | Verlust relativ |
+|---|---|---|---|---|---|---|
+| layer_s_sp4, 24000 | 0 | 0,714 | 0,716 | 0,552 | 0,163 | 23 % |
+| | 1 | 0,753 | 0,768 | 0,554 | 0,214 | 28 % |
+| | 2 | 0,732 | 0,761 | 0,561 | 0,200 | 26 % |
+| layer_s, 24000 | 0 | 0,721 | 0,757 | 0,597 | 0,160 | 21 % |
+| | 1 (eingebrochen) | 0,210 | 0,217 | 0,201 | 0,016 | – |
+| | 2 | 0,637 | 0,632 | 0,494 | 0,138 | 22 % |
+| vitmem, 12000 | 0 | 0,448 | 0,432 | 0,377 | 0,055 | 13 % |
+| | 1 (Zufall) | 0,071 | 0,073 | 0,070 | 0,003 | – |
+| | 2 | 0,315 | 0,309 | 0,261 | 0,048 | 16 % |
+| attnmem, 12000 | 0 (Zufall) | 0,068 | 0,077 | 0,070 | 0,007 | – |
+| | 1 | 0,319 | 0,342 | 0,279 | 0,063 | 18 % |
+| | 2 | 0,370 | 0,393 | 0,322 | 0,071 | 18 % |
+
+Erstes Ziel in `live` gleich `static` (bis auf die letzte Stelle). Verlust je Ziel bei sp4: zweites Ziel
+0,10–0,12, drittes 0,12–0,16. Neue und zurückkehrende Folgen verlieren gleich viel (sp4 live new 0,556–0,563, ret
+0,548–0,558). Mittel je Bauart live: sp4 0,556, layer_s 0,431, vitmem 0,236, attnmem 0,224 (`static`: 0,748,
+0,535, 0,271, 0,271). Spearman über die 12 Netze: Prüfstand–live 0,97, Prüfstand–`static` 0,99.
+
+**Vergleich mit der Vorhersage.** (1) Getroffen: Abweichung `static` − Prüfstand −0,016 bis +0,036 (Grenze ±0,06).
+Die Abweichungen sind meist positiv (9 von 12); ein kleiner Unterschied der Szenen (eigene Saat, eigener
+Szenenbau) ist möglich, geprüft wurde er nicht. (2) Teilweise getroffen: Das erste Ziel bleibt gleich, das ist
+aber durch den Aufbau festgelegt (der Arm bewegt sich erst nach dem ersten Ziel) und prüft nichts. Verlust der
+gelösten Gitter-Läufe: 4 von 5 im Bereich 0,05–0,20 (0,138–0,200), sp4 Seed 1 mit 0,214 darüber. Verfehlt für
+diesen Lauf. (3) Getroffen: sp4 > layer_s > vitmem ≈ attnmem, auch live. (4) Getroffen: ρ = 0,97 (mindestens
+0,8). Bilanz: 2 getroffen, 1 getroffen ohne Aussagekraft, 1 teilweise verfehlt.
+
+**Schluss.** (a) Die Brücke trägt: Fovea, Szenenbau und Schrittdeutung des Prüfstands stimmen mit dem Simulator
+überein (`static` = Prüfstand innerhalb 0,04), und der Prüfstandswert ordnet die Netze auch live richtig (ρ =
+0,97). (b) Was der Prüfstand nicht vorhersagt, ist die Größe des Verlusts durch den Arm im Bild. Die
+Gitter-Netze verlieren absolut 0,14–0,21 und relativ 21–28 %, vitmem und attnmem nur 13–18 %. sp4 verliert am
+meisten: Sein Vorsprung vor layer_s Seed 0 ist live weg (0,552–0,561 gegen 0,597), und die drei sp4-Seeds landen
+live fast gleich. Ob der Verlust aus Verdecken kommt (die Hand liegt über einem Körper) oder aus Ablenkung durch
+ein unbekanntes Bild, ist nicht gemessen. (c) Für die Pipeline heißt das: Rangfolge ja, Größe nein. Bilder mit Arm
+gehören in den Prüfstand, sonst bleibt die Störung unbewertet. Das ist kein Netz-Fix: Der Arm ist im Roboter
+immer im Bild. (d) Grenzen: kinematischer Arm ohne Physik (Körper bleiben liegen), feste Schwebehöhe 5 cm,
+Stufe b (kein act23-Lauf, kein Lernzustand berührt), nur 150 Szenen (Standardfehler von `near_all` etwa 0,01).
+
+**Belege.** `results/robot_live_loop.jsonl` (26 Zeilen: Orakel und 12 Netze × 2 Bedingungen), Prüfstand in
+`results/finds_loop.jsonl`. Robot-Wiki: Nachtrag in `wiki/fragen/netresearch-bruecke.md`.
+
+## Laufend / offen
 
 - Breiter Port-Anfang für attnmem und vitmem (Prüfung der Henne-Ei-Deutung, 2026-11-18, eigene Entscheidung während
   der Pause des Nutzers): Bei attnmem und vitmem geht die Adresse durch zwei klein beginnende lineare Abbildungen

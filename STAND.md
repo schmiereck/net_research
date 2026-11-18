@@ -251,6 +251,13 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   **Falscher Körper (2026-11-18, nur `robot_loop_f32` gemessen):** Wer nach dem ersten Schritt auf einem falschen
   Körper steht, bleibt dort meist (0,64–0,89); Netze ohne Gedächtnis kommen öfter weg (0,26–0,32) als Netze mit
   (0,09–0,16).
+  **Erster Live-Test im Roboter-Simulator (2026-11-19, Brücke Stufe b):** Drei Ziele, 12 gespeicherte Netze steuern
+  den Blick in MuJoCo (`rdf_thalamus_sml/src/pc_cvnn/netresearch_live_loop.py` gegen `scripts/policy_server.py`;
+  150 frische Szenen). Mit ruhendem Arm gleich dem Prüfstand (Abweichung höchstens 0,04); Prüfstand ordnet die
+  Netze auch live richtig (Spearman 0,97). Fährt der Arm nach jedem Ziel über den angeblickten Körper (Hand im
+  Bild), verlieren die Gitter-Netze 0,14–0,21 `near_all` (21–28 %), vitmem / attnmem 13–18 %; sp4 verliert am
+  meisten (live 0,55–0,56, layer_s Seed 0 0,60). **Der Prüfstand sagt die Rangfolge vorher, nicht die Größe der
+  Störung durch den Arm.**
 - **Blickziel am Flächenschwerpunkt** (`robot_finds_c_f32`, 2026-11-14): exakt +0,04–0,05 (layer_s 0,74), der
   Formeffekt schrumpft von bis zu 0,29 auf bis zu 0,18, verschwindet aber nicht (L und U bleiben zurück).
   Zusammen mit einem Ausgang je Wert addiert sich beides: Formsuche exakt 0,76–0,81 (layer_s 0,81).
