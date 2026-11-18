@@ -2095,5 +2095,14 @@ Updates, um (b) zu prüfen; nicht gestartet.
 
 ## Laufend / offen
 
+- Lösequote bei drei Zielen mit 24000 Updates (Auftrag Nutzer 2026-11-18): layer_s und layer_s_sp4
+  (`+cell+refl+rez3`), drei weitere Seeds 3, 4, 7 (5 und 6 bleiben für Abstimmung frei, wie bei der Studie mit
+  acht Seeds), sonst wie im Eintrag davor; zusammen mit Seeds 0–2 sechs Läufe je Netz. „Gelöst“ = `near_all` ≥ 0,45
+  (bisher liegen eingebrochene Läufe bei 0,18–0,21, gelöste bei 0,52–0,75).
+  **Vorhersage vor dem Lauf (2026-11-18):** (1) sp4 löst 5 oder 6 von 6, layer_s 3 bis 5 von 6; sp4 löst
+  mindestens einen Lauf mehr als layer_s. (2) Die gelösten Läufe von sp4 liegen im Mittel mindestens 0,03 über
+  denen von layer_s. (3) Jeder eingebrochene Lauf hat das bekannte Muster: A ≥ 0,80, drittes Ziel ≤ 0,45,
+  Trainingswert `final` ≤ 0,66. (4) Alle gelösten Läufe beider Netze: `near_all` 0,60–0,78.
+
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
