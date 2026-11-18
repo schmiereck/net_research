@@ -2522,6 +2522,23 @@ Stufe b (kein act23-Lauf, kein Lernzustand berührt), nur 150 Szenen (Standardfe
 
 ## Laufend / offen
 
+- Arm im Bild: Verdecken oder Ablenkung? (Folgefrage zum Live-Test 2026-11-19, eigene Entscheidung während der
+  Pause des Nutzers.) Neue Bedingung `away` in `netresearch_live_loop.py`: Nach dem ersten Ziel fährt der Arm 5 cm
+  über eine freie Tischstelle derselben Szene und bleibt dort. Gewählt wird sie im Bild: Die Hand liegt im inneren
+  Ring und mindestens 15 px (Median 23 px, eine Zelle = 4 px) von jedem Körper entfernt; in `live` liegt sie über
+  dem angeblickten Körper. Unterschied zu `live`: Dort fährt der Arm nach dem zweiten Ziel noch einmal um, in `away`
+  nicht. Neu je Lauf: `miss_stay_prev`, für verfehlte Strecken zu Ziel 2 und 3 der Anteil, der auf dem Körper endet,
+  auf dem der Blick am Ende der Strecke davor lag (in `live` liegt dort die Hand). Netze: die fünf gelösten
+  Gitter-Läufe (sp4 Seeds 0–2, layer_s Seeds 0 und 2, 24000 Updates), Bedingungen `static`, `live`, `away`, dieselben
+  150 Szenen (geprüft: gleiche Zahl von Versuchen beim Szenenbau, die Wahl der freien Stelle braucht keine
+  Zufallszahlen). Vor dem Lauf gesehen: Orakel 1,00 in allen drei Bedingungen (5 Szenen), Bild der Hand über der
+  freien Stelle (Notizordner).
+  **Vorhersage vor dem Lauf (2026-11-19):** (1) `static` und `live` geben den ersten Lauf exakt wieder (gleiche
+  `near_all` auf vier Stellen). (2) Ablenkung überwiegt: In `away` verliert jedes der fünf Netze mindestens die
+  Hälfte seines `live`-Verlusts gegenüber `static`. Sicherheit gering: Das Bild der Hand ist neu, aber verdeckt
+  keinen Körper. (3) In `live` enden verfehlte Strecken zu Ziel 2 seltener auf dem Körper davor als in `static`
+  (die Hand verdeckt ihn), bei allen fünf Netzen.
+
 - Breiter Port-Anfang für attnmem und vitmem (Prüfung der Henne-Ei-Deutung, 2026-11-18, eigene Entscheidung während
   der Pause des Nutzers): Bei attnmem und vitmem geht die Adresse durch zwei klein beginnende lineare Abbildungen
   (Ende des Vorlagen-Encoders, dann `cmd_in` als Muster auf dem Bild); die Gitter-Netze haben `+cell` (eine
