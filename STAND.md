@@ -234,6 +234,10 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   3 von 6 (gelöste 0,64–0,74, eingebrochene 0,21–0,24; Fisher einseitig p = 0,09). Eingebrochene Läufe behalten nur
   A und gehen beim dritten Ziel meist zurück; der Trainingswert trennt beide Zustände sauber (0,651 gegen 0,717).
   Der Notizblock hilft beim Lernen, kaum beim Ergebnis (gelöste Läufe +0,04).
+  **Warum layer_s nur A behält (Auslese des Zustands, 2026-11-18):** Alle Läufe schreiben die drei Formen ins
+  Gedächtnis (nach den Hinweisen 0,86–0,97 lesbar). Die eingebrochenen verlieren B und C in den ersten Schritten
+  des Laufs (nach drei Schritten am Boden), die gelösten halten sie (B 0,50–0,61), sp4 am besten direkt nach dem
+  Losgehen. Ursache: Die ersten echten Bilder verdrängen die gemerkten Formen; der Encoder ist es nicht.
 - **Blickziel am Flächenschwerpunkt** (`robot_finds_c_f32`, 2026-11-14): exakt +0,04–0,05 (layer_s 0,74), der
   Formeffekt schrumpft von bis zu 0,29 auf bis zu 0,18, verschwindet aber nicht (L und U bleiben zurück).
   Zusammen mit einem Ausgang je Wert addiert sich beides: Formsuche exakt 0,76–0,81 (layer_s 0,81).

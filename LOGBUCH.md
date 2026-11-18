@@ -2153,24 +2153,83 @@ und der Notizblock gibt ihnen einen eigenen Platz; geprüft ist das nicht.
 Seeds 0–4 und 7), `results/loop_refcurve.jsonl` (12 Läufe `robot_loop_three_f32:24000`); Netze in
 `results/checkpoints/robot_loop_three_f32_24k`.
 
-## Laufend / offen
+## 2026-11-18 — Drei Ziele: Die eingebrochenen layer_s-Läufe schreiben B und C, verlieren sie aber beim Losgehen
 
-- Warum layer_s oft nur das erste Ziel behält (Auftrag Nutzer 2026-11-18): reine Auswertung der 12 Netze mit
-  24000 Updates (layer_s und sp4, Seeds 0–4, 7; layer_s 1, 3, 4 eingebrochen). Neues Skript
-  `scripts/loop_goals_probe.py`: die Netze laufen mit Lehrer-Blicken über 3000 Testfolgen (Vorlagen-Ansicht 0); nach
-  jedem der 12 Schritte liest eine lineare Auslese (Ridge wie in `loop_state_probe.py`, auf der Hälfte der Szenen
-  angepasst, auf der anderen gemessen) die Form jedes Ziels aus dem Zustand. Ziel C nur in Folgen A, B, C. Boden =
-  was die früheren Formen allein verraten: A 0,17, B 0,27, C 0,35 (Probe an hier_s 12000, 400 Folgen, nur zum
-  Testen des Skripts). Dazu Streuung und Auslese des Vorlagen-Encoders. Unterscheidet: nicht geschrieben (gleich
-  nach dem eigenen Hinweis-Schritt nicht lesbar), überschrieben (danach nicht mehr), nicht genutzt (lesbar, aber
-  das Netz geht woandershin).
-  **Vorhersage vor dem Lauf (2026-11-18):** (1) Der Encoder ist nicht die Ursache: Streuung und Encoder-Auslese
-  der eingebrochenen layer_s-Läufe liegen innerhalb ±20 % (relativ) der gelösten. (2) Überschrieben, nicht
-  ungeschrieben: In den eingebrochenen Läufen ist B direkt nach seinem Hinweis-Schritt (Schritt 1) lesbar (≥ 0,50),
-  am Ende der A-Strecke (nach Schritt 5) aber höchstens 0,10 über dem Boden. (3) In allen gelösten Läufen (layer_s
-  und sp4) ist B nach Schritt 5 ≥ 0,50 und C nach Schritt 8 ≥ 0,50 lesbar. (4) A ist in allen 12 Läufen nach
-  Schritt 2 (letzter Hinweis) ≥ 0,60 lesbar. (5) sp4 hält B nach Schritt 5 im Mittel mindestens so gut wie die
-  gelösten layer_s-Läufe.
+**Frage.** Warum behalten drei von sechs layer_s-Läufen (24000 Updates) nur das erste Ziel? Kommen die Formen von
+B und C gar nicht ins Gedächtnis, werden sie später überschrieben, oder sind sie da und werden nicht genutzt?
+
+**Gemacht.** Reine Auswertung der 12 Netze aus dem Eintrag davor, lokal. `scripts/loop_goals_probe.py`
+(Commit 0470a13): 3000 Testfolgen, die Netze laufen über die Blicke des Lehrers (alle Netze sehen dieselben
+Bilder), nach jedem der 12 Schritte (0–2 Hinweise, 3–5 zu A, 6–8 zu B, 9–11 zum dritten Ziel) liest eine lineare
+Ridge-Auslese die Form jedes Ziels aus dem ganzen Zustand; Ziel C nur in Folgen A, B, C. Boden (frühere Formen
+allein): A 0,19, B 0,26, C 0,33. Panne beim Anlegen: Ich hatte zuerst das vorhandene `scripts/loop_state_probe.py`
+mit dem neuen Skript überschrieben; aus git wiederhergestellt, unverändert, nicht committet.
+Nachtrag zu früheren Einträgen dieses Tages (Bedienfehler und verworfene Entwürfe, die dort fehlen): (i) Der erste
+Datensatz für drei Ziele enthielt nur Folgen A, B, C; während des Bauens verworfen, weil das dritte Ziel dort per
+Ausschluss ohne Form zu finden wäre; ersetzt durch A, B, C und A, B, A. (ii) Der erste Trainingsjob für drei Ziele
+(`three_r1`) brach nach einer Minute ab, weil ich ein überzähliges `run` übergab („unrecognized arguments: run“);
+neu eingereicht als `three_r2`. (iii) Die Commit-Nachricht zu drei Zielen mit 12000 Updates zählt die Vorhersage
+als „3 of 5 hit“; richtig sind 2 getroffen, 1 teilweise, 2 nicht (so steht es auch im Eintrag).
+Vorhersage vor dem Lauf (wörtlich aus „Laufend / offen“):
+
+> - Warum layer_s oft nur das erste Ziel behält (Auftrag Nutzer 2026-11-18): reine Auswertung der 12 Netze mit
+>   24000 Updates (layer_s und sp4, Seeds 0–4, 7; layer_s 1, 3, 4 eingebrochen). Neues Skript
+>   `scripts/loop_goals_probe.py`: die Netze laufen mit Lehrer-Blicken über 3000 Testfolgen (Vorlagen-Ansicht 0); nach
+>   jedem der 12 Schritte liest eine lineare Auslese (Ridge wie in `loop_state_probe.py`, auf der Hälfte der Szenen
+>   angepasst, auf der anderen gemessen) die Form jedes Ziels aus dem Zustand. Ziel C nur in Folgen A, B, C. Boden =
+>   was die früheren Formen allein verraten: A 0,17, B 0,27, C 0,35 (Probe an hier_s 12000, 400 Folgen, nur zum
+>   Testen des Skripts). Dazu Streuung und Auslese des Vorlagen-Encoders. Unterscheidet: nicht geschrieben (gleich
+>   nach dem eigenen Hinweis-Schritt nicht lesbar), überschrieben (danach nicht mehr), nicht genutzt (lesbar, aber
+>   das Netz geht woandershin).
+>   **Vorhersage vor dem Lauf (2026-11-18):** (1) Der Encoder ist nicht die Ursache: Streuung und Encoder-Auslese
+>   der eingebrochenen layer_s-Läufe liegen innerhalb ±20 % (relativ) der gelösten. (2) Überschrieben, nicht
+>   ungeschrieben: In den eingebrochenen Läufen ist B direkt nach seinem Hinweis-Schritt (Schritt 1) lesbar (≥ 0,50),
+>   am Ende der A-Strecke (nach Schritt 5) aber höchstens 0,10 über dem Boden. (3) In allen gelösten Läufen (layer_s
+>   und sp4) ist B nach Schritt 5 ≥ 0,50 und C nach Schritt 8 ≥ 0,50 lesbar. (4) A ist in allen 12 Läufen nach
+>   Schritt 2 (letzter Hinweis) ≥ 0,60 lesbar. (5) sp4 hält B nach Schritt 5 im Mittel mindestens so gut wie die
+>   gelösten layer_s-Läufe.
+
+**Ergebnis.** Lesbarkeit der Form (Anteil richtig) nach ausgewählten Schritten, je Gruppe Spanne über die Läufe.
+
+| | A nach 2 | B nach 1 | C nach 2 | B nach 3 | B nach 5 | C nach 5 | C nach 8 | A nach 11 |
+|---|---|---|---|---|---|---|---|---|
+| layer_s eingebrochen (1, 3, 4) | 0,94 | 0,92–0,94 | 0,86–0,92 | 0,47–0,49 | 0,28–0,38 | 0,28–0,29 | 0,23–0,24 | 0,24–0,26 |
+| layer_s gelöst (0, 2, 7) | 0,90–0,96 | 0,91–0,97 | 0,89–0,95 | 0,54–0,64 | 0,50–0,61 | 0,47–0,53 | 0,44–0,51 | 0,27–0,28 |
+| sp4 (alle 6) | 0,94–0,96 | 0,94–0,96 | 0,93–0,95 | 0,65–0,73 | 0,55–0,59 | 0,46–0,54 | 0,45–0,51 | 0,40–0,45 |
+
+Vorlagen-Encoder: Streuung 1,06–1,70, Auslese 0,57–0,66, ohne Unterschied zwischen eingebrochen (1,14–1,60) und
+gelöst (1,11–1,70). In allen Netzen steigt die Lesbarkeit eines Ziels wieder, sobald der Blick auf ihm liegt
+(B nach 7–8, C nach 10–11, auch in den eingebrochenen Läufen bis 0,61 bzw. 0,54): Das ist das Bild, nicht das
+Gedächtnis. Sauber trennt nur die Zeit, bevor das Ziel angeblickt wird: B nach 3–5, C nach 5–8.
+
+**Vergleich mit der Vorhersage.** (1) Getroffen: Der Encoder unterscheidet sich nicht. (2) Teilweise: B ist nach
+seinem Hinweis-Schritt lesbar (0,92–0,94); nach Schritt 5 liegt B bei zwei Läufen höchstens 0,10 über dem Boden
+(0,28, 0,34), bei Seed 4 mit 0,38 aber 0,12 darüber. (3) Nicht getroffen: B nach 5 ist in allen gelösten Läufen
+≥ 0,50 (0,50–0,61), C nach 8 aber nur in 2 von 9 (0,44–0,51), obwohl diese Läufe das dritte Ziel in 0,77–0,86 finden.
+(4) Getroffen: A nach dem letzten Hinweis 0,90–0,97. (5) Getroffen: sp4 B nach 5 im Mittel 0,58, gelöste
+layer_s 0,56.
+
+**Schluss.** (a) Die eingebrochenen Läufe schreiben alle drei Formen ins Gedächtnis (nach dem letzten Hinweis
+0,86–0,94 lesbar, wie die gelösten), verlieren B und C aber in den ersten Schritten der Strecke zu A: schon nach
+dem ersten Lauf-Schritt fällt B auf 0,47–0,49, nach dem dritten liegen B und C am Boden. Es ist also
+„überschrieben“, nicht „nicht geschrieben“ und nicht der Eingang. Die Ursache ist der Übergang von Hinweis zu
+Lauf: Mit den ersten echten Bildern verdrängt der Blick die gemerkten Formen. (b) A überlebt in den eingebrochenen
+Läufen nur, weil der Blick ohnehin auf A zuläuft; das passt zum Fehlerbild „A sicher, danach zurück“. (c) Die
+gelösten layer_s-Läufe halten B und C nach dem ersten Lauf-Schritt etwas besser (0,54–0,64), sp4 am besten
+(0,65–0,73). Der Unterschied zwischen gelöst und eingebrochen entsteht also in den ersten Lauf-Schritten; der
+Notizblock hilft genau dort, danach liegen sp4 und gelöste layer_s gleichauf. sp4 hält außerdem A bis zum Ende
+(0,40–0,45 gegen 0,24–0,28), braucht es aber nicht mehr. (d) Die Auslese unterschätzt, was die gelösten Netze
+vom dritten Ziel wissen: Lesbar ist C vor dem Hinblicken nur zu 0,44–0,51, gefunden wird das dritte Ziel zu 0,77–0,86.
+Naheliegende Deutung, nicht geprüft: Sobald die Szene sichtbar ist, merken die Netze nicht mehr die Form, sondern
+wo der Körper liegt. Das wäre mit einer Auslese der Lage (statt der Form) zu prüfen. (e) Zur Frage „eigener
+Platz für B und C“ aus dem Eintrag davor: Die Vermutung trifft den Ort (Verdrängung durch die laufende
+Eingabe), aber nicht ganz den Mechanismus: Der Notizblock von sp4 ist klein (4 Werte je Zelle, 128 von 2304),
+und ob B und C dort liegen, ist nicht gemessen. Eine Auslese nur aus dem Notizblock würde das klären.
+
+**Belege.** `results/loop_goals_probe.jsonl` (12 Zeilen: `probe[t][k]`, `floor`, `enc_spread`, `enc_probe`),
+Skript `scripts/loop_goals_probe.py`.
+
+## Laufend / offen
 
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
