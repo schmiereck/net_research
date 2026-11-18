@@ -2229,23 +2229,87 @@ und ob B und C dort liegen, ist nicht gemessen. Eine Auslese nur aus dem Notizbl
 **Belege.** `results/loop_goals_probe.jsonl` (12 Zeilen: `probe[t][k]`, `floor`, `enc_spread`, `enc_probe`),
 Skript `scripts/loop_goals_probe.py`.
 
-## Laufend / offen
+## 2026-11-18 — Form oder Lage: Die Netze merken die Form, die Lage aller Körper kennen alle; der Notizblock trägt die Formen
 
-- Form oder Lage, und der Notizblock (Auftrag Nutzer 2026-11-18): reine Auswertung derselben 12 Netze (24000
-  Updates). Neues Skript `scripts/loop_where_probe.py`: Orakel-Läufe (der Blick nimmt den wahren Schritt, alle Netze
-  sehen dieselben Bilder), 3000 Läufe über alle 12 Folgen. Lineare Ridge-Auslese nach jedem Schritt: Form jedes
-  Ziels (Anteil richtig) und Lage jedes Ziels als Pixel-Abstand vom Blickpunkt (R², Mittel beider Achsen); Kontrolle:
-  Lage des Körpers, der kein Ziel ist (Folgen A, B, A). Boden „view“: dieselbe Auslese aus dem Zustand nach nur dem
-  aktuellen Bild, frisches Gedächtnis, leere Vorlage. Bei sp4 zusätzlich getrennt aus dem Gitter (2176 Werte), aus
-  dem Notizblock (128 Werte) und aus 128 zufälligen Gitter-Werten. Vor dem Lauf gesehen nur Probeläufe zum Testen
-  des Skripts an hier_s und sp4 mit 12000 Updates (300 Läufe), nicht an den untersuchten Netzen.
-  **Vorhersage vor dem Lauf (2026-11-18):** (1) Lage statt Form: In allen 9 gelösten Läufen ist die Lage von C nach
-  Schritt 8 (Blick auf B) um mindestens 0,15 R² besser lesbar als im Boden „view“. (2) In den 3 eingebrochenen
-  layer_s-Läufen liegt die Lage von C nach Schritt 8 höchstens 0,05 über dem Boden. (3) Der Boden für die Lage
-  eines Ziels liegt nach den Schritten 5 und 8 bei höchstens 0,30 R². (4) Notizblock: Bei sp4 ist die Form von B
-  nach Schritt 5 aus dem Notizblock allein um mindestens 0,10 besser lesbar als aus 128 zufälligen Gitter-Werten,
-  in mindestens 5 der 6 Läufe. (5) Die Form-Auslese auf Orakel-Läufen wiederholt das Bild der Lehrer-Läufe: B nach
-  Schritt 5 in den eingebrochenen Läufen höchstens 0,12 über 0,26, in den gelösten mindestens 0,45.
+**Frage.** Merken sich die gelösten Netze nach dem Losgehen die Lage der kommenden Ziele statt ihrer Form (Vermutung
+aus dem Eintrag davor)? Liegen bei sp4 die Formen im Notizblock?
+
+**Gemacht.** Reine Auswertung der 12 Netze mit 24000 Updates, lokal, `scripts/loop_where_probe.py` (Commit
+03dddba), 3000 Orakel-Läufe. Vorhersage vor dem Lauf (wörtlich aus „Laufend / offen“):
+
+> - Form oder Lage, und der Notizblock (Auftrag Nutzer 2026-11-18): reine Auswertung derselben 12 Netze (24000
+>   Updates). Neues Skript `scripts/loop_where_probe.py`: Orakel-Läufe (der Blick nimmt den wahren Schritt, alle Netze
+>   sehen dieselben Bilder), 3000 Läufe über alle 12 Folgen. Lineare Ridge-Auslese nach jedem Schritt: Form jedes
+>   Ziels (Anteil richtig) und Lage jedes Ziels als Pixel-Abstand vom Blickpunkt (R², Mittel beider Achsen); Kontrolle:
+>   Lage des Körpers, der kein Ziel ist (Folgen A, B, A). Boden „view“: dieselbe Auslese aus dem Zustand nach nur dem
+>   aktuellen Bild, frisches Gedächtnis, leere Vorlage. Bei sp4 zusätzlich getrennt aus dem Gitter (2176 Werte), aus
+>   dem Notizblock (128 Werte) und aus 128 zufälligen Gitter-Werten. Vor dem Lauf gesehen nur Probeläufe zum Testen
+>   des Skripts an hier_s und sp4 mit 12000 Updates (300 Läufe), nicht an den untersuchten Netzen.
+>   **Vorhersage vor dem Lauf (2026-11-18):** (1) Lage statt Form: In allen 9 gelösten Läufen ist die Lage von C nach
+>   Schritt 8 (Blick auf B) um mindestens 0,15 R² besser lesbar als im Boden „view“. (2) In den 3 eingebrochenen
+>   layer_s-Läufen liegt die Lage von C nach Schritt 8 höchstens 0,05 über dem Boden. (3) Der Boden für die Lage
+>   eines Ziels liegt nach den Schritten 5 und 8 bei höchstens 0,30 R². (4) Notizblock: Bei sp4 ist die Form von B
+>   nach Schritt 5 aus dem Notizblock allein um mindestens 0,10 besser lesbar als aus 128 zufälligen Gitter-Werten,
+>   in mindestens 5 der 6 Läufe. (5) Die Form-Auslese auf Orakel-Läufen wiederholt das Bild der Lehrer-Läufe: B nach
+>   Schritt 5 in den eingebrochenen Läufen höchstens 0,12 über 0,26, in den gelösten mindestens 0,45.
+
+**Ergebnis.** (i) Lage, ganzer Zustand gegen Boden „view“, R². Nach Schritt 5 liegt der Blick auf A, B und C sind
+noch nicht angeblickt; nach Schritt 8 liegt er auf B, A ist besucht, C nicht.
+
+| | Lage B nach 5 (view) | Lage C nach 5 (view) | Lage A nach 8 (view) | Lage C nach 8 (view) | kein Ziel nach 8 |
+|---|---|---|---|---|---|
+| layer_s eingebrochen (1, 3, 4) | 0,34–0,39 (0,40–0,43) | 0,04–0,14 (0,31–0,36) | 0,85–0,89 (0,37–0,43) | 0,72–0,77 (0,23–0,27) | 0,71–0,78 |
+| layer_s gelöst (0, 2, 7) | 0,44–0,49 (0,43–0,48) | 0,23–0,28 (0,33–0,37) | 0,84–0,89 (0,42–0,43) | 0,67–0,75 (0,27–0,33) | 0,70–0,77 |
+| sp4 (alle 6) | 0,40–0,44 (0,38–0,44) | 0,22–0,25 (0,28–0,40) | 0,87–0,91 (0,37–0,41) | 0,75–0,78 (0,21–0,28) | 0,74–0,77 |
+
+(ii) Form (Anteil richtig, Boden B 0,26, C 0,33), ganzer Zustand: B nach 5 eingebrochen 0,31–0,39, gelöst
+layer_s 0,55–0,64, sp4 0,59–0,64; C nach 8 eingebrochen 0,24–0,27, gelöst 0,46–0,57, sp4 0,51–0,54.
+
+(iii) sp4 nach Teilen des Zustands (Form; Gitter 2176 Werte, Notizblock 128, 128 zufällige Gitter-Werte):
+
+| | Notizblock | Gitter ganz | 128 Gitter-Werte |
+|---|---|---|---|
+| B nach 3 (erster Lauf-Schritt) | 0,66–0,75 | 0,55–0,59 | 0,42–0,47 |
+| B nach 5 | 0,61–0,66 | 0,55–0,59 | 0,52–0,56 |
+| C nach 8 | 0,54–0,60 | — | 0,48–0,52 |
+| A nach 11 (Ziel erledigt) | 0,57–0,64 | — | 0,33–0,39 |
+| Lage C nach 8 (R²) | 0,40–0,54 | — | 0,68–0,72 |
+
+**Vergleich mit der Vorhersage.** (1) In der Zahl getroffen, in der Sache nicht: Die Lage von C nach Schritt 8
+liegt in allen gelösten Läufen 0,39–0,54 über dem Boden, aber ebenso in den eingebrochenen und ebenso für den
+Körper, der kein Ziel ist; das ist kein Gedächtnis für das Ziel, siehe (a). (2) Nicht getroffen: Die
+eingebrochenen Läufe liegen 0,49–0,50 über dem Boden. (3) Nicht getroffen: Der Boden liegt nach Schritt 5 für B
+bei 0,38–0,48, für C bei 0,28–0,40; nach Schritt 8 für C bei 0,21–0,33. (4) Nicht getroffen: Der Vorsprung des
+Notizblocks vor 128 zufälligen Gitter-Werten beträgt nach Schritt 5 nur in 2 von 6 Läufen mindestens 0,10
+(0,07–0,12); nach dem ersten Lauf-Schritt (Schritt 3) ist er aber 0,22–0,29. (5) Teilweise: gelöste 0,55–0,64
+(≥ 0,45); eingebrochene 0,31, 0,37, 0,39, also einer 0,01 über der Grenze von 0,38.
+Zusammen: 1 getroffen (nur in der Zahl), 1 teilweise, 3 nicht.
+
+**Schluss.** (a) Die Vermutung „Lage statt Form“ ist widerlegt. Bevor B angeblickt wird (nach Schritt 5), weiß
+kein Netz, welcher der beiden anderen Körper B ist, mehr als das Bild allein verrät (Lage B gleich dem Boden, Lage
+C sogar darunter); die Form von B ist dagegen in den gelösten Netzen lesbar (0,55–0,64). Gemerkt wird also die
+Form. (b) Was alle Netze haben, auch die eingebrochenen, ist eine Karte der Szene mit Verlauf: nach Schritt 8 die
+Lage des besuchten A (0,84–0,91), des angeblickten B und des übrigen Körpers (0,67–0,78), gleich gut für ein Ziel
+C wie für einen Körper ohne Ziel. Der Boden „view“ hat diese Karte nicht; sie entsteht über die Schritte. (c)
+Damit wird das Fehlerbild der eingebrochenen Läufe klar: Sie wissen, wo A liegt und welcher Körper noch nicht
+besucht ist, kehren in A, B, C aber trotzdem zu 0,52–0,56 zu A zurück. Ohne die Form kann das Netz A, B, C
+nicht von A, B, A unterscheiden und rät; die Karte allein reicht nicht, weil im Training auch Rückkehr vorkommt.
+Genau dafür wurden die Folgen A, B, A gebaut. (d) Die Lücke aus dem Eintrag davor (C nur zu 0,44–0,51 lesbar,
+aber zu 0,77–0,86 gefunden) erklärt sich wahrscheinlich so: Mit der Karte muss das Netz nach Schritt 8 nur noch
+zwischen zwei Körpern wählen (zurück zu A oder zum übrigen), nicht zwischen fünf Formen; ungeprüft. (e)
+Notizblock: Der Notizblock von sp4 trägt die Formen. Direkt nach dem Losgehen liest man B aus seinen 128 Werten
+besser als aus dem ganzen Gitter (0,66–0,75 gegen 0,55–0,59) und weit besser als aus 128 Gitter-Werten
+(0,42–0,47); A bleibt dort bis zum Ende. Die Lage dagegen liegt im Gitter (Lage C nach 8: Notizblock 0,40–0,54,
+128 Gitter-Werte 0,68–0,72). Die Arbeit teilt sich also: Gitter = Karte der Szene, Notizblock = Auftrag (Formen).
+Das passt zum Eintrag davor: Der Notizblock schützt die Formen genau in dem Moment, in dem die ersten Bilder sie
+aus dem Gitter verdrängen. (f) Bezug zur Agenda „Spezialisierte Module im Verbund“: Hier hat sich ohne Vorgabe
+eine Aufteilung in Karte und Auftrag ergeben; sie spricht für einen eigenen, vor der Wahrnehmung geschützten
+Speicher für Aufträge. Geprüft ist das an einer Aufgabe und einer Bauart.
+
+**Belege.** `results/loop_where_probe.jsonl` (12 Zeilen; `read[Quelle][shape|place|nogoal][Schritt][Ziel]`,
+Quellen `all`, `view`, bei sp4 `p0` Gitter, `p1` Notizblock, `p0r128`), Skript `scripts/loop_where_probe.py`.
+
+## Laufend / offen
 
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
