@@ -219,6 +219,12 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   der Gitter-Netze: Reihenfolge vertauscht 0,05–0,09, Form verwechselt (dritter Körper) 0,13–0,20 am Ende.
   attnmem und vitmem in den gescheiterten Läufen: verlassen A sicher, wählen dann blind zwischen B und C, sie
   behalten keine Form.
+  **Drei Ziele nacheinander (`robot_loop_three_f32`, 2026-11-18, Seeds 0–2, 12000 Updates):** Folgen A, B, C und
+  A, B, A (das letzte Ziel nicht per Ausschluss). `near_all` layer_s = sp4 0,44 > vitmem 0,28 ≈ attnmem 0,25 >
+  am4 0,19 > hier_s 0,14 (Zufall 0,08). Die Stufe ist für 12000 Updates zu steil: layer_s und sp4 streuen je Seed
+  von 0,18 bis 0,61, Seed 2 bricht bei beiden ein (A gelingt, B und das dritte Ziel nahe Zufall, Trainingskurve
+  bleibt stehen). hier_s und am4 neigen dazu, zum ersten Ziel zurückzukehren. attnmem und vitmem lernen je Seed
+  ganz oder gar nicht (je 2 von 3), verlieren dann aber über die drei Ziele nichts. Offen: 24000 Updates.
 - **Blickziel am Flächenschwerpunkt** (`robot_finds_c_f32`, 2026-11-14): exakt +0,04–0,05 (layer_s 0,74), der
   Formeffekt schrumpft von bis zu 0,29 auf bis zu 0,18, verschwindet aber nicht (L und U bleiben zurück).
   Zusammen mit einem Ausgang je Wert addiert sich beides: Formsuche exakt 0,76–0,81 (layer_s 0,81).

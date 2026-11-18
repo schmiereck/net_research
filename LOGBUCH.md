@@ -1949,24 +1949,87 @@ eher den Zähler, der schon trägt.
 `split_end_a_ok`; die übrigen Werte dieser Zeilen gleichen den Zeilen des Eintrags davor, die Schleife ist
 deterministisch).
 
+## 2026-11-18 — Drei Ziele nacheinander: die Stufe ist zu steil für 12000 Updates
+
+**Frage.** Hält die Reihenfolge der Gedächtnis-Bauarten aus zwei Zielen bei drei Zielen, wenn das letzte Ziel
+nicht per Ausschluss zu finden ist (Folgen A, B, A)? Trennt die Form-Erinnerung die Netze noch deutlicher?
+
+**Gemacht.** Aufgabe `robot_loop_three_f32`, sechs Netze `+refl+rez3` (die Gitter-Netze mit `+cell`), Seeds 0–2,
+12000 Updates auf dem Worker (Job `20261117-220541-three_r2`, Commit 8a9bb27, gut 8 h). Schleife mit
+`scripts/finds_loop_eval.py --task robot_loop_three_f32` auf den 1500 Startszenen, alle 12 Folgen je Szene,
+9 Schritte. Vorhersage vor dem Lauf (wörtlich aus „Laufend / offen“):
+
+> - Drei Ziele nacheinander (Auftrag Nutzer 2026-11-17): Aufgabe `robot_loop_three_f32`
+>   (`scripts/make_loop_set.py --goals 3`): drei Hinweis-Schritte mit drei Vorlagen (Bild leer), dann 9 Bilder
+>   eines Blicklaufs ohne Vorlage, je 3 Schritte zum ersten, zweiten, dritten Ziel. Die Ziele sind jede Folge der
+>   drei Körper ohne direkte Wiederholung: A, B, C oder A, B, A (12 je Szene). Die Folgen mit Rückkehr sind nötig,
+>   weil sonst das dritte Ziel per Ausschluss („wo ich noch nicht war“) ohne Form zu finden wäre; genau das tun
+>   attnmem und vitmem auf zwei Zielen. Der Lehrer hält alle noch kommenden Ziele im Blickfeld (Folgen, bei denen
+>   das nicht geht, fallen weg: 11 %). 28750 Trainingsfolgen (2 je Szene), Test 16201. Sechs Netze wie bei zwei
+>   Zielen, `+refl+rez3`, Seeds 0–2, 12000 Updates. Schleife auf den 1500 Startszenen, alle 12 Folgen je Szene;
+>   gemessen je Ziel am Ende seiner Schritte (`near_goal`), alle drei (`near_all`), getrennt nach A, B, C und
+>   A, B, A; Fehler-Aufteilung je Ziel. Orakel 1,00 überall. Zufall ohne jede Form, aber mit Wissen um den
+>   Wechsel: A 1/3, B 1/2, drittes Ziel 1/2, alle drei etwa 0,08.
+>   **Vorhersage vor dem Lauf (2026-11-17):** (1) layer_s: `near_goal` A 0,78–0,86, B 0,68–0,80, drittes Ziel
+>   0,60–0,78; `near_all` 0,40–0,62. (2) Reihenfolge wie bei zwei Zielen: layer_s und layer_s_sp4 innerhalb
+>   ±0,03 bei `near_all`, hier_s und layer_s_am4 mindestens 0,08 darunter. (3) attnmem und vitmem: `near_all`
+>   höchstens 0,20. (4) Bei den Gitter-Netzen ist das dritte Ziel bei gelöstem A und B in den Folgen A, B, A um
+>   mindestens 0,03 leichter als in A, B, C (die Form von A kam zweimal). (5) Kein Gitter-Lauf bricht ein: In
+>   allen 12 liegt das dritte Ziel bei `near` mindestens 0,5.
+
+**Ergebnis.** `near_goal` = nahe dem jeweiligen Ziel am Ende seiner 3 Schritte; Mittel über die Seeds 0–2, dazu
+`near_all` je Seed. Rechts: das dritte Ziel nur in Läufen mit A und B nahe, getrennt nach Folge (A, B, C: nahe C /
+zurück zu einem früheren Ziel; A, B, A: nahe A / zum Körper, der kein Ziel ist).
+
+| | A | B | drittes | `near_all` (Seeds 0 / 1 / 2) | A, B, C: C / früher | A, B, A: A / kein Ziel |
+|---|---|---|---|---|---|---|
+| layer_s | 0,81 | 0,65 | 0,60 | 0,44 (0,54 / 0,59 / 0,18) | 0,69 / 0,29 | 0,75 / 0,22 |
+| layer_s_sp4 | 0,77 | 0,66 | 0,61 | 0,44 (0,52 / 0,61 / 0,19) | 0,71 / 0,27 | 0,79 / 0,19 |
+| hier_s | 0,63 | 0,40 | 0,35 | 0,14 (0,14 / 0,13 / 0,15) | 0,38 / 0,58 | 0,57 / 0,38 |
+| layer_s_am4 | 0,56 | 0,45 | 0,42 | 0,19 (0,14 / 0,35 / 0,08) | 0,48 / 0,49 | 0,64 / 0,32 |
+| attnmem | 0,49 | 0,50 | 0,52 | 0,25 (0,07 / 0,32 / 0,37) | 0,67 / 0,30 | 0,75 / 0,22 |
+| vitmem | 0,52 | 0,52 | 0,53 | 0,28 (0,45 / 0,07 / 0,32) | 0,67 / 0,30 | 0,76 / 0,21 |
+
+Orakel 1,00 überall, Zufall bei `near_all` etwa 0,08. Aus dem Bild läuft kein Netz. Bei gelöstem A bleibt am
+Ende von B kein Netz bei A (0,00–0,01), und in den Folgen A, B, A bleibt am Ende kein Netz bei B (0,00–0,01):
+Das Verlassen des eben erreichten Körpers sitzt überall. Die Trainings-Werte (`final`) folgen der Schleife:
+layer_s und sp4 Seeds 0/1 0,69–0,71, Seed 2 0,62; ihre Kurven steigen bei Seeds 0/1 zwischen 6000 und 9000
+Updates von etwa 0,60 auf 0,70, Seed 2 bleibt bei 0,62 stehen.
+
+**Vergleich mit der Vorhersage.** (1) Teilweise getroffen: A 0,81, drittes Ziel 0,60 (gerade an der unteren
+Grenze), `near_all` 0,44 liegen im Bereich; B 0,65 liegt unter 0,68. Beides zieht Seed 2 herunter (B 0,44,
+drittes 0,36; Seeds 0/1: B 0,73–0,77, drittes 0,69–0,75, `near_all` 0,54–0,59). (2) Getroffen: layer_s und sp4
+beide 0,44; hier_s 0,14 und am4 0,19 liegen 0,25–0,30 darunter. (3) Nicht getroffen: attnmem 0,25 und vitmem
+0,28 liegen über 0,20. Je zwei ihrer drei Seeds lernen die Aufgabe (0,32–0,45), je einer bleibt bei Zufall
+(0,07). (4) Getroffen bei allen vier Gitter-Netzen: A, B, A ist um 0,06 (layer_s), 0,08 (sp4), 0,16 (am4) und
+0,19 (hier_s) leichter; die Deutung stimmt aber nur zum Teil, siehe (c). (5) Nicht getroffen: Das dritte Ziel
+liegt in 7 von 12 Gitter-Läufen unter 0,5 (hier_s alle drei 0,34–0,35, am4 Seeds 0 und 2, layer_s und sp4
+Seed 2 0,36–0,37).
+
+**Schluss.** (a) Die Reihenfolge aus zwei Zielen hält im Mittel (layer_s = sp4 > am4 ≈ hier_s), die Abstände
+wachsen: hier_s fällt von 0,55 (zwei Ziele) auf 0,14, layer_s von 0,72 auf 0,44. (b) Die Stufe liegt für
+12000 Updates an der Lernbarkeits-Kante: Bei zwei Zielen streuten die Gitter-Netze um höchstens 0,03, jetzt
+layer_s und sp4 von 0,18 bis 0,61. Seed 2 bricht bei beiden gleich ein, und zwar in einem Muster: A gelingt
+(0,71–0,77), B und das dritte Ziel fallen nahe Zufall. Die stehenbleibende Trainingskurve passt zu „den Sprung
+noch nicht gemacht“, nicht zu „kann es nicht“; geprüft ist das nicht. (c) hier_s und am4 haben eine Neigung
+zurück zum ersten Ziel: In A, B, C gehen sie in 0,49–0,58 der Läufe zu A zurück, liegen beim dritten Ziel also
+bei oder unter Zufall (0,38–0,48 gegen 0,5). Ihr Vorteil in A, B, A ist diese Neigung, nicht eine bessere
+Form-Erinnerung. Bei layer_s und sp4 ist der Unterschied klein (0,06–0,08); dort trägt die Form. (d) attnmem und
+vitmem zeigen ein anderes Bild als die Gitter-Netze: Sie verlieren über die drei Ziele nichts (je Ziel 0,49–0,53),
+ihr Problem ist schon das erste Ziel, und je Seed lernen sie die Aufgabe ganz oder gar nicht. In ihren guten
+Seeds liegen sie mit 0,32–0,45 über layer_s Seed 2 und über hier_s. Bei gelöstem A und B finden sie das
+dritte Ziel so gut wie layer_s (0,67–0,76). Die Bauarten unterscheiden sich also darin, ob sie lernen (Seeds),
+nicht darin, was sie behalten, sobald sie gelernt haben. Mit drei Seeds ist das ein Hinweis, kein Befund.
+(e) Prognose-Bezug: Zwei Ziele sagen die Reihenfolge bei drei Zielen richtig voraus, die Zuverlässigkeit
+je Seed aber nicht. Für eine Prognose an den Roboter ist die Streuung je Seed hier die wichtigere Größe.
+(f) Offen und naheliegend: dieselbe Stufe mit 24000 Updates (nur layer_s und sp4, Seeds 0–2), um (b) zu
+prüfen; nicht gestartet.
+
+**Belege.** `results/finds_loop.jsonl` (Zeilen `robot_loop_three_f32` mit `near_goal`, `near_all`,
+`near_all_new`/`_ret`, `split`, `split_prev_ok`, `split_last_new`/`_ret`), `results/loop_refcurve.jsonl`
+(18 Läufe `robot_loop_three_f32:12000` mit Kurven); Netze in `results/checkpoints/robot_loop_three_f32`.
+
 ## Laufend / offen
 
-- Drei Ziele nacheinander (Auftrag Nutzer 2026-11-17): Aufgabe `robot_loop_three_f32`
-  (`scripts/make_loop_set.py --goals 3`): drei Hinweis-Schritte mit drei Vorlagen (Bild leer), dann 9 Bilder
-  eines Blicklaufs ohne Vorlage, je 3 Schritte zum ersten, zweiten, dritten Ziel. Die Ziele sind jede Folge der
-  drei Körper ohne direkte Wiederholung: A, B, C oder A, B, A (12 je Szene). Die Folgen mit Rückkehr sind nötig,
-  weil sonst das dritte Ziel per Ausschluss („wo ich noch nicht war“) ohne Form zu finden wäre; genau das tun
-  attnmem und vitmem auf zwei Zielen. Der Lehrer hält alle noch kommenden Ziele im Blickfeld (Folgen, bei denen
-  das nicht geht, fallen weg: 11 %). 28750 Trainingsfolgen (2 je Szene), Test 16201. Sechs Netze wie bei zwei
-  Zielen, `+refl+rez3`, Seeds 0–2, 12000 Updates. Schleife auf den 1500 Startszenen, alle 12 Folgen je Szene;
-  gemessen je Ziel am Ende seiner Schritte (`near_goal`), alle drei (`near_all`), getrennt nach A, B, C und
-  A, B, A; Fehler-Aufteilung je Ziel. Orakel 1,00 überall. Zufall ohne jede Form, aber mit Wissen um den
-  Wechsel: A 1/3, B 1/2, drittes Ziel 1/2, alle drei etwa 0,08.
-  **Vorhersage vor dem Lauf (2026-11-17):** (1) layer_s: `near_goal` A 0,78–0,86, B 0,68–0,80, drittes Ziel
-  0,60–0,78; `near_all` 0,40–0,62. (2) Reihenfolge wie bei zwei Zielen: layer_s und layer_s_sp4 innerhalb
-  ±0,03 bei `near_all`, hier_s und layer_s_am4 mindestens 0,08 darunter. (3) attnmem und vitmem: `near_all`
-  höchstens 0,20. (4) Bei den Gitter-Netzen ist das dritte Ziel bei gelöstem A und B in den Folgen A, B, A um
-  mindestens 0,03 leichter als in A, B, C (die Form von A kam zweimal). (5) Kein Gitter-Lauf bricht ein: In
-  allen 12 liegt das dritte Ziel bei `near` mindestens 0,5.
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
