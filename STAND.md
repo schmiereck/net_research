@@ -224,7 +224,12 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   am4 0,19 > hier_s 0,14 (Zufall 0,08). Die Stufe ist für 12000 Updates zu steil: layer_s und sp4 streuen je Seed
   von 0,18 bis 0,61, Seed 2 bricht bei beiden ein (A gelingt, B und das dritte Ziel nahe Zufall, Trainingskurve
   bleibt stehen). hier_s und am4 neigen dazu, zum ersten Ziel zurückzukehren. attnmem und vitmem lernen je Seed
-  ganz oder gar nicht (je 2 von 3), verlieren dann aber über die drei Ziele nichts. Offen: 24000 Updates.
+  ganz oder gar nicht (je 2 von 3), verlieren dann aber über die drei Ziele nichts.
+  **Mit 24000 Updates (2026-11-18, nur layer_s und sp4):** sp4 löst alle drei Seeds, `near_all` 0,71–0,75
+  (Mittel 0,73), drittes Ziel bei gelöstem A und B 0,91–0,93. layer_s Mittel 0,52, wieder 2 von 3 gelöst, aber
+  ein anderer Seed bricht ein (Seed 1 0,21 statt Seed 2): Ob der Sprung gelingt, hängt bei layer_s vom
+  Trainingsweg ab. Erstmals liegt der Notizblock (sp4) klar vor layer_s; auf dieser Stufe entscheidet die
+  Trainingslänge über die Rangfolge.
 - **Blickziel am Flächenschwerpunkt** (`robot_finds_c_f32`, 2026-11-14): exakt +0,04–0,05 (layer_s 0,74), der
   Formeffekt schrumpft von bis zu 0,29 auf bis zu 0,18, verschwindet aber nicht (L und U bleiben zurück).
   Zusammen mit einem Ausgang je Wert addiert sich beides: Formsuche exakt 0,76–0,81 (layer_s 0,81).

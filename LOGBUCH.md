@@ -2029,17 +2029,71 @@ prüfen; nicht gestartet.
 `near_all_new`/`_ret`, `split`, `split_prev_ok`, `split_last_new`/`_ret`), `results/loop_refcurve.jsonl`
 (18 Läufe `robot_loop_three_f32:12000` mit Kurven); Netze in `results/checkpoints/robot_loop_three_f32`.
 
-## Laufend / offen
+## 2026-11-18 — Drei Ziele mit 24000 Updates: sp4 wird verlässlich, layer_s nicht
 
-- Drei Ziele mit 24000 Updates (Auftrag Nutzer 2026-11-18): dieselbe Aufgabe `robot_loop_three_f32` wie im
-  Eintrag davor, nur layer_s und layer_s_sp4 (`+cell+refl+rez3`), Seeds 0–2, 24000 statt 12000 Updates,
-  Checkpoints unter `robot_loop_three_f32_24k` (`finds_loop_eval.py --ckpt`). Prüft, ob Seed 2 bei 12000 Updates
-  den Sprung (Trainingswert 0,62 → 0,70) nur noch nicht gemacht hatte. Schleife wie zuvor, 1500 Szenen, 12 Folgen.
-  **Vorhersage vor dem Lauf (2026-11-18):** (1) Seed 2 macht den Sprung bei beiden Netzen: `near_all` ≥ 0,45,
-  Trainingswert `final` ≥ 0,68. (2) Seeds 0 und 1 gewinnen höchstens wenig: `near_all` je Lauf zwischen dem
-  12000er-Wert −0,02 und +0,08. (3) Damit streuen die drei Seeds je Netz um höchstens 0,10 bei `near_all`,
-  Mittel 0,52–0,65. (4) layer_s und sp4 bleiben innerhalb ±0,04 im Mittel. (5) Beim dritten Ziel in A, B, C
-  (bei gelöstem A und B) bleibt „zurück zu einem früheren Ziel“ der Hauptfehler, 0,15–0,28.
+**Frage.** Hatte Seed 2 von layer_s und layer_s_sp4 bei drei Zielen mit 12000 Updates den Sprung nur noch nicht
+gemacht? Wird die Stufe mit doppelt so vielen Updates verlässlich?
+
+**Gemacht.** Dieselbe Aufgabe `robot_loop_three_f32`, layer_s und layer_s_sp4 (`+cell+refl+rez3`), Seeds 0–2,
+24000 Updates (Job `20261118-060635-three24k`, Commit 5ad8ba8). Das ist keine Fortsetzung der 12000er-Läufe:
+Warm-up und Kosinus-Abfall der Lernrate richten sich nach der Gesamtzahl der Updates, jeder Seed nimmt also einen
+eigenen Weg. Schleife wie zuvor (`finds_loop_eval.py --ckpt robot_loop_three_f32_24k`), 1500 Szenen, 12 Folgen.
+Vorhersage vor dem Lauf (wörtlich aus „Laufend / offen“):
+
+> - Drei Ziele mit 24000 Updates (Auftrag Nutzer 2026-11-18): dieselbe Aufgabe `robot_loop_three_f32` wie im
+>   Eintrag davor, nur layer_s und layer_s_sp4 (`+cell+refl+rez3`), Seeds 0–2, 24000 statt 12000 Updates,
+>   Checkpoints unter `robot_loop_three_f32_24k` (`finds_loop_eval.py --ckpt`). Prüft, ob Seed 2 bei 12000 Updates
+>   den Sprung (Trainingswert 0,62 → 0,70) nur noch nicht gemacht hatte. Schleife wie zuvor, 1500 Szenen, 12 Folgen.
+>   **Vorhersage vor dem Lauf (2026-11-18):** (1) Seed 2 macht den Sprung bei beiden Netzen: `near_all` ≥ 0,45,
+>   Trainingswert `final` ≥ 0,68. (2) Seeds 0 und 1 gewinnen höchstens wenig: `near_all` je Lauf zwischen dem
+>   12000er-Wert −0,02 und +0,08. (3) Damit streuen die drei Seeds je Netz um höchstens 0,10 bei `near_all`,
+>   Mittel 0,52–0,65. (4) layer_s und sp4 bleiben innerhalb ±0,04 im Mittel. (5) Beim dritten Ziel in A, B, C
+>   (bei gelöstem A und B) bleibt „zurück zu einem früheren Ziel“ der Hauptfehler, 0,15–0,28.
+
+**Ergebnis.** `near_goal` je Ziel und `near_all` je Seed, in Klammern der Wert mit 12000 Updates; rechts der
+Trainingswert `final`.
+
+| | Seed | A | B | drittes | `near_all` (12000) | `final` (12000) |
+|---|---|---|---|---|---|---|
+| layer_s | 0 | 0,90 | 0,84 | 0,83 | 0,72 (0,54) | 0,74 (0,69) |
+| layer_s | 1 | 0,88 | 0,47 | 0,37 | 0,21 (0,59) | 0,65 (0,71) |
+| layer_s | 2 | 0,87 | 0,80 | 0,77 | 0,64 (0,18) | 0,72 (0,62) |
+| layer_s_sp4 | 0 | 0,89 | 0,84 | 0,83 | 0,71 (0,52) | 0,74 (0,69) |
+| layer_s_sp4 | 1 | 0,91 | 0,86 | 0,86 | 0,75 (0,61) | 0,75 (0,71) |
+| layer_s_sp4 | 2 | 0,89 | 0,86 | 0,85 | 0,73 (0,19) | 0,75 (0,62) |
+
+Mittel `near_all`: layer_s 0,52 (12000: 0,44), sp4 0,73 (0,44). Drittes Ziel in A, B, C bei gelöstem A und B:
+layer_s 0,73, zurück zu einem früheren Ziel 0,26 (Seed 1 allein 0,56, Seeds 0/2 0,08–0,12); sp4 0,91 / 0,07.
+In A, B, A: layer_s 0,78 / 0,20 zum Körper ohne Ziel, sp4 0,93 / 0,06. Der eingebrochene Lauf (layer_s Seed 1)
+zeigt dasselbe Muster wie Seed 2 bei 12000: A gelingt (0,88), B und das dritte Ziel nahe Zufall, die
+Trainingskurve bleibt ab etwa 11000 Updates bei 0,63–0,65 stehen.
+
+**Vergleich mit der Vorhersage.** (1) Getroffen: Seed 2 macht bei beiden den Sprung (`near_all` 0,64 / 0,73,
+`final` 0,72 / 0,75). (2) Nicht getroffen: Die Seeds 0 und 1 gewinnen viel mehr als +0,08 (sp4 +0,14 bis +0,19,
+layer_s Seed 0 +0,19), und layer_s Seed 1 fällt um 0,38. (3) Nicht getroffen: sp4 streut nur um 0,04, liegt mit
+0,73 aber über 0,52–0,65; layer_s liegt mit 0,52 im Bereich, streut aber um 0,51. (4) Nicht getroffen: sp4 liegt
+0,21 über layer_s. (5) Teilweise: Bei layer_s ist „zurück zu einem früheren Ziel“ mit 0,26 der Hauptfehler im
+Bereich (getragen von Seed 1), bei sp4 bleibt es der Hauptfehler, liegt mit 0,07 aber unter 0,15.
+
+**Schluss.** (a) Die Deutung aus dem Eintrag davor („Seed 2 hatte den Sprung nur noch nicht gemacht“) war
+zu eng. Mit mehr Updates lernen alle Läufe mehr, aber ob ein Lauf den Sprung schafft, ist bei layer_s Glückssache
+je Trainingsweg: Seed 1 schaffte ihn mit 12000 und verfehlt ihn mit 24000, Seed 2 umgekehrt. Bei layer_s steht es
+mit beiden Längen 2 von 3 Läufen gelöst. (b) layer_s_sp4 schafft ihn mit 24000 Updates in allen drei Läufen, eng
+beieinander (0,71–0,75), und behält auch die Form des dritten Ziels (0,91–0,93 bei gelöstem A und B). Zum
+ersten Mal hebt der Notizblock (sp4) sich klar von layer_s ab; bei einem und zwei Zielen lagen beide gleichauf.
+Mit drei Seeds ist „3 von 3 gegen 2 von 3“ allerdings kein Beleg für eine höhere Lösequote; der Abstand der
+gelösten Läufe (sp4 0,71–0,75 gegen layer_s 0,64–0,72) ist der festere Teil. (c) Der eingebrochene Lauf hat
+immer dasselbe Muster: A gelingt, B und das dritte Ziel nicht. Gelernt wird also zuerst das erste Ziel, der Sprung
+ist das Behalten und Abrufen der weiteren Formen. (d) Prognose-Bezug: Bei 12000 Updates waren layer_s und sp4
+gleich, bei 24000 nicht. Wie lange trainiert wird, entscheidet hier über die Rangfolge; Vergleiche auf dieser
+Stufe brauchen die längere Trainingszeit. (e) Offen: Lösequote mit mehr Seeds (z. B. 6 je Netz) bei 24000
+Updates, um (b) zu prüfen; nicht gestartet.
+
+**Belege.** `results/finds_loop.jsonl` (Zeilen `robot_loop_three_f32` mit `"ckpt": "robot_loop_three_f32_24k"`),
+`results/loop_refcurve.jsonl` (6 Läufe `robot_loop_three_f32:24000` mit Kurven); Netze in
+`results/checkpoints/robot_loop_three_f32_24k`.
+
+## Laufend / offen
 
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
