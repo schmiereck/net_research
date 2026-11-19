@@ -2520,24 +2520,66 @@ Stufe b (kein act23-Lauf, kein Lernzustand berührt), nur 150 Szenen (Standardfe
 **Belege.** `results/robot_live_loop.jsonl` (26 Zeilen: Orakel und 12 Netze × 2 Bedingungen), Prüfstand in
 `results/finds_loop.jsonl`. Robot-Wiki: Nachtrag in `wiki/fragen/netresearch-bruecke.md`.
 
-## Laufend / offen
+### 2026-11-19 — Arm im Bild: Ablenkung, nicht Verdecken; die Hand irgendwo im Bild kostet so viel wie über dem Körper
 
-- Arm im Bild: Verdecken oder Ablenkung? (Folgefrage zum Live-Test 2026-11-19, eigene Entscheidung während der
-  Pause des Nutzers.) Neue Bedingung `away` in `netresearch_live_loop.py`: Nach dem ersten Ziel fährt der Arm 5 cm
-  über eine freie Tischstelle derselben Szene und bleibt dort. Gewählt wird sie im Bild: Die Hand liegt im inneren
-  Ring und mindestens 15 px (Median 23 px, eine Zelle = 4 px) von jedem Körper entfernt; in `live` liegt sie über
-  dem angeblickten Körper. Unterschied zu `live`: Dort fährt der Arm nach dem zweiten Ziel noch einmal um, in `away`
-  nicht. Neu je Lauf: `miss_stay_prev`, für verfehlte Strecken zu Ziel 2 und 3 der Anteil, der auf dem Körper endet,
-  auf dem der Blick am Ende der Strecke davor lag (in `live` liegt dort die Hand). Netze: die fünf gelösten
-  Gitter-Läufe (sp4 Seeds 0–2, layer_s Seeds 0 und 2, 24000 Updates), Bedingungen `static`, `live`, `away`, dieselben
-  150 Szenen (geprüft: gleiche Zahl von Versuchen beim Szenenbau, die Wahl der freien Stelle braucht keine
-  Zufallszahlen). Vor dem Lauf gesehen: Orakel 1,00 in allen drei Bedingungen (5 Szenen), Bild der Hand über der
-  freien Stelle (Notizordner).
-  **Vorhersage vor dem Lauf (2026-11-19):** (1) `static` und `live` geben den ersten Lauf exakt wieder (gleiche
-  `near_all` auf vier Stellen). (2) Ablenkung überwiegt: In `away` verliert jedes der fünf Netze mindestens die
-  Hälfte seines `live`-Verlusts gegenüber `static`. Sicherheit gering: Das Bild der Hand ist neu, aber verdeckt
-  keinen Körper. (3) In `live` enden verfehlte Strecken zu Ziel 2 seltener auf dem Körper davor als in `static`
-  (die Hand verdeckt ihn), bei allen fünf Netzen.
+**Frage.** Kommt der Verlust im Live-Test daher, dass die Hand einen Körper verdeckt, oder daher, dass ein nie
+gesehenes Bild (Arm und Hand) im Blickfeld liegt?
+
+**Gemacht.** `netresearch_live_loop.py` mit der Bedingung `away` (Robot-Commit 7d8f0ad), fünf gelöste
+Gitter-Läufe, dieselben 150 Szenen, Bedingungen `static`, `live`, `away`. Laufzeit etwa 75 Minuten lokal.
+Vorhersage vor dem Lauf (wörtlich aus „Laufend / offen“):
+
+> - Arm im Bild: Verdecken oder Ablenkung? (Folgefrage zum Live-Test 2026-11-19, eigene Entscheidung während der
+>   Pause des Nutzers.) Neue Bedingung `away` in `netresearch_live_loop.py`: Nach dem ersten Ziel fährt der Arm 5 cm
+>   über eine freie Tischstelle derselben Szene und bleibt dort. Gewählt wird sie im Bild: Die Hand liegt im inneren
+>   Ring und mindestens 15 px (Median 23 px, eine Zelle = 4 px) von jedem Körper entfernt; in `live` liegt sie über
+>   dem angeblickten Körper. Unterschied zu `live`: Dort fährt der Arm nach dem zweiten Ziel noch einmal um, in `away`
+>   nicht. Neu je Lauf: `miss_stay_prev`, für verfehlte Strecken zu Ziel 2 und 3 der Anteil, der auf dem Körper endet,
+>   auf dem der Blick am Ende der Strecke davor lag (in `live` liegt dort die Hand). Netze: die fünf gelösten
+>   Gitter-Läufe (sp4 Seeds 0–2, layer_s Seeds 0 und 2, 24000 Updates), Bedingungen `static`, `live`, `away`, dieselben
+>   150 Szenen (geprüft: gleiche Zahl von Versuchen beim Szenenbau, die Wahl der freien Stelle braucht keine
+>   Zufallszahlen). Vor dem Lauf gesehen: Orakel 1,00 in allen drei Bedingungen (5 Szenen), Bild der Hand über der
+>   freien Stelle (Notizordner).
+>   **Vorhersage vor dem Lauf (2026-11-19):** (1) `static` und `live` geben den ersten Lauf exakt wieder (gleiche
+>   `near_all` auf vier Stellen). (2) Ablenkung überwiegt: In `away` verliert jedes der fünf Netze mindestens die
+>   Hälfte seines `live`-Verlusts gegenüber `static`. Sicherheit gering: Das Bild der Hand ist neu, aber verdeckt
+>   keinen Körper. (3) In `live` enden verfehlte Strecken zu Ziel 2 seltener auf dem Körper davor als in `static`
+>   (die Hand verdeckt ihn), bei allen fünf Netzen.
+
+**Ergebnis.** `near_all`, Verlust gegenüber `static`, und `miss_stay_prev` für Ziel 2 / Ziel 3:
+
+| Netz | static | live (Verlust) | away (Verlust) | away / live | auf dem Körper davor: static | live | away |
+|---|---|---|---|---|---|---|---|
+| sp4 Seed 0 | 0,716 | 0,552 (0,163) | 0,543 (0,172) | 1,05 | 0,03 / 0,05 | 0,13 / 0,16 | 0,09 / 0,08 |
+| sp4 Seed 1 | 0,768 | 0,554 (0,214) | 0,548 (0,221) | 1,03 | 0,03 / 0,04 | 0,12 / 0,15 | 0,15 / 0,14 |
+| sp4 Seed 2 | 0,761 | 0,561 (0,200) | 0,568 (0,193) | 0,96 | 0,04 / 0,06 | 0,16 / 0,16 | 0,11 / 0,14 |
+| layer_s Seed 0 | 0,757 | 0,597 (0,160) | 0,570 (0,187) | 1,17 | 0,05 / 0,02 | 0,10 / 0,09 | 0,10 / 0,14 |
+| layer_s Seed 2 | 0,632 | 0,494 (0,138) | 0,492 (0,140) | 1,02 | 0,01 / 0,02 | 0,08 / 0,10 | 0,07 / 0,06 |
+
+`static` und `live` sind auf vier Stellen gleich dem ersten Lauf. Verfehlte Strecken zu Ziel 2 verdoppeln sich
+etwa (z. B. sp4 Seed 0: 271 → 448 / 477 von 1800); der größte Teil endet weder nahe dem Ziel noch auf dem Körper
+davor (84–93 %).
+
+**Vergleich mit der Vorhersage.** (1) Getroffen: exakt gleich. (2) Getroffen: `away` verliert bei allen fünf
+Netzen das 0,96- bis 1,17-fache des `live`-Verlusts (vorhergesagt: mindestens die Hälfte); deutlicher als
+erwartet, Verdecken trägt nichts Messbares bei. (3) Verfehlt, in die Gegenrichtung: In `live` enden verfehlte
+Strecken zu Ziel 2 bei allen fünf Netzen öfter auf dem Körper davor (0,08–0,16) als in `static` (0,01–0,05). Die
+Begründung „die Hand verdeckt ihn“ war falsch: In `away` (Hand nicht dort) ist der Anteil ebenso hoch
+(0,07–0,15). Bilanz: 2 getroffen, 1 verfehlt.
+
+**Schluss.** (a) Der Verlust durch den Arm ist Ablenkung durch ein unbekanntes Bild im Blickfeld, nicht Verdecken:
+Wo die Hand liegt, ist gleich, solange sie im Bild ist. (b) Ein Teil der Ablenkung zeigt sich als Hängenbleiben:
+Mit Arm im Bild bleibt der Blick öfter auf dem gerade gefundenen Körper oder kehrt dorthin zurück. Das passt zur
+Karte mit Verlauf (Eintrag „Form oder Lage“): Ein geändertes Bild stört offenbar auch die Spur „hier war ich
+schon“. Der größere Teil der Fehler landet aber woanders; wohin genau, ist nicht gemessen. (c) Für den Prüfstand
+heißt das: Bilder mit Arm im Blickfeld (beliebige Lage) gehören ins Training oder zumindest in die Prüfung. Eine
+gezielte Lage über dem Körper ist dafür nicht nötig. Das ist ein Mangel der Trainingsdaten, nicht der
+Netze, und kein Fix um ein Unvermögen herum: Im Roboter ist der Arm immer im Bild. (d) Grenzen: nur die fünf
+gelösten Gitter-Läufe, kinematischer Arm, eine freie Stelle je Szene.
+
+**Belege.** `results/robot_live_loop_away.jsonl` (18 Zeilen), Vergleich mit `results/robot_live_loop.jsonl`.
+
+## Laufend / offen
 
 - Breiter Port-Anfang für attnmem und vitmem (Prüfung der Henne-Ei-Deutung, 2026-11-18, eigene Entscheidung während
   der Pause des Nutzers): Bei attnmem und vitmem geht die Adresse durch zwei klein beginnende lineare Abbildungen

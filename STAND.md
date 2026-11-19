@@ -258,6 +258,10 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   Bild), verlieren die Gitter-Netze 0,14–0,21 `near_all` (21–28 %), vitmem / attnmem 13–18 %; sp4 verliert am
   meisten (live 0,55–0,56, layer_s Seed 0 0,60). **Der Prüfstand sagt die Rangfolge vorher, nicht die Größe der
   Störung durch den Arm.**
+  Kontrolle (2026-11-19, Bedingung `away`): Schwebt die Hand über einer freien Stelle im Bild statt über dem
+  Körper, ist der Verlust gleich groß (0,96–1,17-fach). **Der Arm stört durch Ablenkung, nicht durch Verdecken**;
+  mit Arm im Bild bleibt der Blick auch öfter auf dem gerade gefundenen Körper hängen (verfehlte Strecken 0,07–0,16
+  statt 0,01–0,05). Arm-Bilder gehören in Training oder Prüfung des Prüfstands.
 - **Blickziel am Flächenschwerpunkt** (`robot_finds_c_f32`, 2026-11-14): exakt +0,04–0,05 (layer_s 0,74), der
   Formeffekt schrumpft von bis zu 0,29 auf bis zu 0,18, verschwindet aber nicht (L und U bleiben zurück).
   Zusammen mit einem Ausgang je Wert addiert sich beides: Formsuche exakt 0,76–0,81 (layer_s 0,81).
