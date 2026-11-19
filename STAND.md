@@ -246,8 +246,11 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   **attnmem und vitmem, ganz oder gar nicht (2026-11-18):** Die Läufe bei Zufall scheitern am Eingang: Der
   Vorlagen-Encoder bleibt fast ohne Streuung (0,04 gegen 0,09–0,24), die Form kommt kaum ins Gedächtnis. Alle
   Encoder beginnen bei 0,01; bei den Gitter-Netzen wächst die Streuung in den ersten 2000 Updates, bei attnmem und
-  vitmem erst ab etwa 4000. Gelernt halten attnmem und vitmem die Formen über den ganzen Lauf besser als jedes
-  Gitter-Netz (nicht verdrängt), nutzen sie aber schlechter.
+  vitmem erst ab etwa 4000. (Korrigiert 2026-11-19: Dass sie die Formen „besser halten“, folgt aus dem Bau. Ihr
+  Zustand ist ein Puffer der rohen Bild-Einbettungen, die Auslese misst dort nur den Encoder.) Die Ports sind nicht
+  gleich: Bei attnmem und vitmem erreicht die Vorlage die Laufschritte nur als ein 48-Werte-Eintrag im Puffer, und
+  `ref_enc(0)` liegt als konstantes Muster auf jedem Bild. Ihr Rückstand ist zum Teil eine Frage der
+  Schnittstelle.
   Prüfung mit breitem Port-Anfang (`+pw`, 2026-11-19): **negativ**, 0 von 12 Läufen lösen (ohne: attnmem 3/6,
   vitmem 2/6); die größere Anfangs-Streuung wird im Training zuerst wieder gedämpft. Die Henne-Ei-Deutung ist in
   dieser Form nicht bestätigt; `+pw` vergrößert auch das Muster auf dem Bild, beides ist nicht getrennt.

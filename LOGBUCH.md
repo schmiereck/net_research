@@ -2701,7 +2701,58 @@ wird nicht Standard; der Namens-Zusatz bleibt im Code, damit die Läufe nachvoll
 **Belege.** `results/finds_loop.jsonl` (Zeilen `attnmem` / `vitmem` auf `robot_loop_three_f32`),
 `results/loop_refcurve.jsonl` (18 neue Zeilen), `results/checkpoints/robot_loop_three_f32/`.
 
+## 2026-11-19 — Korrektur: Die Zustands-Auslese misst bei attnmem und vitmem nur das Eingangs-Archiv
+
+**Frage.** Hinweis aus dem Review von Gemini (REVIEW-2026-11-19.md, Abschnitt 2.2): Ist die Auslese aus dem
+Zustand (`loop_goals_probe.py`, `loop_where_probe.py`) bei attnmem und vitmem mit den Gitter-Netzen vergleichbar?
+
+**Gemacht.** Code gelesen (`netresearch/models/basic.py`, `AttnMem.forward`, `ViTMem.forward`), nichts gerechnet.
+
+**Ergebnis.** Der Zustand von attnmem und vitmem ist ein Ringpuffer der letzten 16 Bild-Einbettungen `e_t`, so wie
+sie aus dem Bild-Encoder kommen. Die Verarbeitung über die Zeit (Attention des aktuellen Bildes über den Puffer)
+rechnet nur die Ausgabe und schreibt nichts zurück. Bei 12 Schritten fällt kein Eintrag heraus; die drei
+Hinweis-Bilder liegen bis zum Ende unverändert im Puffer. Bei den Gitter-Netzen ist der Zustand dagegen das
+Ergebnis der Rechnung und wird bei jedem Schritt überschrieben.
+
+**Schluss.** Folgende Aussagen sind durch den Bau bedingt und keine Befunde über das Lernen:
+- Eintrag „attnmem und vitmem: ganz oder gar nicht“, Schluss (c): „Gelernt halten attnmem und vitmem die Formen
+  über den ganzen Lauf besser als jedes Gitter-Netz (nicht verdrängt)“. Gemessen ist nur, wie gut der Bild-Encoder
+  die Form in eine Einbettung legt. Dass sie nicht verdrängt wird, folgt aus dem Puffer.
+- Derselbe Eintrag, Schluss (e): „Bei attnmem und vitmem steckt die Karte schon im Zustand nach einem einzigen
+  Bild“. Der Boden „view“ ist dort die Einbettung eines Bildes; die Karte im ganzen Zustand ist das Archiv aller
+  Einbettungen, nicht eine gerechnete Karte.
+- Die Folgerung „ihre Schwäche liegt im Nutzen, nicht im Behalten“ bleibt als Vermutung stehen, ist durch diese
+  Auslese aber nicht gestützt.
+
+Was gilt weiter: Bei den Läufen bei Zufall ist A schon direkt nach dem Hinweis kaum lesbar (0,39–0,42). Das ist
+genau die Einbettung des Hinweis-Bildes, also ein Befund über den Encoder, und stützt die Deutung „Eingang statt
+Gedächtnis“. Alle Aussagen über die Gitter-Netze (Verdrängen beim Losgehen, Karte und Notizblock bei sp4) sind
+nicht betroffen.
+
+Zusätzlich bestätigt (Review 2.1 und 2.2): Die Ports sind nicht gleich.
+- Bei attnmem und vitmem erreicht die Vorlage die Laufschritte nur als ein Eintrag von 48 Werten im Puffer. Das
+  aktuelle Bild wird im Bild-Encoder verarbeitet, ohne die gesuchte Form zu kennen.
+- In den Laufschritten geht `ref_enc(0)` als konstantes Muster aufs Bild (`attach_cmd`). Bei den Gittern geht es
+  als konstanter Vektor in jede Zelle (`+cell`).
+- Der Rückstand von attnmem und vitmem auf den Schleifen-Stufen ist deshalb zum Teil eine Frage der Schnittstelle,
+  nicht nur der Bauart.
+
+**Belege.** `netresearch/models/basic.py` (AttnMem, ViTMem), `netresearch/train.py` (`run_sequence`: `ref_enc`
+wird auch auf das leere Bild angewendet), `netresearch/models/__init__.py` (`attach_cmd`).
+
 ## Laufend / offen
+
+- Live-Test mit der Prüfstands-Regel für „Bild verlassen“ (2026-11-19, Hinweis Review 2.4): Im Prüfstand
+  (`finds_loop_eval.py`) beendet ein Schritt aus dem Bild den Lauf, alle späteren Ziele zählen als verfehlt. Im
+  Live-Skript blieb der Blick bisher einfach stehen. Jetzt gleich wie im Prüfstand (Feld `out_rule: bench`, dazu
+  `out` = Zahl der Läufe, die das Bild verlassen). Außerdem wird je Schritt nur ein Bild je Armstellung gerendert
+  (Ergebnis unverändert, schneller). Neu gemessen: dieselben 12 Netze, dieselben 150 Szenen, `static` und `live`.
+  Vor dem Lauf gesehen: Orakel 1,00 in allen Bedingungen (5 Szenen).
+  **Vorhersage vor dem Lauf (2026-11-19):** (1) Die Regel ändert fast nichts: `near_all` je Netz und Bedingung
+  höchstens 0,01 unter dem ersten Lauf, weil der Blick in diesen Szenen kaum das Bild verlässt (höchstens 1 % der
+  Läufe). (2) Damit erklärt die Regel die leicht höheren `static`-Werte nicht: Weiterhin liegen mindestens 8 von 12
+  Netzen über dem Prüfstand. (3) Spearman Prüfstand–live bleibt mindestens 0,95. (4) Der Lauf `live` ist mindestens
+  dreimal so schnell wie vorher (vorher 262–356 s je Netz).
 
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
