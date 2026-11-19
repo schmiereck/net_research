@@ -2449,7 +2449,7 @@ zusammen: Die Netze bauen eine Karte mit Verlauf; ein Körper, auf dem der Blick
 
 **Belege.** `results/finds_loop.jsonl` (Zeilen `robot_loop_f32` mit `recover`).
 
-### 2026-11-19 — Erster Live-Test im Roboter-Simulator: Prüfstand sagt die Rangfolge vorher, der Arm im Bild kostet die Gitter-Netze ein Viertel
+## 2026-11-19 — Erster Live-Test im Roboter-Simulator: Prüfstand sagt die Rangfolge vorher, der Arm im Bild kostet die Gitter-Netze ein Viertel
 
 **Frage.** Sagt der Prüfstand (`robot_loop_three_f32`) vorher, wie die Netze die Blickschleife mit drei Zielen live
 im MuJoCo-Simulator des Roboter-Projekts lösen, auch wenn der Arm sich bewegt und ins Bild kommt?
@@ -2520,7 +2520,7 @@ Stufe b (kein act23-Lauf, kein Lernzustand berührt), nur 150 Szenen (Standardfe
 **Belege.** `results/robot_live_loop.jsonl` (26 Zeilen: Orakel und 12 Netze × 2 Bedingungen), Prüfstand in
 `results/finds_loop.jsonl`. Robot-Wiki: Nachtrag in `wiki/fragen/netresearch-bruecke.md`.
 
-### 2026-11-19 — Arm im Bild: Ablenkung, nicht Verdecken; die Hand irgendwo im Bild kostet so viel wie über dem Körper
+## 2026-11-19 — Arm im Bild: Ablenkung, nicht Verdecken; die Hand irgendwo im Bild kostet so viel wie über dem Körper
 
 **Frage.** Kommt der Verlust im Live-Test daher, dass die Hand einen Körper verdeckt, oder daher, dass ein nie
 gesehenes Bild (Arm und Hand) im Blickfeld liegt?
@@ -2579,6 +2579,66 @@ gelösten Gitter-Läufe, kinematischer Arm, eine freie Stelle je Szene.
 
 **Belege.** `results/robot_live_loop_away.jsonl` (18 Zeilen), Vergleich mit `results/robot_live_loop.jsonl`.
 
+## 2026-11-19 — Nachmessung: Auch mit gemerkter Vorlage und bei drei Zielen wird ein falscher Körper kaum verlassen
+
+**Frage.** Rest der Messung „Wird ein falscher Körper verlassen?“ (Eintrag 2026-11-18, Teil-Messung): Gilt das
+Ergebnis auch auf `robot_loop_cue_f32`, `robot_loop_blind_f32` und bei drei Zielen? Dazu die 7 Zeilen der
+Lage-Auslese (`loop_where_probe.py`, 12000-Netze), die am 2026-11-18 ebenfalls wegen Speichermangel fehlten.
+
+**Gemacht.** Auf Wunsch des Nutzers neu gestartet, lokal und streng nacheinander (jeder Schritt wartet, bis keine
+andere Auswertung läuft). `finds_loop_eval.py` mit `recover`: `robot_loop_cue_f32` und `robot_loop_blind_f32` (6
+Netze `+refl`, Seeds 0–2, 1500 Startszenen), drei Ziele mit 24000 Updates (layer_s und sp4, 6 Seeds).
+`loop_where_probe.py`: layer_s_am4 Seed 2, layer_s und sp4 Seeds 0–2 (12000 Updates). Alle Läufe vollständig.
+Offener Punkt (wörtlich aus „Laufend / offen“):
+
+> - Rest der Messung „Wird ein falscher Körper verlassen?“ (abgebrochen 2026-11-18 wegen Speichermangel): die
+>   Läufe `robot_loop_cue_f32`, `robot_loop_blind_f32` (6 Netze `+refl`, Seeds 0–2) und drei Ziele (24000
+>   Updates) mit `recover`; es gelten die Punkte (3) und (4) der Vorhersage im Eintrag „Falscher Körper“ vom
+>   2026-11-18, unverändert.
+
+Die Punkte der Vorhersage vom 2026-11-18: (2) Abdriften kommt kaum vor: Wer nach dem ersten Schritt nahe ist,
+steht am Ende in höchstens 0,03 auf einem falschen Körper (alle Aufgaben und Netze). (3) Mit gemerkter Vorlage
+verlassen die Gitter-Netze den falschen Körper nicht öfter: nahe am Ende höchstens 0,10 über cnn auf
+`robot_loop_f32` (cnn 0,26, Grenze also 0,36). (4) Drei Ziele, sp4: Bei den Strecken zu B und zum dritten Ziel
+ist von den Läufen auf einem falschen Körper nach dem ersten Schritt am Ende höchstens 0,30 nahe dem Ziel.
+
+**Ergebnis.** Spannen über die Seeds. „falsch“ = nach dem ersten Schritt der Strecke auf einem falschen Körper,
+„davon nahe“ / „davon noch falsch“ = am Ende der Strecke.
+
+| Aufgabe | Netz | falsch | davon nahe | davon noch falsch | Abdriften |
+|---|---|---|---|---|---|
+| cue | layer_s, sp4, am4, hier_s | 0,08–0,22 | 0,03–0,08 | 0,91–0,96 | ≤ 0,002 |
+| cue | attnmem, vitmem | 0,32–0,58 | 0,03–0,12 | 0,86–0,96 | ≤ 0,004 |
+| blind | layer_s, sp4, am4, hier_s | 0,08–0,17 | 0,07–0,12 | 0,87–0,93 | ≤ 0,003 |
+| blind | attnmem, vitmem | 0,26–0,43 | 0,08–0,13 | 0,84–0,89 | ≤ 0,003 |
+| drei Ziele, Strecke B / C | sp4 (6 Seeds) | 0,15–0,19 | 0,13–0,18 | 0,80–0,85 | ≤ 0,003 |
+| drei Ziele, Strecke B / C | layer_s gelöst (0, 2, 7) | 0,16–0,25 | 0,10–0,16 | 0,82–0,89 | ≤ 0,004 |
+| drei Ziele, Strecke B / C | layer_s eingebrochen (1, 3, 4) | 0,47–0,62 | 0,02–0,03 | 0,96–0,98 | ≤ 0,009 |
+
+Strecke A bei drei Zielen: falsch 0,10–0,14, davon nahe 0,05–0,16. Lage-Auslese, neue Zeilen: Lage A nach
+Schritt 8 layer_s 0,90 und sp4 0,92–0,93 (Boden „view“ 0,40–0,47), layer_s_am4 Seed 2 0,95 (0,40).
+
+**Vergleich mit der Vorhersage.** (2) Getroffen, jetzt für alle Aufgaben: höchstens 0,009 (eingebrochene
+layer_s-Läufe, dritte Strecke). (3) Getroffen: Gitter-Netze nahe am Ende 0,03–0,12 (Grenze 0,36). Sie kommen sogar
+seltener weg als cnn (0,26) und etwa so selten wie auf `robot_loop_f32` (0,09–0,12). (4) Getroffen: sp4
+0,13–0,18 (Grenze 0,30). Zusammen mit dem Teil vom 2026-11-18 ((1) getroffen): 4 von 4 getroffen.
+
+**Schluss.** (a) Das Bild ist auf allen Stufen der Schleife dasselbe: Wer nach dem ersten Schritt auf einem
+falschen Körper steht, steht dort am Ende in 0,80–0,98 der Fälle noch, und vom richtigen Körper driftet praktisch
+niemand weg. Die Schleife korrigiert keine Verwechslung, auch nicht mit gemerkter Vorlage. (b) Eine gemerkte
+Vorlage macht das Weglaufen eher seltener (cue: Gitter 0,03–0,08 gegen cnn ohne Gedächtnis 0,26 auf
+`robot_loop_f32`). Das stützt die Deutung vom 2026-11-18: Das Gedächtnis hält die einmal getroffene Entscheidung
+fest. (c) Die eingebrochenen layer_s-Läufe stehen auf Strecke B und C zu 0,47–0,62 auf einem falschen Körper und
+kommen fast nie weg (0,02–0,03). Das passt dazu, dass sie B und C beim Losgehen verlieren (Eintrag „eingebrochene
+layer_s-Läufe“). (d) Lage-Auslese: Die neuen Zeilen ändern die Schlüsse des Eintrags „attnmem und vitmem“ nicht.
+Auch layer_s und sp4 mit 12000 Updates bauen die Karte erst über die Schritte (0,90–0,93 gegen Boden 0,40–0,47).
+(e) Für die Agenda: Ein Netz, das einen Fehlgriff selbst bemerkt und den Körper verlässt, müsste das eigens
+lernen. Im Training kommt „auf falschem Körper, geh weg“ nur als einzelner Lehrerschritt vor, nicht als Folge.
+
+**Belege.** `results/finds_loop.jsonl` (Zeilen mit `recover` für `robot_loop_cue_f32`, `robot_loop_blind_f32`,
+`robot_loop_three_f32` mit `ckpt` `robot_loop_three_f32_24k`), `results/loop_where_probe.jsonl` (jetzt 18 Zeilen
+für `robot_loop_three_f32`).
+
 ## Laufend / offen
 
 - Breiter Port-Anfang für attnmem und vitmem (Prüfung der Henne-Ei-Deutung, 2026-11-18, eigene Entscheidung während
@@ -2595,9 +2655,5 @@ gelösten Gitter-Läufe, kinematischer Arm, eine freie Stelle je Szene.
   12 Läufen bei mindestens 0,05 (ohne: 0,007–0,022). (4) Die gelösten Läufe mit `+pw` liegen im Mittel innerhalb
   ±0,08 um die gelösten ohne: Der Anfang entscheidet, ob gelernt wird, kaum wie gut.
 
-- Rest der Messung „Wird ein falscher Körper verlassen?“ (abgebrochen 2026-11-18 wegen Speichermangel): die
-  Läufe `robot_loop_cue_f32`, `robot_loop_blind_f32` (6 Netze `+refl`, Seeds 0–2) und drei Ziele (24000
-  Updates) mit `recover`; es gelten die Punkte (3) und (4) der Vorhersage im Eintrag „Falscher Körper“ vom
-  2026-11-18, unverändert.
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

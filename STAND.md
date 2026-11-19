@@ -248,9 +248,10 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   Encoder beginnen bei 0,01; bei den Gitter-Netzen wächst die Streuung in den ersten 2000 Updates, bei attnmem und
   vitmem erst ab etwa 4000. Gelernt halten attnmem und vitmem die Formen über den ganzen Lauf besser als jedes
   Gitter-Netz (nicht verdrängt), nutzen sie aber schlechter.
-  **Falscher Körper (2026-11-18, nur `robot_loop_f32` gemessen):** Wer nach dem ersten Schritt auf einem falschen
-  Körper steht, bleibt dort meist (0,64–0,89); Netze ohne Gedächtnis kommen öfter weg (0,26–0,32) als Netze mit
-  (0,09–0,16).
+  **Falscher Körper (2026-11-18, nachgemessen 2026-11-19 auf allen Stufen):** Wer nach dem ersten Schritt auf einem
+  falschen Körper steht, bleibt dort meist (`robot_loop_f32` 0,64–0,89, mit gemerkter Vorlage und bei drei Zielen
+  0,80–0,98); Netze ohne Gedächtnis kommen öfter weg (0,26–0,32) als Netze mit (0,03–0,18). Vom richtigen Körper
+  driftet praktisch niemand weg (höchstens 0,009). Die Schleife korrigiert keine Verwechslung.
   **Erster Live-Test im Roboter-Simulator (2026-11-19, Brücke Stufe b):** Drei Ziele, 12 gespeicherte Netze steuern
   den Blick in MuJoCo (`rdf_thalamus_sml/src/pc_cvnn/netresearch_live_loop.py` gegen `scripts/policy_server.py`;
   150 frische Szenen). Mit ruhendem Arm gleich dem Prüfstand (Abweichung höchstens 0,04); Prüfstand ordnet die
