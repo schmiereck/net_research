@@ -11,6 +11,7 @@ Lernen ohne Backprop ermöglicht.
 * Umsetzungsplan der Plattform: [`PLAN.md`](PLAN.md)
 * Nächster Forschungsschritt (Trainer-Netz, World-Model, Lernen ohne Backprop): [`PLAN_TRAINER.md`](PLAN_TRAINER.md)
 * Aktueller Report: [`results/report.md`](results/report.md)
+* Externe Reviews und Einschätzungen: [`extern/`](extern/README.md)
 
 ## Idee
 
