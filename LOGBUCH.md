@@ -2639,21 +2639,69 @@ lernen. Im Training kommt „auf falschem Körper, geh weg“ nur als einzelner 
 `robot_loop_three_f32` mit `ckpt` `robot_loop_three_f32_24k`), `results/loop_where_probe.jsonl` (jetzt 18 Zeilen
 für `robot_loop_three_f32`).
 
-## Laufend / offen
+## 2026-11-19 — Breiter Port-Anfang (`+pw`): kein einziger Lauf löst, die Henne-Ei-Deutung ist in dieser Form nicht bestätigt
 
-- Breiter Port-Anfang für attnmem und vitmem (Prüfung der Henne-Ei-Deutung, 2026-11-18, eigene Entscheidung während
-  der Pause des Nutzers): Bei attnmem und vitmem geht die Adresse durch zwei klein beginnende lineare Abbildungen
-  (Ende des Vorlagen-Encoders, dann `cmd_in` als Muster auf dem Bild); die Gitter-Netze haben `+cell` (eine
-  Abbildung in jede Zelle). Neuer Namens-Zusatz `+pw`: beide Abbildungen starten 4-mal größer (gleiche Parameter;
-  Faktor vorher festgelegt, nicht abgestimmt). Am Anfang: Encoder-Streuung 0,010 → 0,038 (vitmem 0,030), Muster
-  auf dem Bild 0,005 → 0,087. Worker: `attnmem+refl+pw+rez3` und `vitmem+refl+pw+rez3` Seeds 0–4, 7, dazu
-  `attnmem+refl+rez3` und `vitmem+refl+rez3` Seeds 3, 4, 7 (mit den vorhandenen 0–2 sechs je Netz), drei Ziele,
-  12000 Updates. „Gelöst“ = `near_all` ≥ 0,20 (bisher Zufallsläufe 0,07, gelöste 0,32–0,45). Das ist eine Prüfung
-  der Ursache, kein Vorschlag für den Standard; ob `+pw` übernommen wird, entscheidet der Nutzer.
-  **Vorhersage vor dem Lauf (2026-11-18):** (1) Ohne `+pw` lösen attnmem und vitmem je 3 bis 5 von 6. (2) Mit
-  `+pw` lösen sie zusammen mindestens 11 von 12. (3) Mit `+pw` liegt die Encoder-Streuung bei Update 2000 in allen
-  12 Läufen bei mindestens 0,05 (ohne: 0,007–0,022). (4) Die gelösten Läufe mit `+pw` liegen im Mittel innerhalb
-  ±0,08 um die gelösten ohne: Der Anfang entscheidet, ob gelernt wird, kaum wie gut.
+**Frage.** Lernen attnmem und vitmem verlässlich, wenn die Adresse mit größerer Anfangs-Streuung startet (Prüfung
+der Deutung aus dem Eintrag „attnmem und vitmem: ganz oder gar nicht“)?
+
+**Gemacht.** Worker-Jobs `20261118-231457-pw_attnvit` (12 Läufe `+pw`) und `20261118-231457-base_attnvit` (6
+Läufe ohne, Seeds 3, 4, 7), Commit 0428d41, drei Ziele, 12000 Updates. Danach lokal `finds_loop_eval.py` (1500
+Startszenen). Die alte automatische Auswertung wurde durch eine gleichwertige mit Wartesperre ersetzt (siehe
+Eintrag „Nachmessung“), am Ergebnis ändert das nichts. Vorhersage vor dem Lauf (wörtlich aus „Laufend / offen“):
+
+> - Breiter Port-Anfang für attnmem und vitmem (Prüfung der Henne-Ei-Deutung, 2026-11-18, eigene Entscheidung während
+>   der Pause des Nutzers): Bei attnmem und vitmem geht die Adresse durch zwei klein beginnende lineare Abbildungen
+>   (Ende des Vorlagen-Encoders, dann `cmd_in` als Muster auf dem Bild); die Gitter-Netze haben `+cell` (eine
+>   Abbildung in jede Zelle). Neuer Namens-Zusatz `+pw`: beide Abbildungen starten 4-mal größer (gleiche Parameter;
+>   Faktor vorher festgelegt, nicht abgestimmt). Am Anfang: Encoder-Streuung 0,010 → 0,038 (vitmem 0,030), Muster
+>   auf dem Bild 0,005 → 0,087. Worker: `attnmem+refl+pw+rez3` und `vitmem+refl+pw+rez3` Seeds 0–4, 7, dazu
+>   `attnmem+refl+rez3` und `vitmem+refl+rez3` Seeds 3, 4, 7 (mit den vorhandenen 0–2 sechs je Netz), drei Ziele,
+>   12000 Updates. „Gelöst“ = `near_all` ≥ 0,20 (bisher Zufallsläufe 0,07, gelöste 0,32–0,45). Das ist eine Prüfung
+>   der Ursache, kein Vorschlag für den Standard; ob `+pw` übernommen wird, entscheidet der Nutzer.
+>   **Vorhersage vor dem Lauf (2026-11-18):** (1) Ohne `+pw` lösen attnmem und vitmem je 3 bis 5 von 6. (2) Mit
+>   `+pw` lösen sie zusammen mindestens 11 von 12. (3) Mit `+pw` liegt die Encoder-Streuung bei Update 2000 in allen
+>   12 Läufen bei mindestens 0,05 (ohne: 0,007–0,022). (4) Die gelösten Läufe mit `+pw` liegen im Mittel innerhalb
+>   ±0,08 um die gelösten ohne: Der Anfang entscheidet, ob gelernt wird, kaum wie gut.
+
+**Ergebnis.** `near_all` je Seed (0 / 1 / 2 / 3 / 4 / 7), „gelöst“ = mindestens 0,20:
+
+| Netz | near_all | gelöst |
+|---|---|---|
+| attnmem | 0,07 / 0,32 / 0,37 / 0,18 / 0,44 / 0,07 | 3 von 6 (Seed 3 knapp darunter) |
+| vitmem | 0,45 / 0,07 / 0,32 / 0,20 / 0,07 / 0,07 | 2 von 6 (Seed 3 mit 0,198 knapp darunter) |
+| attnmem `+pw` | 0,07 / 0,07 / 0,07 / 0,07 / 0,10 / 0,07 | 0 von 6 |
+| vitmem `+pw` | 0,07 / 0,07 / 0,10 / 0,07 / 0,10 / 0,07 | 0 von 6 |
+
+Encoder-Streuung (`loop_refcurve.jsonl`) bei Update 0 / 2000 / 4000 / Ende:
+- ohne `+pw`, alle 12 Läufe: 0,006–0,012 / 0,007–0,022 / 0,014–0,052 / 0,043–0,239.
+- mit `+pw`: 0,023–0,048 / 0,013–0,082 / 0,012–0,054 / 0,020–0,065.
+Die Streuung beginnt also größer, sinkt dann aber in 10 von 12 Läufen bis Update 2000 und wächst danach kaum.
+Ohne `+pw` ist sie am Ende in allen Läufen viel größer als am Anfang (mindestens 0,043). Die neuen Basis-Läufe passen nicht ganz zur alten Trennung nach der
+End-Streuung: vitmem Seed 4 endet bei 0,094 und liegt trotzdem bei Zufall, attnmem Seed 3 und vitmem Seed 3
+liegen mit 0,084 / 0,119 dazwischen (0,18 / 0,20).
+
+**Vergleich mit der Vorhersage.** (1) Teilweise: attnmem 3 von 6 getroffen, vitmem 2 von 6 verfehlt (knapp: Seed
+3 0,198). (2) Klar verfehlt: 0 von 12 statt mindestens 11. (3) Verfehlt: Streuung bei Update 2000 nur in 1 von 12
+Läufen mindestens 0,05 (vitmem Seed 1, 0,082). (4) Nicht prüfbar, kein Lauf mit `+pw` gelöst. Bilanz: 1 teilweise,
+2 verfehlt, 1 nicht prüfbar.
+
+**Schluss.** (a) Der breite Port-Anfang hilft nicht, er schadet: Mit `+pw` kommt kein Lauf über Zufall. Die
+Deutung „der Encoder wächst zu langsam aus der kleinen Anfangs-Streuung“ ist in dieser Form nicht bestätigt. Eine
+größere Anfangs-Streuung allein bringt die Form nicht ins Gedächtnis; das Training drückt sie zuerst wieder
+herunter. (b) Ungeprüfte Vermutung zur Ursache: `+pw` vergrößert zwei Dinge zugleich, das Ende des
+Vorlagen-Encoders und `cmd_in`, das Muster auf dem Bild (0,005 → 0,087). Ein so großes, anfangs zufälliges Muster
+auf jedem Bild stört die Wahrnehmung. Das Netz lernt vermutlich zuerst, es zu dämpfen, und dämpft dabei den
+Weg der Adresse mit. Trennen ließe sich das mit einem Lauf, der nur den Encoder vergrößert. (c) Die alte
+Beobachtung bleibt: Gelöste Läufe haben am Ende eine größere Encoder-Streuung. Ob sie Ursache oder Folge des
+Lernens ist, ist nach diesem Lauf offener als vorher. Mit sechs Seeds ist sie auch kein sauberer Trenner mehr
+(vitmem Seed 4). (d) Lösequote ohne `+pw` mit sechs Seeds: attnmem 3/6, vitmem 2/6; zusammen mit den
+Gitter-Netzen (sp4 6/6 bei 24000 Updates) bleibt der Abstand der Bauarten auf dieser Stufe bestehen. (e) `+pw`
+wird nicht Standard; der Namens-Zusatz bleibt im Code, damit die Läufe nachvollziehbar sind.
+
+**Belege.** `results/finds_loop.jsonl` (Zeilen `attnmem` / `vitmem` auf `robot_loop_three_f32`),
+`results/loop_refcurve.jsonl` (18 neue Zeilen), `results/checkpoints/robot_loop_three_f32/`.
+
+## Laufend / offen
 
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

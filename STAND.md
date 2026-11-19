@@ -248,6 +248,9 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   Encoder beginnen bei 0,01; bei den Gitter-Netzen wächst die Streuung in den ersten 2000 Updates, bei attnmem und
   vitmem erst ab etwa 4000. Gelernt halten attnmem und vitmem die Formen über den ganzen Lauf besser als jedes
   Gitter-Netz (nicht verdrängt), nutzen sie aber schlechter.
+  Prüfung mit breitem Port-Anfang (`+pw`, 2026-11-19): **negativ**, 0 von 12 Läufen lösen (ohne: attnmem 3/6,
+  vitmem 2/6); die größere Anfangs-Streuung wird im Training zuerst wieder gedämpft. Die Henne-Ei-Deutung ist in
+  dieser Form nicht bestätigt; `+pw` vergrößert auch das Muster auf dem Bild, beides ist nicht getrennt.
   **Falscher Körper (2026-11-18, nachgemessen 2026-11-19 auf allen Stufen):** Wer nach dem ersten Schritt auf einem
   falschen Körper steht, bleibt dort meist (`robot_loop_f32` 0,64–0,89, mit gemerkter Vorlage und bei drei Zielen
   0,80–0,98); Netze ohne Gedächtnis kommen öfter weg (0,26–0,32) als Netze mit (0,03–0,18). Vom richtigen Körper
