@@ -2780,5 +2780,29 @@ Saat, eigener Szenenbau); geprüft ist das nicht. (c) Der schnellere Live-Test m
 
 ## Laufend / offen
 
+- Neuer Standard `+rv` für Netze mit Vorlage, Etappe 1: drei Ziele (Nutzer 2026-11-19: „sauber vor Zeit“, Hinweis
+  Review Gemini 2.1). Mit `+rv` sendet ein Schritt ohne Vorlage keinen Befehl: kein Ausgang des
+  Vorlagen-Encoders, kein Muster aufs Bild (auch nicht dessen Bias). Die Schleifen-Aufgaben liefern dafür
+  ausdrücklich `ref_mask`. Ohne `+rv` sieht der Encoder in den Laufschritten das leere Bild, und
+  `ref_enc(0)` geht als konstanter Befehl in den Port. Geprüft (Commit mit dieser Vorhersage):
+  - alte Netze rechnen bitgleich;
+  - `+rv` hat bei gleichem Seed dieselben Anfangsgewichte;
+  - Laufschritte mit `+rv` = Netz ganz ohne Befehl (Unterschied 0);
+  - kein Gradient in den Adress-Weg aus Schritten ohne Vorlage;
+  - Rauchtest 300 Updates für attnmem und sp4.
+  Nebenbefund: Trainierte Netze ohne `+rv` nutzen `ref_enc(0)` stark (Ausgabe ändert sich um bis zu 7,6 bei
+  attnmem, 2,0 bei sp4, 0,7 bei layer_s), offenbar als Zeichen „jetzt Laufphase“. Mit `+rv` müssen sie das aus
+  dem Bild lesen (in den Hinweis-Schritten ist es leer).
+  Worker, 6 Prozesse: (A) layer_s, sp4, am4, hier_s mit `+cell+refl+rv+rez3`, Seeds 0–2, 12000 Updates; (B)
+  attnmem, vitmem mit `+refl+rv+rez3`, Seeds 0–4, 7, 12000 Updates; (C) layer_s, sp4 mit `+rv`, Seeds 0–4, 7, 24000
+  Updates. Vergleich jeweils mit denselben Seeds ohne `+rv`.
+  **Vorhersage vor dem Lauf (2026-11-19):** (1) Gitter-Netze, 12000 Updates: Das Mittel von `near_all` je Bauart
+  liegt innerhalb ±0,08 um den Wert ohne `+rv`. Der konstante Befehl war für sie nur ein Zeichen für die
+  Laufphase, das Bild liefert dasselbe. (2) attnmem und vitmem: Mit `+rv` lösen zusammen 3 bis 7 von 12
+  (`near_all` ≥ 0,20; ohne: 5 von 12). Das Muster `ref_enc(0)` ist am Anfang zu klein, um über Lernen oder
+  Nicht-Lernen zu entscheiden. (3) 24000 Updates: sp4 löst 6 von 6, layer_s 2 bis 4 von 6 (ohne: 6 und 3). (4)
+  Gelöste Läufe liegen je Bauart im Mittel innerhalb ±0,05 um die gelösten ohne `+rv`. Kurz: `+rv` macht die
+  Schnittstelle sauber, ändert die Ergebnisse dieser Stufe aber nicht messbar.
+
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

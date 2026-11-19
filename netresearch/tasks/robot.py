@@ -556,7 +556,9 @@ class RobotLoopCueF32(RobotLoopF32):
         ref[0] = b["ref"][0]
         mask = np.ones((self.T, len(i)), np.float32)
         mask[0] = 0.0
-        return {"obs": np.concatenate([first, b["obs"]]), "ref": ref,
+        ref_mask = np.zeros((self.T, len(i)), np.float32)                           # 1 = a picture is shown
+        ref_mask[0] = 1.0
+        return {"obs": np.concatenate([first, b["obs"]]), "ref": ref, "ref_mask": ref_mask,
                 "target": np.concatenate([b["target"][:1], b["target"]]), "mask": mask}
 
 
@@ -593,7 +595,9 @@ class RobotLoopTwoF32(RobotLoopF32):
         target = command_bits(s[..., 0].ravel(), s[..., 1].ravel()).reshape(len(s), n, -1)
         mask = np.ones((self.T, n), np.float32)
         mask[:G] = 0.0
-        return {"obs": np.concatenate([np.zeros_like(run[:G]), run]), "ref": ref,
+        ref_mask = np.zeros((self.T, n), np.float32)                                # 1 = a picture is shown
+        ref_mask[:G] = 1.0
+        return {"obs": np.concatenate([np.zeros_like(run[:G]), run]), "ref": ref, "ref_mask": ref_mask,
                 "target": np.concatenate([target[:G], target]), "mask": mask}
 
 

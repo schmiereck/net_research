@@ -28,22 +28,34 @@ def reset_state(state, keep):
     return tuple(s * keep.view(-1, *([1] * (s.dim() - 1))) for s in state)
 
 
-def run_sequence(model, obs, state=None, resets=None, cmd=None, ref=None):
+def run_sequence(model, obs, state=None, resets=None, cmd=None, ref=None, ref_mask=None):
     """obs [T,B,3,16,16] -> logits [T,B,64]. resets [T,B] (1 = new episode at t) for stateful models.
     cmd [T,B,N_CMD]: command vectors for models with a command port (models.attach_cmd); others ignore it.
     ref [T,B,3,16,16]: pictures of the wanted object; a model with an address encoder ("+ref") turns them into
-    its command (and then ignores cmd)."""
+    its command (and then ignores cmd).
+    ref_mask [T,B] (1 = a picture is shown): only for models with '+rv' (model.ref_valid). Steps without a
+    picture then send no command at all: no address-encoder output (a zero vector), and the image port adds no
+    pattern (not even its bias). Without ref_mask a step counts as 'no picture' when its picture is all zero,
+    which is how every task and evaluation script shows 'no picture'. Models without '+rv' run as before:
+    the address encoder also sees the blank picture and its output reaches the port."""
     T, B = obs.shape[:2]
     if obs.shape[-1] != 16:                                    # finer fovea: the model's front stage ("+retN")
         obs = model.retina(obs.reshape(T * B, *obs.shape[2:]).float()).view(T, B, 3, 16, 16)
+    valid = None
     if ref is not None and hasattr(model, "ref_enc"):
         cmd = model.ref_enc(ref.float())
+        if getattr(model, "ref_valid", False):
+            if ref_mask is None:
+                ref_mask = ref.float().flatten(2).abs().amax(-1) > 0
+            valid = torch.as_tensor(ref_mask, dtype=cmd.dtype, device=cmd.device).reshape(T, B)
+            cmd = cmd * valid[..., None]
     if cmd is None or not getattr(model, "takes_cmd", False):
-        cmd = None
+        cmd, valid = None, None
     try:
         if not model.stateful:
             if cmd is not None:
                 model.cmd = cmd.reshape(T * B, -1)
+                model.cmd_valid = None if valid is None else valid.reshape(T * B)
             out, _ = model(obs.reshape(T * B, *obs.shape[2:]), ())
             return out.view(T, B, -1), ()
         if state is None:
@@ -54,12 +66,13 @@ def run_sequence(model, obs, state=None, resets=None, cmd=None, ref=None):
                 state = reset_state(state, 1.0 - resets[t])
             if cmd is not None:
                 model.cmd = cmd[t]
+                model.cmd_valid = None if valid is None else valid[t]
             o, state = model(obs[t], state)
             outs.append(o)
         return torch.stack(outs), state
     finally:
         if cmd is not None:
-            model.cmd = None
+            model.cmd, model.cmd_valid = None, None
 
 
 def make_opt(model, updates, lr):
@@ -121,7 +134,7 @@ def evaluate_supervised(model, task, n_batches=None):
     correct = total = loss_sum = bit_correct = near = step_err = 0.0
     part = {k: 0.0 for k in spec.parts}
     for b in eval_set(task)[:n_batches]:
-        logits, _ = run_sequence(model, b["obs"].float(), cmd=b.get("cmd"), ref=b.get("ref"))
+        logits, _ = run_sequence(model, b["obs"].float(), cmd=b.get("cmd"), ref=b.get("ref"), ref_mask=b.get("ref_mask"))
         lg, m = logits[..., spec.out_slice], b["mask"]
         loss_sum += supervised_loss(spec, logits, b["target"], m).item() * m.sum().item()
         if spec.head == "class":
@@ -178,7 +191,7 @@ class SupervisedLearner:
         return to_t(self.task.sample(self.batch, self.probe_rng))
 
     def loss_on(self, model, b):
-        logits, _ = run_sequence(model, b["obs"], cmd=b.get("cmd"), ref=b.get("ref"))
+        logits, _ = run_sequence(model, b["obs"], cmd=b.get("cmd"), ref=b.get("ref"), ref_mask=b.get("ref_mask"))
         return supervised_loss(self.spec, logits, b["target"], b["mask"])
 
     def log(self):

@@ -140,7 +140,7 @@ def split_size(name):
     differently sized nets are different model names everywhere (results, checkpoints). A '+cmd' suffix of the
     base name (command port, see attach_cmd) is removed here; has_cmd(name) tells whether it was there."""
     base, _, size = name.partition("@")
-    for suf in ("+cmd", "+cell", "+refl", "+ref", "+pw", "+ret0", "+ret1", "+ret2", "+ret3", "+rez1", "+rez2", "+rez3"):
+    for suf in ("+cmd", "+cell", "+refl", "+ref", "+pw", "+rv", "+ret0", "+ret1", "+ret2", "+ret3", "+rez1", "+rez2", "+rez3"):
         base = base.replace(suf, "")
     return base, (int(float(size.rstrip("k")) * 1000) if size else None)
 
@@ -163,7 +163,10 @@ def attach_cmd(model):
         if mod.cmd is None:
             return None
         x = args[0]
-        return (x + mod.cmd_in(mod.cmd).view(x.shape[0], 3, 1, 16),) + tuple(args[1:])
+        pat = mod.cmd_in(mod.cmd).view(x.shape[0], 3, 1, 16)
+        if getattr(mod, "cmd_valid", None) is not None:          # '+rv': no pattern (not even the bias) without
+            pat = pat * mod.cmd_valid.view(-1, 1, 1, 1)           # a picture
+        return (x + pat,) + tuple(args[1:])
     model.register_forward_pre_hook(pre)
     return model
 
@@ -236,6 +239,8 @@ def construct(name, width):
         model.retina = Retina(int(name.split("+rez")[1][0]), residual=True)
     if "+pw" in name:                                          # wide port: larger start of the address path
         scale_port(model, PORT_WIDE)
+    if "+rv" in name:                                          # steps without a picture send no command at all
+        model.ref_valid = True                                 # (train.run_sequence); no new parameters
     return model
 
 
