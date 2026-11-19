@@ -2740,19 +2740,45 @@ Zusätzlich bestätigt (Review 2.1 und 2.2): Die Ports sind nicht gleich.
 **Belege.** `netresearch/models/basic.py` (AttnMem, ViTMem), `netresearch/train.py` (`run_sequence`: `ref_enc`
 wird auch auf das leere Bild angewendet), `netresearch/models/__init__.py` (`attach_cmd`).
 
-## Laufend / offen
+## 2026-11-19 — Live-Test mit der Prüfstands-Regel „Bild verlassen“: bitgleich, die Regel erklärt nichts
 
-- Live-Test mit der Prüfstands-Regel für „Bild verlassen“ (2026-11-19, Hinweis Review 2.4): Im Prüfstand
-  (`finds_loop_eval.py`) beendet ein Schritt aus dem Bild den Lauf, alle späteren Ziele zählen als verfehlt. Im
-  Live-Skript blieb der Blick bisher einfach stehen. Jetzt gleich wie im Prüfstand (Feld `out_rule: bench`, dazu
-  `out` = Zahl der Läufe, die das Bild verlassen). Außerdem wird je Schritt nur ein Bild je Armstellung gerendert
-  (Ergebnis unverändert, schneller). Neu gemessen: dieselben 12 Netze, dieselben 150 Szenen, `static` und `live`.
-  Vor dem Lauf gesehen: Orakel 1,00 in allen Bedingungen (5 Szenen).
-  **Vorhersage vor dem Lauf (2026-11-19):** (1) Die Regel ändert fast nichts: `near_all` je Netz und Bedingung
-  höchstens 0,01 unter dem ersten Lauf, weil der Blick in diesen Szenen kaum das Bild verlässt (höchstens 1 % der
-  Läufe). (2) Damit erklärt die Regel die leicht höheren `static`-Werte nicht: Weiterhin liegen mindestens 8 von 12
-  Netzen über dem Prüfstand. (3) Spearman Prüfstand–live bleibt mindestens 0,95. (4) Der Lauf `live` ist mindestens
-  dreimal so schnell wie vorher (vorher 262–356 s je Netz).
+**Frage.** Ändert die Prüfstands-Regel für Schritte aus dem Bild (Hinweis Review Gemini 2.4) das Live-Ergebnis,
+und erklärt sie die leicht höheren `static`-Werte?
+
+**Gemacht.** `netresearch_live_loop.py` mit `out_rule: bench` und einem Bild je Armstellung (Robot-Commit
+a892395), dieselben 12 Netze und 150 Szenen, `static` und `live`. Vorhersage vor dem Lauf (wörtlich aus „Laufend /
+offen“):
+
+> - Live-Test mit der Prüfstands-Regel für „Bild verlassen“ (2026-11-19, Hinweis Review 2.4): Im Prüfstand
+>   (`finds_loop_eval.py`) beendet ein Schritt aus dem Bild den Lauf, alle späteren Ziele zählen als verfehlt. Im
+>   Live-Skript blieb der Blick bisher einfach stehen. Jetzt gleich wie im Prüfstand (Feld `out_rule: bench`, dazu
+>   `out` = Zahl der Läufe, die das Bild verlassen). Außerdem wird je Schritt nur ein Bild je Armstellung gerendert
+>   (Ergebnis unverändert, schneller). Neu gemessen: dieselben 12 Netze, dieselben 150 Szenen, `static` und `live`.
+>   Vor dem Lauf gesehen: Orakel 1,00 in allen Bedingungen (5 Szenen).
+>   **Vorhersage vor dem Lauf (2026-11-19):** (1) Die Regel ändert fast nichts: `near_all` je Netz und Bedingung
+>   höchstens 0,01 unter dem ersten Lauf, weil der Blick in diesen Szenen kaum das Bild verlässt (höchstens 1 % der
+>   Läufe). (2) Damit erklärt die Regel die leicht höheren `static`-Werte nicht: Weiterhin liegen mindestens 8 von 12
+>   Netzen über dem Prüfstand. (3) Spearman Prüfstand–live bleibt mindestens 0,95. (4) Der Lauf `live` ist mindestens
+>   dreimal so schnell wie vorher (vorher 262–356 s je Netz).
+
+**Ergebnis.** Alle 24 Werte `near_all` sind auf vier Stellen gleich dem ersten Lauf. Von 43 200 Läufen
+(12 Netze × 2 Bedingungen × 1800) verlässt genau einer das Bild (attnmem Seed 2, `live`), und der war am
+betroffenen Ziel ohnehin verfehlt. `static` liegt weiter in 9 von 12 Netzen über dem Prüfstand. Laufzeit je Netz
+`live` 47–86 s statt 262–356 s (3,1- bis 7,5-mal schneller), `static` unverändert 34–37 s.
+
+**Vergleich mit der Vorhersage.** (1) Getroffen: Änderung 0,000 (Grenze 0,01), 1 Lauf aus dem Bild. (2) Getroffen:
+9 von 12 über dem Prüfstand. (3) Getroffen: Spearman unverändert (die Live-Werte sind bitgleich). (4) Getroffen:
+mindestens 3,1-mal schneller. Bilanz: 4 von 4.
+
+**Schluss.** (a) Der Hinweis aus dem Review war ein echter Unterschied im Code, wirkt in diesen Szenen aber nicht:
+Der Blick verlässt das Bild praktisch nie. Die Zahlen des ersten Live-Tests bleiben gültig. (b) Die leicht
+höheren `static`-Werte (Mittel +0,010) bleiben unerklärt. Übrig sind die eigenen Szenen des Live-Skripts (eigene
+Saat, eigener Szenenbau); geprüft ist das nicht. (c) Der schnellere Live-Test macht größere Prüfungen bezahlbar
+(12 Netze, beide Bedingungen, etwa 25 statt 75 Minuten).
+
+**Belege.** `results/robot_live_loop_v2.jsonl` (26 Zeilen, Felder `out` und `out_rule`).
+
+## Laufend / offen
 
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
