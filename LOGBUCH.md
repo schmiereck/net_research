@@ -2908,6 +2908,10 @@ vitmem: cue 0,604 → 0,525, blind 0,684 → 0,547, two 0,242 → 0,386.
 - Der Trainingswert zeigt dasselbe: sp4 Seed 0 endet mit `+rv` bei 0,69 (cue) und 0,67 (blind), die anderen
   sp4-Läufe bei 0,78–0,80. Er trennt sich zwischen Update 4000 und 8000.
 - Bei two lösen mit `+rv` alle drei vitmem-Läufe (`near_a` 0,59–0,68), ohne nur Seed 0.
+- Encoder-Streuung (`ref_curve`, Streuung der Ausgabe über 256 Vorlagen) bei Update 2000 / 4000: sp4 Seed 0
+  startet mit `+rv` spät (cue 0,007 / 0,086, blind 0,010 / 0,103; die übrigen sp4-Läufe 0,02–0,94 / 0,59–1,55).
+  Bei vitmem gibt es kein einheitliches Bild: blind mit `+rv` kleiner (0,016–0,026 bei 4000, ohne 0,049–0,090),
+  cue Seed 2 mit `+rv` dagegen am größten von allen (1,23) und trotzdem auf Zufall.
 
 **Vergleich mit der Vorhersage.** (1) Verfehlt: 3 von 8 innerhalb ±0,03 (blind layer_s, am4, hier_s); cue alle
 vier darunter (−0,03 bis −0,11), blind sp4 −0,14. (2) Teilweise: attnmem getroffen (+0,02 / +0,03), vitmem klar
@@ -2924,7 +2928,8 @@ vitmem löst 3 von 3 (ohne 1 von 3), die Gitter-Netze bleiben im Mittel gleich. 
 zwischen den Stufen unterscheidet: Zahl der Hinweis-Schritte (1 gegen 2), Länge des Laufs (4 gegen 6) und bei cue
 die Ansicht im Hinweis-Schritt. Eine Vermutung, ungeprüft: Ohne `+rv` lieferte `ref_enc(0)` in jedem Laufschritt
 ein kleines Signal durch den Vorlagen-Weg, und dieses Signal half, den Weg früh in Gang zu bringen. Mit einem
-einzigen Hinweis-Schritt fehlt dann fast jeder Gradient in den Encoder. (d) Mit drei Seeds je Netz sind die
+einzigen Hinweis-Schritt fehlt dann fast jeder Gradient in den Encoder. Für sp4 Seed 0 passt der späte Start der Encoder-Streuung
+dazu, für vitmem nicht (cue Seed 2). (d) Mit drei Seeds je Netz sind die
 Unterschiede einzelner Bauarten unsicher. Für vitmem auf cue und blind (4 von 6 auf Zufall gegen 0 von 6) ist er
 deutlich. (e) Der Beschluss „`+rv` ist Standard“ (Etappe 1, Schluss d) ist damit offen. Sauber ist die
 Schnittstelle mit `+rv`; sie macht das Lernen aber auf den Stufen mit einem Hinweis-Schritt unzuverlässiger. Bevor
