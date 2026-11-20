@@ -2862,22 +2862,78 @@ Prozessen 530 min, die beiden 6er-Jobs vorher zusammen 652 min.
 `robot_loop_three_f32_24k`), `results/loop_refcurve.jsonl` (36 neue Zeilen), `results/checkpoints/robot_loop_three_f32/`
 und `robot_loop_three_f32_24k/`.
 
-## Laufend / offen
+## 2026-11-20 — `+rv`, Etappe 2 (cue, blind, two): mit nur einem Hinweis-Schritt lernen mehr Läufe die Adresse nicht
 
-- `+rv`, Etappe 2: dieselben 6 Netze (layer_s, sp4, am4, hier_s mit `+cell+refl+rv+rez3`, attnmem und vitmem
-  mit `+refl+rv+rez3`), Seeds 0–2, 12000 Updates, auf `robot_loop_cue_f32`, `robot_loop_blind_f32` und
-  `robot_loop_two_f32`. Vergleich mit denselben Seeds ohne `+rv`. Maß: `near` nach dem letzten Schritt (cue,
-  blind), `near_both` (two). Mittel ohne `+rv` (Seeds 0–2):
-  - cue: layer_s 0,888, sp4 0,880, am4 0,812, hier_s 0,861, attnmem 0,680, vitmem 0,528;
-  - blind: layer_s 0,906, sp4 0,907, am4 0,849, hier_s 0,855, attnmem 0,719, vitmem 0,649;
-  - two: layer_s 0,718, sp4 0,718, am4 0,570, hier_s 0,551, attnmem 0,251, vitmem 0,234.
-  **Vorhersage vor dem Lauf (2026-11-20):** (1) cue und blind, Gitter-Netze: Mittel je Bauart innerhalb ±0,03 um
-  den Wert ohne `+rv`. Mit nur einem Ziel gibt es nach dem Hinweis nur eine Laufphase; das Zeichen `ref_enc(0)`
-  trägt dort kaum Information. (2) cue und blind, attnmem und vitmem: Mittel je Bauart innerhalb ±0,10 (sie
-  streuen schon ohne `+rv` stark, vitmem cue 0,40–0,70). (3) two, Gitter-Netze: Mittel je Bauart höchstens 0,08
-  unter dem Wert ohne `+rv` und höchstens 0,03 darüber; im Mittel der vier Bauarten tiefer (wie bei drei Zielen,
-  Etappe 1, Schluss b). (4) two, attnmem und vitmem: innerhalb ±0,12. (5) In allen drei Aufgaben liegen die vier
-  Gitter-Netze im Mittel weiter über attnmem und vitmem.
+**Frage.** Ändert `+rv` (ein Schritt ohne Vorlage sendet keinen Befehl) die Ergebnisse auf den Stufen „Hinweis mit
+Ansicht“ (cue), „Hinweis allein“ (blind) und „zwei Ziele“ (two)?
+
+**Gemacht.** Worker-Jobs `20261120-060819-rv_cue` (271 min), `20261120-060819-rv_blind` (194 min) und
+`20261120-060820-rv_two` (359 min), je 6 Netze × Seeds 0–2, 12000 Updates, 6 Prozesse, Commit dca3bed. Danach
+lokal `finds_loop_eval.py`, 1500 Startszenen. Vorhersage vor dem Lauf (wörtlich aus „Laufend / offen“):
+
+> - `+rv`, Etappe 2: dieselben 6 Netze (layer_s, sp4, am4, hier_s mit `+cell+refl+rv+rez3`, attnmem und vitmem
+>   mit `+refl+rv+rez3`), Seeds 0–2, 12000 Updates, auf `robot_loop_cue_f32`, `robot_loop_blind_f32` und
+>   `robot_loop_two_f32`. Vergleich mit denselben Seeds ohne `+rv`. Maß: `near` nach dem letzten Schritt (cue,
+>   blind), `near_both` (two). Mittel ohne `+rv` (Seeds 0–2):
+>   - cue: layer_s 0,888, sp4 0,880, am4 0,812, hier_s 0,861, attnmem 0,680, vitmem 0,528;
+>   - blind: layer_s 0,906, sp4 0,907, am4 0,849, hier_s 0,855, attnmem 0,719, vitmem 0,649;
+>   - two: layer_s 0,718, sp4 0,718, am4 0,570, hier_s 0,551, attnmem 0,251, vitmem 0,234.
+>   **Vorhersage vor dem Lauf (2026-11-20):** (1) cue und blind, Gitter-Netze: Mittel je Bauart innerhalb ±0,03 um
+>   den Wert ohne `+rv`. Mit nur einem Ziel gibt es nach dem Hinweis nur eine Laufphase; das Zeichen `ref_enc(0)`
+>   trägt dort kaum Information. (2) cue und blind, attnmem und vitmem: Mittel je Bauart innerhalb ±0,10 (sie
+>   streuen schon ohne `+rv` stark, vitmem cue 0,40–0,70). (3) two, Gitter-Netze: Mittel je Bauart höchstens 0,08
+>   unter dem Wert ohne `+rv` und höchstens 0,03 darüber; im Mittel der vier Bauarten tiefer (wie bei drei Zielen,
+>   Etappe 1, Schluss b). (4) two, attnmem und vitmem: innerhalb ±0,12. (5) In allen drei Aufgaben liegen die vier
+>   Gitter-Netze im Mittel weiter über attnmem und vitmem.
+
+**Ergebnis.** Je Seed 0 / 1 / 2, ohne → mit `+rv` (cue, blind: `near` nach dem letzten Schritt; two: `near_both`):
+
+| Netz | cue | blind | two |
+|---|---|---|---|
+| layer_s | 0,90 / 0,90 / 0,87 → 0,85 / 0,89 / 0,81 (−0,04) | 0,90 / 0,92 / 0,89 → 0,92 / 0,91 / 0,87 (−0,01) | 0,73 / 0,70 / 0,73 → 0,70 / 0,74 / 0,72 (0,00) |
+| sp4 | 0,85 / 0,87 / 0,92 → 0,57 / 0,85 / 0,89 (−0,11) | 0,89 / 0,92 / 0,92 → 0,45 / 0,91 / 0,93 (−0,14) | 0,71 / 0,73 / 0,71 → 0,73 / 0,76 / 0,75 (+0,03) |
+| am4 | 0,85 / 0,78 / 0,81 → 0,79 / 0,77 / 0,77 (−0,03) | 0,84 / 0,87 / 0,84 → 0,86 / 0,86 / 0,76 (−0,02) | 0,54 / 0,61 / 0,56 → 0,40 / 0,57 / 0,48 (−0,09) |
+| hier_s | 0,86 / 0,86 / 0,87 → 0,71 / 0,85 / 0,86 (−0,05) | 0,85 / 0,85 / 0,87 → 0,85 / 0,86 / 0,88 (+0,01) | 0,58 / 0,53 / 0,55 → 0,62 / 0,56 / 0,63 (+0,05) |
+| attnmem | 0,69 / 0,68 / 0,67 → 0,71 / 0,73 / 0,64 (+0,02) | 0,76 / 0,72 / 0,68 → 0,67 / 0,80 / 0,77 (+0,03) | 0,15 / 0,42 / 0,19 → 0,14 / 0,43 / 0,32 (+0,05) |
+| vitmem | 0,70 / 0,40 / 0,48 → 0,45 / 0,31 / 0,31 (−0,17) | 0,64 / 0,57 / 0,74 → 0,42 / 0,31 / 0,32 (−0,30) | 0,40 / 0,16 / 0,14 → 0,40 / 0,50 / 0,53 (+0,24) |
+
+Mittel der vier Gitter-Netze ohne → mit: cue 0,861 → 0,801, blind 0,879 → 0,838, two 0,639 → 0,637. attnmem und
+vitmem: cue 0,604 → 0,525, blind 0,684 → 0,547, two 0,242 → 0,386.
+
+- Die Einbrüche bei cue und blind sind Läufe, die einen Körper ansteuern, aber nicht sicher den gesuchten
+  (`near` + `other` am Ende 0,96–0,99). Bei Zufall unter drei Körpern läge `near` bei etwa 0,31.
+  - Auf Zufall: vitmem cue Seeds 1 und 2 (0,308), blind Seeds 1 und 2 (0,309 / 0,321). Ohne `+rv` lag kein
+    vitmem-Lauf auf diesen beiden Stufen so tief (niedrigster 0,404).
+  - Dazwischen: vitmem Seed 0 (0,45 / 0,42), sp4 Seed 0 (0,57 / 0,45), hier_s Seed 0 auf cue (0,71).
+- Der Trainingswert zeigt dasselbe: sp4 Seed 0 endet mit `+rv` bei 0,69 (cue) und 0,67 (blind), die anderen
+  sp4-Läufe bei 0,78–0,80. Er trennt sich zwischen Update 4000 und 8000.
+- Bei two lösen mit `+rv` alle drei vitmem-Läufe (`near_a` 0,59–0,68), ohne nur Seed 0.
+
+**Vergleich mit der Vorhersage.** (1) Verfehlt: 3 von 8 innerhalb ±0,03 (blind layer_s, am4, hier_s); cue alle
+vier darunter (−0,03 bis −0,11), blind sp4 −0,14. (2) Teilweise: attnmem getroffen (+0,02 / +0,03), vitmem klar
+verfehlt (−0,17 / −0,30). (3) Teilweise: layer_s 0,00 und sp4 +0,030 im Bereich, am4 −0,09 und hier_s +0,05
+außerhalb; das Mittel der vier liegt 0,002 tiefer, also praktisch gleich. (4) Teilweise: attnmem +0,05 getroffen,
+vitmem +0,24 verfehlt. (5) Getroffen: Die Gitter-Netze liegen in allen drei Aufgaben im Mittel klar über attnmem
+und vitmem. Bilanz: 1 getroffen, 3 teilweise, 1 verfehlt.
+
+**Schluss.** (a) `+rv` ist nicht neutral. Mit nur einem Hinweis-Schritt (cue, blind) lernen mehr Läufe die
+Adresse nicht: vitmem 4 von 6 auf Zufall (ohne 0 von 6), dazu sp4 Seed 0 auf beiden Stufen halb. Das gleicht dem
+Muster der älteren Läufe mit `+ref` (vor `+refl`): Dort lagen auf cue sp4 Seeds 0 und 1 und vitmem Seeds 1 und 2
+auf Zufall. (b) Bei zwei Hinweis-Schritten (two) ist es umgekehrt:
+vitmem löst 3 von 3 (ohne 1 von 3), die Gitter-Netze bleiben im Mittel gleich. (c) Warum, ist ungeklärt. Was sich
+zwischen den Stufen unterscheidet: Zahl der Hinweis-Schritte (1 gegen 2), Länge des Laufs (4 gegen 6) und bei cue
+die Ansicht im Hinweis-Schritt. Eine Vermutung, ungeprüft: Ohne `+rv` lieferte `ref_enc(0)` in jedem Laufschritt
+ein kleines Signal durch den Vorlagen-Weg, und dieses Signal half, den Weg früh in Gang zu bringen. Mit einem
+einzigen Hinweis-Schritt fehlt dann fast jeder Gradient in den Encoder. (d) Mit drei Seeds je Netz sind die
+Unterschiede einzelner Bauarten unsicher. Für vitmem auf cue und blind (4 von 6 auf Zufall gegen 0 von 6) ist er
+deutlich. (e) Der Beschluss „`+rv` ist Standard“ (Etappe 1, Schluss d) ist damit offen. Sauber ist die
+Schnittstelle mit `+rv`; sie macht das Lernen aber auf den Stufen mit einem Hinweis-Schritt unzuverlässiger. Bevor
+wir festlegen, sollte geprüft werden, ob das am Fehlen des Gradienten liegt (siehe Vermutung c).
+
+**Belege.** `results/finds_loop.jsonl` (Zeilen `*+rv*` auf `robot_loop_cue_f32`, `robot_loop_blind_f32`,
+`robot_loop_two_f32`, je 18), `results/loop_refcurve.jsonl` (54 neue Zeilen), `results/checkpoints/robot_loop_{cue,blind,two}_f32/`.
+
+## Laufend / offen
 
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

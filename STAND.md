@@ -258,8 +258,11 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   `ref_enc(0)` als konstanter Befehl in den Port). Etappe 1, drei Ziele: Bei 24000 Updates gleicher Endstand (sp4
   6/6, layer_s 3/6, gelöste Läufe −0,02). Bei 12000 Updates liegen die Gitter-Netze eher etwas tiefer (Mittel
   layer_s −0,13, sp4 −0,06, am4 −0,05, hier_s 0), vor allem bei den Zielen 2 und 3. attnmem und vitmem 4 von 12
-  gelöst (ohne 5), aber andere Seeds: Ob sie lernen, ist dort Zufall des einzelnen Laufs. Neue Läufe mit Vorlage
-  nutzen `+rv`; verglichen wird nur innerhalb derselben Schnittstelle. Etappe 2 (cue, blind, two) läuft.
+  gelöst (ohne 5), aber andere Seeds: Ob sie lernen, ist dort Zufall des einzelnen Laufs. Etappe 2 (2026-11-20):
+  Mit nur einem Hinweis-Schritt (cue, blind) lernen mehr Läufe die Adresse nicht (vitmem 4 von 6 auf Zufall, ohne
+  0 von 6; sp4 Seed 0 halb), bei zwei Hinweis-Schritten (two) löst vitmem dagegen 3 von 3 (ohne 1 von 3). `+rv`
+  ist also nicht neutral; ob es Standard wird, ist offen. Ungeprüfte Vermutung: Ohne `+rv` gab `ref_enc(0)` in
+  jedem Laufschritt Gradient in den Vorlagen-Weg und half, ihn früh in Gang zu bringen.
   **Falscher Körper (2026-11-18, nachgemessen 2026-11-19 auf allen Stufen):** Wer nach dem ersten Schritt auf einem
   falschen Körper steht, bleibt dort meist (`robot_loop_f32` 0,64–0,89, mit gemerkter Vorlage und bei drei Zielen
   0,80–0,98); Netze ohne Gedächtnis kommen öfter weg (0,26–0,32) als Netze mit (0,03–0,18). Vom richtigen Körper
