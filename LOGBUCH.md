@@ -2778,31 +2778,106 @@ Saat, eigener Szenenbau); geprüft ist das nicht. (c) Der schnellere Live-Test m
 
 **Belege.** `results/robot_live_loop_v2.jsonl` (26 Zeilen, Felder `out` und `out_rule`).
 
+## 2026-11-20 — `+rv`, Etappe 1 (drei Ziele): Endstand bei 24000 Updates gleich, bei 12000 eher etwas tiefer
+
+**Frage.** Ändert der neue Standard `+rv` (ein Schritt ohne Vorlage sendet keinen Befehl) die Ergebnisse auf der
+Stufe „drei Ziele nacheinander“?
+
+**Gemacht.** Worker-Jobs `20261119-083513-rv_three_grid` (12 Läufe, 346 min mit 6 Prozessen),
+`20261119-083513-rv_three_attnvit` (12 Läufe, 167 min) und `20261119-203605-rv_three24k` (12 Läufe, 530 min mit
+12 Prozessen; der erste Versuch `154959` scheiterte nach 1 min an einem Fehler beim Einreichen, ohne
+`--module curriculum`). Danach lokal `finds_loop_eval.py`, 1500 Startszenen, Vergleich mit denselben Seeds ohne
+`+rv`. Die Auswertung von attnmem und vitmem wurde einmal wegen knappen Arbeitsspeichers abgebrochen und
+vollständig neu gerechnet. Vorhersage vor dem Lauf (wörtlich aus „Laufend / offen“):
+
+> - Neuer Standard `+rv` für Netze mit Vorlage, Etappe 1: drei Ziele (Nutzer 2026-11-19: „sauber vor Zeit“, Hinweis
+>   Review Gemini 2.1). Mit `+rv` sendet ein Schritt ohne Vorlage keinen Befehl: kein Ausgang des
+>   Vorlagen-Encoders, kein Muster aufs Bild (auch nicht dessen Bias). Die Schleifen-Aufgaben liefern dafür
+>   ausdrücklich `ref_mask`. Ohne `+rv` sieht der Encoder in den Laufschritten das leere Bild, und
+>   `ref_enc(0)` geht als konstanter Befehl in den Port. Geprüft (Commit mit dieser Vorhersage):
+>   - alte Netze rechnen bitgleich;
+>   - `+rv` hat bei gleichem Seed dieselben Anfangsgewichte;
+>   - Laufschritte mit `+rv` = Netz ganz ohne Befehl (Unterschied 0);
+>   - kein Gradient in den Adress-Weg aus Schritten ohne Vorlage;
+>   - Rauchtest 300 Updates für attnmem und sp4.
+>   Nebenbefund: Trainierte Netze ohne `+rv` nutzen `ref_enc(0)` stark (Ausgabe ändert sich um bis zu 7,6 bei
+>   attnmem, 2,0 bei sp4, 0,7 bei layer_s), offenbar als Zeichen „jetzt Laufphase“. Mit `+rv` müssen sie das aus
+>   dem Bild lesen (in den Hinweis-Schritten ist es leer).
+>   Worker, 6 Prozesse: (A) layer_s, sp4, am4, hier_s mit `+cell+refl+rv+rez3`, Seeds 0–2, 12000 Updates; (B)
+>   attnmem, vitmem mit `+refl+rv+rez3`, Seeds 0–4, 7, 12000 Updates; (C) layer_s, sp4 mit `+rv`, Seeds 0–4, 7, 24000
+>   Updates. Vergleich jeweils mit denselben Seeds ohne `+rv`.
+>   **Vorhersage vor dem Lauf (2026-11-19):** (1) Gitter-Netze, 12000 Updates: Das Mittel von `near_all` je Bauart
+>   liegt innerhalb ±0,08 um den Wert ohne `+rv`. Der konstante Befehl war für sie nur ein Zeichen für die
+>   Laufphase, das Bild liefert dasselbe. (2) attnmem und vitmem: Mit `+rv` lösen zusammen 3 bis 7 von 12
+>   (`near_all` ≥ 0,20; ohne: 5 von 12). Das Muster `ref_enc(0)` ist am Anfang zu klein, um über Lernen oder
+>   Nicht-Lernen zu entscheiden. (3) 24000 Updates: sp4 löst 6 von 6, layer_s 2 bis 4 von 6 (ohne: 6 und 3). (4)
+>   Gelöste Läufe liegen je Bauart im Mittel innerhalb ±0,05 um die gelösten ohne `+rv`. Kurz: `+rv` macht die
+>   Schnittstelle sauber, ändert die Ergebnisse dieser Stufe aber nicht messbar.
+
+**Ergebnis.** `near_all`, ohne → mit `+rv`. Bei 12000 Updates Seeds 0 / 1 / 2 (attnmem, vitmem: 0 / 1 / 2 / 3 / 4 /
+7), „gelöst“ ab 0,20. Bei 24000 Updates Seeds 0 / 1 / 2 / 3 / 4 / 7, „gelöst“ ab 0,45 wie im Eintrag „Lösequote
+mit sechs Seeds“.
+
+| Netz | ohne `+rv` | mit `+rv` | Mittel | gelöst |
+|---|---|---|---|---|
+| layer_s, 12k | 0,54 / 0,59 / 0,18 | 0,21 / 0,52 / 0,18 | 0,435 → 0,303 | 2 → 2 |
+| sp4, 12k | 0,52 / 0,61 / 0,19 | 0,27 / 0,65 / 0,25 | 0,443 → 0,388 | 2 → 3 |
+| am4, 12k | 0,14 / 0,35 / 0,08 | 0,10 / 0,21 / 0,12 | 0,191 → 0,143 | 1 → 1 |
+| hier_s, 12k | 0,14 / 0,13 / 0,15 | 0,15 / 0,15 / 0,13 | 0,142 → 0,141 | 0 → 0 |
+| attnmem, 12k | 0,07 / 0,32 / 0,37 / 0,18 / 0,44 / 0,07 | 0,07 / 0,07 / 0,07 / 0,31 / 0,38 / 0,07 | 0,241 → 0,161 | 3 → 2 |
+| vitmem, 12k | 0,45 / 0,07 / 0,32 / 0,20 / 0,07 / 0,07 | 0,56 / 0,07 / 0,07 / 0,44 / 0,07 / 0,07 | 0,195 → 0,213 | 2 → 2 |
+| layer_s, 24k | 0,72 / 0,21 / 0,64 / 0,23 / 0,25 / 0,74 | 0,71 / 0,21 / 0,19 / 0,21 / 0,60 / 0,72 | 0,463 → 0,440 | 3 → 3 |
+| sp4, 24k | 0,71 / 0,75 / 0,73 / 0,76 / 0,75 / 0,73 | 0,64 / 0,78 / 0,73 / 0,75 / 0,73 / 0,69 | 0,739 → 0,719 | 6 → 6 |
+
+- Welche Seeds lösen, wechselt: attnmem verliert Seeds 1 und 2 und gewinnt Seed 3, vitmem verliert Seed 2 und
+  gewinnt Seed 3, layer_s 24k verliert Seed 2 und gewinnt Seed 4 (0,60, tiefer als die übrigen gelösten).
+- Bei den Gitter-Netzen mit 12000 Updates sinken vor allem die späteren Ziele: `near_goal` für Ziel 2 / 3
+  layer_s 0,65 / 0,60 → 0,55 / 0,48, sp4 0,66 / 0,61 → 0,62 / 0,55, am4 0,45 / 0,42 → 0,42 / 0,37. Ziel 1 bleibt
+  fast gleich (Abstand höchstens 0,013). hier_s ändert sich nicht.
+- Der Trainingswert (`loop_refcurve.jsonl`) unterscheidet sich bei Update 2000 um höchstens 0,02, bei 6000 um
+  höchstens 0,04 in beide Richtungen. Bei 12000 liegen layer_s und sp4 Seed 0 mit `+rv` tiefer (0,69 → 0,64). Bei 24000 Updates liegen alle Endwerte innerhalb 0,02,
+  außer layer_s Seed 2 (0,72 → 0,63, eingebrochen) und Seed 4 (0,65 → 0,71, gelöst).
+
+**Vergleich mit der Vorhersage.** (1) Teilweise: sp4 −0,06, am4 −0,05, hier_s 0,00 innerhalb ±0,08, layer_s −0,13
+verfehlt. (2) Getroffen: 4 von 12 gelöst (Bereich 3–7). (3) Getroffen: sp4 6 von 6, layer_s 3 von 6. Die Schwelle
+ist dabei nicht ausdrücklich genannt; gemeint war die des Bezugs „6 und 3“ (0,45). Mit der Schwelle 0,20 käme
+layer_s ohne `+rv` auf 6 und mit auf 5 von 6, das liegt außerhalb des Bereichs. (4) Teilweise: bei 24000 Updates
+getroffen (layer_s −0,02, sp4 −0,02). Bei 12000 Updates verfehlt bei layer_s (0,56 → 0,37), sp4 (0,57 → 0,39),
+am4 (0,35 → 0,21) und vitmem (0,38 → 0,50), getroffen bei attnmem (−0,03). Mit nur 1 bis 3 gelösten Läufen je
+Bauart ist dieser Mittelwert allerdings stark vom einzelnen Lauf abhängig. Bilanz: 2 getroffen, 2 teilweise.
+
+**Schluss.** (a) Bei 24000 Updates ändert `+rv` den Endstand nicht: sp4 löst weiter 6 von 6, layer_s 3 von 6, die
+gelösten Läufe liegen 0,02 tiefer. Der Unterschied der Bauarten (sp4 verlässlich, layer_s nicht) bleibt. (b) Bei
+12000 Updates liegen die Gitter-Netze mit `+rv` eher etwas tiefer, und zwar bei den Zielen 2 und 3. Das passt zu
+„lernen etwas langsamer“: Ohne `+rv` hatten sie mit `ref_enc(0)` ein festes Zeichen für die Laufphase, mit `+rv`
+müssen sie das selbst aus dem Ablauf lernen. Mit drei Seeds je Bauart und einem einzelnen Lauf (layer_s Seed 0) als
+größtem Beitrag ist das ein Hinweis, kein Befund. (c) Bei attnmem und vitmem entscheidet `+rv` nicht über Lernen
+oder Nicht-Lernen insgesamt (5 → 4 von 12), es mischt aber neu, welche Seeds lernen. Das Ergebnis auf dieser Stufe
+ist bei ihnen also stark vom Zufall des einzelnen Laufs abhängig, und eine Lösequote braucht mehr als sechs Seeds.
+(d) Ab jetzt gilt `+rv` für neue Läufe mit Vorlage. Vergleiche nur innerhalb derselben Schnittstelle (mit oder ohne
+`+rv`); die alten Zahlen bleiben als Bezug gültig. (e) Zum Worker: 12 Läufe mit 24000 Updates brauchten mit 12
+Prozessen 530 min, die beiden 6er-Jobs vorher zusammen 652 min.
+
+**Belege.** `results/finds_loop.jsonl` (36 Zeilen `*+rv*` auf `robot_loop_three_f32`, davon 12 mit `ckpt`
+`robot_loop_three_f32_24k`), `results/loop_refcurve.jsonl` (36 neue Zeilen), `results/checkpoints/robot_loop_three_f32/`
+und `robot_loop_three_f32_24k/`.
+
 ## Laufend / offen
 
-- Neuer Standard `+rv` für Netze mit Vorlage, Etappe 1: drei Ziele (Nutzer 2026-11-19: „sauber vor Zeit“, Hinweis
-  Review Gemini 2.1). Mit `+rv` sendet ein Schritt ohne Vorlage keinen Befehl: kein Ausgang des
-  Vorlagen-Encoders, kein Muster aufs Bild (auch nicht dessen Bias). Die Schleifen-Aufgaben liefern dafür
-  ausdrücklich `ref_mask`. Ohne `+rv` sieht der Encoder in den Laufschritten das leere Bild, und
-  `ref_enc(0)` geht als konstanter Befehl in den Port. Geprüft (Commit mit dieser Vorhersage):
-  - alte Netze rechnen bitgleich;
-  - `+rv` hat bei gleichem Seed dieselben Anfangsgewichte;
-  - Laufschritte mit `+rv` = Netz ganz ohne Befehl (Unterschied 0);
-  - kein Gradient in den Adress-Weg aus Schritten ohne Vorlage;
-  - Rauchtest 300 Updates für attnmem und sp4.
-  Nebenbefund: Trainierte Netze ohne `+rv` nutzen `ref_enc(0)` stark (Ausgabe ändert sich um bis zu 7,6 bei
-  attnmem, 2,0 bei sp4, 0,7 bei layer_s), offenbar als Zeichen „jetzt Laufphase“. Mit `+rv` müssen sie das aus
-  dem Bild lesen (in den Hinweis-Schritten ist es leer).
-  Worker, 6 Prozesse: (A) layer_s, sp4, am4, hier_s mit `+cell+refl+rv+rez3`, Seeds 0–2, 12000 Updates; (B)
-  attnmem, vitmem mit `+refl+rv+rez3`, Seeds 0–4, 7, 12000 Updates; (C) layer_s, sp4 mit `+rv`, Seeds 0–4, 7, 24000
-  Updates. Vergleich jeweils mit denselben Seeds ohne `+rv`.
-  **Vorhersage vor dem Lauf (2026-11-19):** (1) Gitter-Netze, 12000 Updates: Das Mittel von `near_all` je Bauart
-  liegt innerhalb ±0,08 um den Wert ohne `+rv`. Der konstante Befehl war für sie nur ein Zeichen für die
-  Laufphase, das Bild liefert dasselbe. (2) attnmem und vitmem: Mit `+rv` lösen zusammen 3 bis 7 von 12
-  (`near_all` ≥ 0,20; ohne: 5 von 12). Das Muster `ref_enc(0)` ist am Anfang zu klein, um über Lernen oder
-  Nicht-Lernen zu entscheiden. (3) 24000 Updates: sp4 löst 6 von 6, layer_s 2 bis 4 von 6 (ohne: 6 und 3). (4)
-  Gelöste Läufe liegen je Bauart im Mittel innerhalb ±0,05 um die gelösten ohne `+rv`. Kurz: `+rv` macht die
-  Schnittstelle sauber, ändert die Ergebnisse dieser Stufe aber nicht messbar.
+- `+rv`, Etappe 2: dieselben 6 Netze (layer_s, sp4, am4, hier_s mit `+cell+refl+rv+rez3`, attnmem und vitmem
+  mit `+refl+rv+rez3`), Seeds 0–2, 12000 Updates, auf `robot_loop_cue_f32`, `robot_loop_blind_f32` und
+  `robot_loop_two_f32`. Vergleich mit denselben Seeds ohne `+rv`. Maß: `near` nach dem letzten Schritt (cue,
+  blind), `near_both` (two). Mittel ohne `+rv` (Seeds 0–2):
+  - cue: layer_s 0,888, sp4 0,880, am4 0,812, hier_s 0,861, attnmem 0,680, vitmem 0,528;
+  - blind: layer_s 0,906, sp4 0,907, am4 0,849, hier_s 0,855, attnmem 0,719, vitmem 0,649;
+  - two: layer_s 0,718, sp4 0,718, am4 0,570, hier_s 0,551, attnmem 0,251, vitmem 0,234.
+  **Vorhersage vor dem Lauf (2026-11-20):** (1) cue und blind, Gitter-Netze: Mittel je Bauart innerhalb ±0,03 um
+  den Wert ohne `+rv`. Mit nur einem Ziel gibt es nach dem Hinweis nur eine Laufphase; das Zeichen `ref_enc(0)`
+  trägt dort kaum Information. (2) cue und blind, attnmem und vitmem: Mittel je Bauart innerhalb ±0,10 (sie
+  streuen schon ohne `+rv` stark, vitmem cue 0,40–0,70). (3) two, Gitter-Netze: Mittel je Bauart höchstens 0,08
+  unter dem Wert ohne `+rv` und höchstens 0,03 darüber; im Mittel der vier Bauarten tiefer (wie bei drei Zielen,
+  Etappe 1, Schluss b). (4) two, attnmem und vitmem: innerhalb ±0,12. (5) In allen drei Aufgaben liegen die vier
+  Gitter-Netze im Mittel weiter über attnmem und vitmem.
 
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

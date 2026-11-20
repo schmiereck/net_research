@@ -254,6 +254,12 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   Prüfung mit breitem Port-Anfang (`+pw`, 2026-11-19): **negativ**, 0 von 12 Läufen lösen (ohne: attnmem 3/6,
   vitmem 2/6); die größere Anfangs-Streuung wird im Training zuerst wieder gedämpft. Die Henne-Ei-Deutung ist in
   dieser Form nicht bestätigt; `+pw` vergrößert auch das Muster auf dem Bild, beides ist nicht getrennt.
+  **Neuer Standard `+rv` (2026-11-19/20):** Ein Schritt ohne Vorlage sendet keinen Befehl mehr (vorher ging
+  `ref_enc(0)` als konstanter Befehl in den Port). Etappe 1, drei Ziele: Bei 24000 Updates gleicher Endstand (sp4
+  6/6, layer_s 3/6, gelöste Läufe −0,02). Bei 12000 Updates liegen die Gitter-Netze eher etwas tiefer (Mittel
+  layer_s −0,13, sp4 −0,06, am4 −0,05, hier_s 0), vor allem bei den Zielen 2 und 3. attnmem und vitmem 4 von 12
+  gelöst (ohne 5), aber andere Seeds: Ob sie lernen, ist dort Zufall des einzelnen Laufs. Neue Läufe mit Vorlage
+  nutzen `+rv`; verglichen wird nur innerhalb derselben Schnittstelle. Etappe 2 (cue, blind, two) läuft.
   **Falscher Körper (2026-11-18, nachgemessen 2026-11-19 auf allen Stufen):** Wer nach dem ersten Schritt auf einem
   falschen Körper steht, bleibt dort meist (`robot_loop_f32` 0,64–0,89, mit gemerkter Vorlage und bei drei Zielen
   0,80–0,98); Netze ohne Gedächtnis kommen öfter weg (0,26–0,32) als Netze mit (0,03–0,18). Vom richtigen Körper
