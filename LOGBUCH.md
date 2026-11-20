@@ -2940,5 +2940,17 @@ wir festlegen, sollte geprüft werden, ob das am Fehlen des Gradienten liegt (si
 
 ## Laufend / offen
 
+- `+rv` mit einem Hinweis-Schritt, Nachmessung mit mehr Seeds (Auftrag Nutzer 2026-11-20): Ist der Befund aus
+  Etappe 2 echt (vitmem auf cue und blind mit `+rv` 4 von 6 Läufen auf Zufall, ohne 0 von 6; sp4 Seed 0 halb
+  eingebrochen)? vitmem `+refl+rez3` und `+refl+rv+rez3`, layer_s_sp4 `+cell+refl+rez3` und `+cell+refl+rv+rez3`,
+  auf `robot_loop_cue_f32` und `robot_loop_blind_f32`, Seeds 3, 4, 7, 12000 Updates: 24 Läufe, Worker mit 14
+  Prozessen. Maß wie in Etappe 2: `near` nach dem letzten Schritt. „Auf Zufall“ heißt `near` ≤ 0,35,
+  „eingebrochen“ bei sp4 heißt `near` < 0,75 (gelernte sp4-Läufe bisher 0,85–0,93).
+  **Vorhersage vor dem Lauf (2026-11-20):** (1) vitmem mit `+rv`: mindestens 3 der 6 neuen Läufe auf Zufall; ohne
+  `+rv`: höchstens 1 von 6. (2) Zusammen mit Seeds 0–2 (12 Läufe je Variante) ist der Unterschied bei vitmem im
+  exakten Test nach Fisher (einseitig) p < 0,05. (3) sp4 mit `+rv`: mindestens 1 der 6 neuen Läufe eingebrochen;
+  ohne `+rv`: keiner. (4) sp4-Läufe, die nicht eingebrochen sind, liegen mit und ohne `+rv` im Mittel höchstens
+  0,03 auseinander: `+rv` entscheidet über Lernen oder Nicht-Lernen, nicht über die Güte danach.
+
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
