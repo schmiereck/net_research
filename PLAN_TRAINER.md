@@ -1446,6 +1446,20 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
 
 **Phase C – T3 Freeze & Route als Lehrplan-Test**
 - Über die Sieb-Stufen (4c), mit individuellen Modulen oder einer Fähigkeiten-Bibliothek am Bus.
+- **Entschieden 2026-11-21 (Nutzer, nach Review agy 2026-11-21):**
+  - Fähigkeiten-Bibliothek statt einzelner Module (`_i` war im Sieb schwächer; bei `_s` friert ein Freeze
+    ohnehin das ganze Netz ein). Ein gelerntes Netz wird ganz eingefroren und ist ein Eintrag der Bibliothek.
+  - Anbindung seitlich + Gate: Ein neues Modul gleicher Bauart liest die oberste Darstellung des eingefrorenen
+    Netzes über seinen Befehls-Port (16 Werte, gelernte Abbildung), ein Gate mischt die Ausgaben
+    (`netresearch/models/route.py`, Lehrplan-Wort `freeze`). Ähnlich Progressive Networks, aber nur die oberste
+    Darstellung, damit es für jede Bauart gleich ist.
+  - Erster Prüfstand ist nicht das Sieb, sondern die Vergleichs-Leiter `keep_shift` → `match_shift`: Dort baut
+    Stufe 2 nachweislich auf Stufe 1 auf (von null an 0,00, mit Vorstufe 1,00). Im Sieb bauen die Stufen kaum
+    aufeinander auf, und fast kein Netz kommt über A1 hinaus.
+  - Vergleiche: von null an, Feintuning ohne Einfrieren, beides gemischt, und als Kontrolle ein eingefrorenes
+    ungelerntes Netz (trennt „das Können hilft“ von „das zweite Modul hilft“).
+  - Zweiter Prüfstand, wenn der erste trägt: die Blickschleifen-Leiter `cue → blind → two → three`.
+  - Offen: Die Auswahl zwischen Einträgen nach Aufgabe („Route“) fehlt noch; das Gate sieht nur die Eingabe.
 
 **Phase D – Gelernter Teacher (Stufe 1)**
 - Ein kleiner Teacher, geteilt an allen Positionen, liest die Telemetrie und schreibt die Modulation.

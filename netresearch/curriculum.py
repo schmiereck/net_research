@@ -5,7 +5,10 @@
 
 A plan is a list of phases "task[+task...]:updates". Several tasks in a phase are trained round-robin (updates
 = gradient steps of the phase in total). Every phase has its own optimizer and learning-rate schedule (warm-up,
-cosine), as a single run has. --watch: tasks whose test score is recorded every 250 updates over the whole
+cosine), as a single run has. The word "freeze" between phases (PLAN_TRAINER Phase C, models/route.py) freezes
+the net trained so far and adds a new module of the same kind that reads the frozen net's top representation
+through its command port; only the new module, that read-out and an output gate learn from then on. "freeze" as
+the first word freezes the untrained net (control: same structure, no skill in the frozen part). --watch: tasks whose test score is recorded every 250 updates over the whole
 plan (default: the tasks of the last phase).
 -> results/curriculum.jsonl: plan (also as "task"), model, seed, final scores, curve [[update, {task: score}],
 ...]. Runs already in the output file are skipped.
@@ -22,7 +25,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def parse(plan):
-    return [(p.split(":")[0].split("+"), int(p.split(":")[1])) for p in plan.split()]
+    return [("freeze", 0) if p == "freeze" else (p.split(":")[0].split("+"), int(p.split(":")[1]))
+            for p in plan.split()]
 
 
 def job(args):
@@ -37,9 +41,11 @@ def job(args):
         torch.manual_seed(seed)
         phases = parse(plan)
         for names, _ in phases:
-            for t in names:
+            for t in ([] if names == "freeze" else names):
                 make_task(t)                   # fail early on a missing task or data set
         model = build_model(model_name, 100_000, seed=seed)
+        params = model_name.partition("@")[2]
+        params = int(float(params.rstrip("k")) * 1000) if params else 100_000
         watch = watch or phases[-1][0]
         wt = {t: make_task(t) for t in watch}
         curve, ref_curve, done, t0 = [], [], 0, time.time()
@@ -59,6 +65,10 @@ def job(args):
                                   round((out.abs() > 0.95).float().mean().item(), 4),
                                   round(pre.abs().mean().item(), 3), round(pre.std(0).mean().item(), 3)])
         for k, (names, updates) in enumerate(phases):
+            if names == "freeze":
+                from .models.route import freeze_and_route
+                model = freeze_and_route(model, model_name, params, seed)
+                continue
             specs = [make_task(t).spec for t in names]
             if any(s.pop for s in specs) and sum(s.role == "symbol" for s in specs) > 1:
                 raise ValueError(f"{'+'.join(names)}: a step task in the population code shares the symbol area "
@@ -77,12 +87,16 @@ def job(args):
         parts = {t: m["parts"] for t, m in fm.items() if "parts" in m}
         near = {t: [round(m["near"], 4), round(m["step_err"], 4)] for t, m in fm.items() if "near" in m}
         curve.append([done, final])
+        frozen_final = None
+        if hasattr(model, "frozen"):                     # Freeze & Route: the frozen net alone on the watched tasks
+            frozen_final = {t: round(final_metrics(model.frozen, task)["score"], 4) for t, task in wt.items()}
         watch_ref(done)
         if name:
             save_checkpoint(model, model_name, name, seed, list(final.values())[-1])
         return {"plan": plan, "task": plan, "model": model_name, "seed": seed, "updates": done, "final": final, "parts": parts,
                 "near": near,          # step tasks: [share at most one cell off, mean error in cells]
                 "time": round(time.time() - t0, 1), "curve": curve,
+                **({"frozen_final": frozen_final} if frozen_final else {}),
                 # picture encoder ("+ref") at every evaluation: [update, spread of the output over pictures,
                 # share of output values beyond +-0.95, mean |value before the tanh|, its spread over pictures]
                 **({"ref_curve": ref_curve} if ref_curve else {})}

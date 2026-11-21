@@ -3151,5 +3151,35 @@ noch offene `+rvt`-Vorhersage mit in das Zitat jenes Eintrags gezogen. Sie ist d
 
 ## Laufend / offen
 
+- Phase C, erster Test: Einfrieren und Andocken auf der Vergleichs-Leiter (Auftrag Nutzer 2026-11-21: Port ohne
+  `+rv` schließen, mit Phase C beginnen; Anbindung seitlich + Gate, Prüfstand Vergleichs-Leiter).
+  Baustein `netresearch/models/route.py`, Lehrplan-Wort `freeze` in `netresearch/curriculum.py`:
+  - Das bis dahin gelernte Netz wird eingefroren (kein Gradient, Gewichte bleiben gleich).
+  - Ein neues Modul gleicher Bauart (100k, eigener Start) lernt weiter. Es bekommt die oberste Darstellung des
+    eingefrorenen Netzes (Eingang seines Kopfes) über eine gelernte Abbildung auf 16 Werte an seinem
+    Befehls-Port (`+cell` bei Gittern, `+cmd` bei gru).
+  - Ein Gate (ein Wert je Schritt, aus der obersten Darstellung des neuen Moduls, Start 0,5) mischt die
+    Ausgaben beider.
+  - Geprüft in `scripts/check_route.py`: eingefrorener Teil rechnet wie das Netz allein (auch mit Resets),
+    Gewichte bleiben gleich, kein Gradient dorthin, Gradient in neues Modul, Abbildung und Gate, seitliches
+    Signal wirkt.
+  Fünf Pläne, je 12000 Updates insgesamt (bei `freeze` + Kontrolle 9000 nach dem Einfrieren), layer_s, hier_s,
+  gru, Seeds 0–2, `--watch keep_shift match_shift`, Worker mit 14 Prozessen -> `results/route.jsonl`:
+  (P1) `match_shift:12000` von null an; (P2) `keep_shift:3000 match_shift:9000` Feintuning;
+  (P3) `keep_shift:3000 freeze match_shift:9000` Einfrieren und Andocken; (P4) `freeze match_shift:9000`
+  Kontrolle: eingefroren wird ein ungelerntes Netz (gleicher Aufbau, kein Können darin);
+  (P5) `keep_shift+match_shift:12000` beides gemischt.
+  Bekannt (Seeds 5, 6): von null an layer_s und hier_s 0,00, gru 0,43; nach 3000 Updates `keep_shift` lösen alle
+  drei `match_shift` (0,94–1,00). Nie gemessen: wie viel `keep_shift` beim Feintuning verloren geht.
+  Bewertung: `match_shift` gelöst = Wert ≥ 0,8.
+  **Vorhersage vor dem Lauf (2026-11-21):** (1) P1: layer_s und hier_s ≤ 0,1 in 6 von 6, gru 0,3–0,5.
+  (2) P2: `match_shift` gelöst in mindestens 7 von 9; `keep_shift` am Ende < 0,5 in mindestens 6 von 9 (das
+  Feintuning vergisst). (3) P3: `match_shift` gelöst in mindestens 6 von 9, bei den Gittern je Seed mindestens
+  0,5 über P4. (4) P4: layer_s und hier_s ≤ 0,1 in 6 von 6, gru 0,3–0,5. (5) P3 lernt langsamer als P2:
+  nach 3000 Updates der zweiten Stufe (Update 6000) liegt das Mittel von P3 unter dem von P2. (6) Das
+  eingefrorene Netz allein behält `keep_shift` genau (Prüfung, keine Vorhersage); der Verbund aus P3 löst
+  `keep_shift` dagegen nicht (< 0,5 in mindestens 6 von 9), weil das Gate nichts über die Aufgabe weiß.
+  (7) P5: die Gitter lösen `match_shift` in höchstens 3 von 6.
+
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
