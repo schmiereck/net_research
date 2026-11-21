@@ -1460,6 +1460,11 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
     ungelerntes Netz (trennt „das Können hilft“ von „das zweite Modul hilft“).
   - Zweiter Prüfstand, wenn der erste trägt: die Blickschleifen-Leiter `cue → blind → two → three`.
   - Offen: Die Auswahl zwischen Einträgen nach Aufgabe („Route“) fehlt noch; das Gate sieht nur die Eingabe.
+  - **Erster Test (2026-11-21, LOGBUCH):** Das eingefrorene Können wird genutzt (P3 0,32–0,97, Kontrolle 0,00),
+    aber bei den Gittern schwächer und langsamer als Feintuning (2 von 6 gelöst gegen 6 von 6). Mischen (P5)
+    hält bei den Gittern beide Aufgaben. Der Verbund verliert die alte Aufgabe (Gate ohne Aufgabenwissen).
+    Ungeprüfte Gründe für die Schwäche: seitliches Signal nur oben und durch 16 Werte; frisches layer_s
+    ignoriert anfangs den Befehl.
 
 **Phase D – Gelernter Teacher (Stufe 1)**
 - Ein kleiner Teacher, geteilt an allen Positionen, liest die Telemetrie und schreibt die Modulation.

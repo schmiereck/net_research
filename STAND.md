@@ -104,6 +104,12 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   keinem Gitter-Netz (0.00) und mit Vorstufe bei allen (0.97–1.00), bei gleicher Gesamtzahl an Updates. Als
   Vorstufe reichen 3000 Updates „ein wanderndes Muster merken“. Beim Vergleichen in einem Bild hebt Lesen als
   Nebenaufgabe das cnn von 0.00 auf 1.00.
+- **Einfrieren und Andocken (Phase C, erster Test 2026-11-21, `results/route.jsonl`):** Ein eingefrorenes Netz
+  mit dem Können `keep_shift`, seitlich gelesen von einem neuen Modul, macht `match_shift` lernbar (ohne Können 0
+  von 9, mit 0,32–0,97). Für die Gitter ist es aber schwächer und langsamer als Feintuning (gelöst 2 von 6 gegen 6
+  von 6). Feintuning vergisst `keep_shift` sofort und ganz. Mischen beider Aufgaben gibt den Gittern beides (keep
+  1,00, match 0,73–1,00): Sind die alten Daten da, schlägt Mischen das Einfrieren. Der Verbund verliert
+  `keep_shift`, weil das Gate die Aufgabe nicht kennt; es fehlt die Auswahl nach Aufgabe.
 - **Lesart:** Die langen Plateaus sind fehlende Zwischenziele. Verlangt eine Hilfsaufgabe die Zwischengröße als
   Ausgabe, verschwinden sie bei allen Architekturen. Das ist die Rolle, die ein Teacher übernehmen soll.
 - Auf den Roboter-Aufgaben trägt das Prinzip bisher nur teilweise: Bei „Hand zum Würfel“ hebt die Hilfsaufgabe
