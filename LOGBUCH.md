@@ -3027,6 +3027,16 @@ Ziele. Das ist ein Blick auf einzelne Läufe, keine Messung.
 
 ## Laufend / offen
 
+- Live-Test neu mit eigener Szenenfarbe (Auftrag Nutzer 2026-11-21, nach der Korrektur vom selben Tag):
+  dieselben 12 Netze (sp4 und layer_s 24000 Updates, vitmem und attnmem 12000, je Seeds 0–2), dieselben 150
+  Szenen (Saat 77000), Bedingungen `static`, `live` und `away` (vorher `away` nur für 5 Netze), Robot-Commit
+  17c0b19 -> `results/robot_live_loop_v3.jsonl`.
+  **Vorhersage vor dem Lauf (2026-11-21):** (1) Die Farbe spielt kaum eine Rolle: `static` je Netz höchstens 0,04
+  vom alten Wert. (2) Abstand `static` zum Prüfstand im Mittel der 12 Netze innerhalb ±0,02 (vorher +0,010).
+  (3) Der Arm kostet weiter: Gitter-Netze mit `static` ≥ 0,5 verlieren mit `live` 15–30 % (vorher 21–28 %).
+  (4) `away` gegen `live` je Netz mit `static` ≥ 0,2 im Verhältnis 0,9–1,2 (Ablenkung, nicht Verdecken, hält).
+  (5) Spearman Prüfstand–`live` mindestens 0,9.
+
 - Gelerntes Zeichen „keine Vorlage“ (`+rvt`, Auftrag Nutzer 2026-11-21): Wie `+rv`, aber Laufschritte senden
   statt nichts ein eigenes, gelerntes Zeichen (16 Werte, `model.no_ref`, Start bei 0), das wie ein gewöhnlicher
   Befehl in den Port geht, nicht durch den Vorlagen-Encoder. Geprüft (`scripts/check_ref_valid.py`, Teil 6):
