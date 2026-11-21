@@ -22,6 +22,8 @@ Probes (curriculum word "freeze:<opt>", LOGBUCH 2026-11-21), each changes one th
     pcell   every cell of the new grid reads the SAME cell of the frozen grid (16 values per cell, one shared
             linear map), not only the top representation: layer_s cell (r, c) its output, hier_s module (r, c) its
             ORP output (the part of a module's output the grid keeps in its state). Grids only.
+Probes combine with '+' (e.g. "freeze:pcell+fc2"); only pcell+fc2 is allowed so far (the others change the port or
+the gate and do not combine with pcell).
 """
 import torch
 import torch.nn as nn
@@ -112,7 +114,9 @@ def _top_dim(model):
 def freeze_and_route(frozen, name, target_params=100_000, seed=0, opt=""):
     """Wrap a trained (or, as a control, untrained) net: frozen + a new module of the same kind with a port.
     opt: "" or one of the probes in the module docstring."""
-    assert opt in ("", "p64", "pfull", "fc2", "nogate", "pcell"), f"unknown freeze option {opt}"
+    opts = set(opt.split("+")) - {""}
+    assert len(opts) <= 1 or opts == {"pcell", "fc2"}, f"unknown freeze option combination {opt}"
+    assert opts <= {"p64", "pfull", "fc2", "nogate", "pcell"}, f"unknown freeze option {opt}"
     n_port = {"p64": 64, "pfull": _top_dim(frozen)}.get(opt, N_CMD)
     if n_port == N_CMD:
         new = build_model(port_name(name), target_params, seed=seed + 7919)
@@ -123,12 +127,12 @@ def freeze_and_route(frozen, name, target_params=100_000, seed=0, opt=""):
         torch.manual_seed(seed + 7919)
         new = MODELS[base][0](width=width, n_cmd=n_port)
         new.width_used = width
-    if opt == "fc2":
+    if "fc2" in opts:
         assert hasattr(new, "fc2"), "fc2 probe for grids only"
         with torch.no_grad():                          # the usual random start of CellLinear
             w = new.fc2.w
             w.copy_(torch.randn(w.shape, generator=torch.Generator().manual_seed(seed + 31)) / math.sqrt(w.shape[-2]))
-    if opt == "pcell":
+    if "pcell" in opts:
         assert hasattr(frozen, "fc2"), "pcell for grids only"
         m = FrozenRoute(frozen, new, frozen.d, _top_dim(new), n_port=N_CMD)
         m.per_cell = True

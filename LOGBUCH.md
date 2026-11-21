@@ -3328,5 +3328,19 @@ Zeilen exakt.
 
 ## Laufend / offen
 
+- Phase C, `pcell` zusammen mit zufälligem Start von fc2 bei layer_s (Auftrag Nutzer 2026-11-21: „prüfe pcell
+  zusammen mit fc2 bei layer_s“). Frage: Lernt layer_s mit `freeze:pcell+fc2` schneller als mit `pcell` allein?
+  Begründung der Erwartung: Bei layer_s startet fc2 bei null, die Zelle reicht anfangs nur den Restpfad durch;
+  der Befehl je Zelle wirkt erst, wenn fc2 gewachsen ist. `pcell+fc2` unterscheidet sich von `pcell` nur in fc2
+  (geprüft in `scripts/check_route.py`), Stufe 1 ist gleich, also Vergleich je Seed.
+  Plan `keep_shift:3000 freeze:pcell+fc2 match_shift:9000`, layer_s, Seeds 0–9. Dazu `freeze`, `freeze:pcell`
+  und `freeze:fc2` für Seeds 5–9 (0–4 liegen vor), also alle vier Varianten auf 10 Seeds; 25 Läufe, Worker mit
+  14 Prozessen -> `results/route.jsonl`. Gelöst = `match_shift` ≥ 0,8.
+  **Vorhersage vor dem Lauf (2026-11-21):** (1) Schneller: bei Update 7500 liegt `pcell+fc2` im Mittel
+  mindestens 0,15 über `pcell` (dort 0,42 auf Seeds 0–4) und je Seed in mindestens 7 von 10 darüber.
+  (2) Am Ende kein Schaden: Mittel innerhalb ±0,05 von `pcell` oder darüber, gelöst in mindestens 8 von 10.
+  (3) Der Befund des vorigen Eintrags wiederholt sich auf Seeds 5–9: `pcell` löst mindestens 4 von 5,
+  `freeze` höchstens 2 von 5. (4) `fc2` allein löst auf Seeds 5–9 1 bis 3 von 5 (wie 2 von 5 auf Seeds 0–4).
+
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

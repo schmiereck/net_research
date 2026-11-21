@@ -129,8 +129,14 @@ m = freeze_and_route(build_model("layer_s", seed=3), "layer_s", seed=3, opt="fc2
 check(m.new.fc2.w.abs().sum() > 0, "layer_s: fc2 probe starts the second cell layer random")
 check(freeze_and_route(build_model("layer_s", seed=3), "layer_s", seed=3).new.fc2.w.abs().sum() == 0,
       "layer_s: default new module starts it at zero")
+m = freeze_and_route(build_model("layer_s", seed=3), "layer_s", seed=3, opt="pcell+fc2")
+m1 = freeze_and_route(build_model("layer_s", seed=3), "layer_s", seed=3, opt="fc2")
+m2 = freeze_and_route(build_model("layer_s", seed=3), "layer_s", seed=3, opt="pcell")
+check(m.per_cell and torch.equal(m.new.fc2.w, m1.new.fc2.w), "layer_s: pcell+fc2 is per cell and has fc2's random start")
+check(all(torch.equal(v, m2.state_dict()[k]) for k, v in m.state_dict().items() if "fc2" not in k),
+      "layer_s: pcell+fc2 differs from pcell only in fc2")
 finals = {}
-for opt in ("", ":p64", ":pfull", ":fc2", ":nogate", ":pcell"):
+for opt in ("", ":p64", ":pfull", ":fc2", ":nogate", ":pcell", ":pcell+fc2"):
     r = job((f"keep_shift:60 freeze{opt} match_shift:30", "layer_s", 0, ["keep_shift", "match_shift"], None))
     check("error" not in r, f"layer_s: 'freeze{opt}' runs " + str(r.get("final", r.get("error", "")[-300:])))
     finals[opt] = r.get("frozen_final")
