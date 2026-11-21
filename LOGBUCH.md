@@ -3025,36 +3025,82 @@ Ziele. Das ist ein Blick auf einzelne Läufe, keine Messung.
 **Belege.** `rdf_thalamus_sml`, Commit 17c0b19; Wiki `befunde/netresearch-live-blickschleife.md` (Nachtrag
 2026-11-21).
 
+## 2026-11-21 — Live-Test mit eigener Szenenfarbe: die Befunde halten, sp4 war durch die falsche Farbe leicht benachteiligt
+
+**Frage.** Ändern sich die Live-Befunde, wenn jede Szene in ihrer eigenen Farbe läuft (Korrektur vom selben Tag)?
+
+**Gemacht.** `rdf_thalamus_sml/src/pc_cvnn/netresearch_live_loop.py` (Robot-Commit 17c0b19) gegen
+`scripts/policy_server.py`, dieselben 12 Netze und 150 Szenen, Bedingungen `static`, `live` und `away`, lokal
+(etwa 35 min). Orakel 1,00 in allen drei Bedingungen. Vorhersage vor dem Lauf (wörtlich aus „Laufend / offen“):
+
+> - Live-Test neu mit eigener Szenenfarbe (Auftrag Nutzer 2026-11-21, nach der Korrektur vom selben Tag):
+>   dieselben 12 Netze (sp4 und layer_s 24000 Updates, vitmem und attnmem 12000, je Seeds 0–2), dieselben 150
+>   Szenen (Saat 77000), Bedingungen `static`, `live` und `away` (vorher `away` nur für 5 Netze), Robot-Commit
+>   17c0b19 -> `results/robot_live_loop_v3.jsonl`.
+>   **Vorhersage vor dem Lauf (2026-11-21):** (1) Die Farbe spielt kaum eine Rolle: `static` je Netz höchstens 0,04
+>   vom alten Wert. (2) Abstand `static` zum Prüfstand im Mittel der 12 Netze innerhalb ±0,02 (vorher +0,010).
+>   (3) Der Arm kostet weiter: Gitter-Netze mit `static` ≥ 0,5 verlieren mit `live` 15–30 % (vorher 21–28 %).
+>   (4) `away` gegen `live` je Netz mit `static` ≥ 0,2 im Verhältnis 0,9–1,2 (Ablenkung, nicht Verdecken, hält).
+>   (5) Spearman Prüfstand–`live` mindestens 0,9.
+>
+> - Gelerntes Zeichen „keine Vorlage“ (`+rvt`, Auftrag Nutzer 2026-11-21): Wie `+rv`, aber Laufschritte senden
+>   statt nichts ein eigenes, gelerntes Zeichen (16 Werte, `model.no_ref`, Start bei 0), das wie ein gewöhnlicher
+>   Befehl in den Port geht, nicht durch den Vorlagen-Encoder. Geprüft (`scripts/check_ref_valid.py`, Teil 6):
+>   - gleiche Anfangsgewichte wie `+rv`, dazu das Zeichen bei 0;
+>   - Hinweis-Schritte rechnen wie `+rv`, Laufschritte wie ein Befehl gleich dem Zeichen;
+>   - kein Gradient in den Vorlagen-Encoder aus Laufschritten, aber in das Zeichen;
+>   - Rauchtest 300 Updates (vitmem, sp4), das Zeichen lernt.
+>   Frage: Fehlte vitmem mit `+rv` das feste Zeichen für die Laufphase (dann hilft `+rvt`) oder der Gradient, den
+>   `ref_enc(0)` in jedem Laufschritt in den Encoder gab (dann hilft `+rvt` nicht)? vitmem und sp4 mit
+>   `+refl+rvt+rez3` (sp4 mit `+cell`), `robot_loop_cue_f32` und `robot_loop_blind_f32`, Seeds 0–4, 7, 12000 Updates:
+>   24 Läufe, Worker mit 14 Prozessen. Vergleich mit denselben Seeds ohne `+rv` (vitmem 0 von 12 auf Zufall) und mit
+>   `+rv` (6 von 12). Maße und Schwellen wie in der Nachmessung (Zufall: `near` ≤ 0,35; sp4 eingebrochen: < 0,75).
+>   **Vorhersage vor dem Lauf (2026-11-21):** (1) Das Zeichen hilft nicht: vitmem mit `+rvt` mindestens 4 von 12
+>   auf Zufall. Begründung: Auch mit `+rv` ist die Laufphase am Bild erkennbar (im Hinweis-Schritt liegt ein Muster
+>   auf dem Bild, in den Laufschritten nicht); was ohne `+rv` zusätzlich da war, ist der Gradient durch den
+>   gemeinsamen Encoder-Weg. (2) Damit vitmem `+rvt` gegen ohne `+rv`: Fisher einseitig p < 0,05. (3) sp4 mit `+rvt`:
+>   höchstens 2 von 12 eingebrochen. (4) sp4, nicht eingebrochene Läufe: Mittel innerhalb 0,03 um ohne `+rv`
+>   (0,896).
+
+**Ergebnis.** `near_all`, alter Wert (falsche Farbe) → neuer Wert:
+
+| Netz | Seed | Prüfstand | `static` | `live` | Verlust | `away` | `away` / `live` |
+|---|---|---|---|---|---|---|---|
+| sp4, 24k | 0 | 0,714 | 0,716 → 0,759 | 0,552 → 0,581 | 23 % | 0,573 | 0,99 |
+| sp4, 24k | 1 | 0,753 | 0,768 → 0,794 | 0,554 → 0,557 | 30 % | 0,558 | 1,00 |
+| sp4, 24k | 2 | 0,732 | 0,761 → 0,780 | 0,561 → 0,586 | 25 % | 0,579 | 0,99 |
+| layer_s, 24k | 0 | 0,721 | 0,757 → 0,758 | 0,597 → 0,582 | 23 % | 0,551 | 0,95 |
+| layer_s, 24k | 1 | 0,210 | 0,217 → 0,221 | 0,201 → 0,206 | 7 % | 0,189 | 0,92 |
+| layer_s, 24k | 2 | 0,637 | 0,632 → 0,637 | 0,494 → 0,493 | 23 % | 0,496 | 1,01 |
+| vitmem | 0 | 0,448 | 0,432 → 0,441 | 0,377 → 0,372 | 16 % | 0,368 | 0,99 |
+| vitmem | 1 | 0,071 | 0,073 → 0,080 | 0,070 → 0,067 | 17 % | 0,070 | 1,05 |
+| vitmem | 2 | 0,315 | 0,309 → 0,321 | 0,261 → 0,267 | 17 % | 0,274 | 1,03 |
+| attnmem | 0 | 0,068 | 0,077 → 0,073 | 0,070 → 0,067 | 8 % | 0,064 | 0,96 |
+| attnmem | 1 | 0,319 | 0,342 → 0,328 | 0,279 → 0,272 | 17 % | 0,265 | 0,98 |
+| attnmem | 2 | 0,370 | 0,393 → 0,396 | 0,322 → 0,318 | 20 % | 0,314 | 0,99 |
+
+- `static` ändert sich bei 9 von 12 Netzen um höchstens 0,014. Die drei sp4-Läufe steigen: +0,019 bis +0,043.
+- `static` liegt jetzt bei 11 von 12 Netzen über dem Prüfstand, im Mittel +0,019 (vorher +0,010).
+- Spearman Prüfstand–`live` 0,951 (vorher 0,97), Prüfstand–`static` 0,993.
+
+**Vergleich mit der Vorhersage.** (1) Teilweise: 11 von 12 innerhalb 0,04, sp4 Seed 0 mit +0,043 knapp darüber.
+(2) Getroffen, knapp: +0,019 (Grenze ±0,02). (3) Getroffen: die fünf Gitter-Läufe mit `static` ≥ 0,5 verlieren
+23–30 %. (4) Getroffen: `away` / `live` 0,92–1,05 bei allen 10 Netzen mit `static` ≥ 0,2. (5) Getroffen: 0,951.
+Bilanz: 4 getroffen, 1 teilweise.
+
+**Schluss.** (a) Die Befunde vom 19.11. halten: Der Prüfstand sagt die Rangfolge vorher (Spearman 0,95), der Arm
+im Bild kostet die Gitter-Netze ein Viertel (23–30 %), und er stört durch Ablenkung, nicht durch Verdecken
+(`away` gleich `live`, jetzt für alle 10 Netze über Zufall geprüft). Der Vorbehalt aus der Korrektur ist damit
+aufgehoben; die neuen Zahlen ersetzen die alten. (b) Die falsche Farbe hat nur sp4 merklich geschadet (bis 0,04);
+die anderen Bauarten suchen offenbar nur nach der Form. Warum gerade sp4 auf die Farbe des Zeigebilds achtet, ist
+nicht geprüft. (c) Der leicht höhere Wert `static` gegenüber dem Prüfstand ist nicht die Farbe, er wird mit der
+richtigen Farbe sogar größer (+0,019). Übrig bleiben die eigenen Szenen des Live-Skripts (eigene Saat, Schwerpunkt
+aus dem Modell, Zeigebilder aus der Simulation). Für die Vorhersage der Rangfolge ist das unerheblich.
+
+**Belege.** `results/robot_live_loop_v3.jsonl` (39 Zeilen, Feld `scene_colour: own`); Wiki
+`befunde/netresearch-live-blickschleife.md`.
+
 ## Laufend / offen
-
-- Live-Test neu mit eigener Szenenfarbe (Auftrag Nutzer 2026-11-21, nach der Korrektur vom selben Tag):
-  dieselben 12 Netze (sp4 und layer_s 24000 Updates, vitmem und attnmem 12000, je Seeds 0–2), dieselben 150
-  Szenen (Saat 77000), Bedingungen `static`, `live` und `away` (vorher `away` nur für 5 Netze), Robot-Commit
-  17c0b19 -> `results/robot_live_loop_v3.jsonl`.
-  **Vorhersage vor dem Lauf (2026-11-21):** (1) Die Farbe spielt kaum eine Rolle: `static` je Netz höchstens 0,04
-  vom alten Wert. (2) Abstand `static` zum Prüfstand im Mittel der 12 Netze innerhalb ±0,02 (vorher +0,010).
-  (3) Der Arm kostet weiter: Gitter-Netze mit `static` ≥ 0,5 verlieren mit `live` 15–30 % (vorher 21–28 %).
-  (4) `away` gegen `live` je Netz mit `static` ≥ 0,2 im Verhältnis 0,9–1,2 (Ablenkung, nicht Verdecken, hält).
-  (5) Spearman Prüfstand–`live` mindestens 0,9.
-
-- Gelerntes Zeichen „keine Vorlage“ (`+rvt`, Auftrag Nutzer 2026-11-21): Wie `+rv`, aber Laufschritte senden
-  statt nichts ein eigenes, gelerntes Zeichen (16 Werte, `model.no_ref`, Start bei 0), das wie ein gewöhnlicher
-  Befehl in den Port geht, nicht durch den Vorlagen-Encoder. Geprüft (`scripts/check_ref_valid.py`, Teil 6):
-  - gleiche Anfangsgewichte wie `+rv`, dazu das Zeichen bei 0;
-  - Hinweis-Schritte rechnen wie `+rv`, Laufschritte wie ein Befehl gleich dem Zeichen;
-  - kein Gradient in den Vorlagen-Encoder aus Laufschritten, aber in das Zeichen;
-  - Rauchtest 300 Updates (vitmem, sp4), das Zeichen lernt.
-  Frage: Fehlte vitmem mit `+rv` das feste Zeichen für die Laufphase (dann hilft `+rvt`) oder der Gradient, den
-  `ref_enc(0)` in jedem Laufschritt in den Encoder gab (dann hilft `+rvt` nicht)? vitmem und sp4 mit
-  `+refl+rvt+rez3` (sp4 mit `+cell`), `robot_loop_cue_f32` und `robot_loop_blind_f32`, Seeds 0–4, 7, 12000 Updates:
-  24 Läufe, Worker mit 14 Prozessen. Vergleich mit denselben Seeds ohne `+rv` (vitmem 0 von 12 auf Zufall) und mit
-  `+rv` (6 von 12). Maße und Schwellen wie in der Nachmessung (Zufall: `near` ≤ 0,35; sp4 eingebrochen: < 0,75).
-  **Vorhersage vor dem Lauf (2026-11-21):** (1) Das Zeichen hilft nicht: vitmem mit `+rvt` mindestens 4 von 12
-  auf Zufall. Begründung: Auch mit `+rv` ist die Laufphase am Bild erkennbar (im Hinweis-Schritt liegt ein Muster
-  auf dem Bild, in den Laufschritten nicht); was ohne `+rv` zusätzlich da war, ist der Gradient durch den
-  gemeinsamen Encoder-Weg. (2) Damit vitmem `+rvt` gegen ohne `+rv`: Fisher einseitig p < 0,05. (3) sp4 mit `+rvt`:
-  höchstens 2 von 12 eingebrochen. (4) sp4, nicht eingebrochene Läufe: Mittel innerhalb 0,03 um ohne `+rv`
-  (0,896).
 
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

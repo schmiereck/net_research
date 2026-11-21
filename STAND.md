@@ -282,9 +282,11 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   Körper, ist der Verlust gleich groß (0,96–1,17-fach). **Der Arm stört durch Ablenkung, nicht durch Verdecken**;
   mit Arm im Bild bleibt der Blick auch öfter auf dem gerade gefundenen Körper hängen (verfehlte Strecken 0,07–0,16
   statt 0,01–0,05). Arm-Bilder gehören in Training oder Prüfung des Prüfstands.
-  **Vorbehalt (2026-11-21):** Alle Live-Zahlen wurden mit falscher Szenenfarbe gemessen: Jede Szene lief in der
-  Farbe der zuletzt erzeugten, die Zeigebilder in der eigenen (Robot-Commit 17c0b19 korrigiert). Neu gemessen ist
-  noch nicht. Video einzelner Läufe: `rdf_thalamus_sml/src/pc_cvnn/netresearch_live_video.py`.
+  **Neu gemessen mit richtiger Szenenfarbe (2026-11-21):** Bis dahin lief jede Szene in der Farbe der zuletzt
+  erzeugten (Robot-Commit 17c0b19 korrigiert). Die Befunde halten: Spearman Prüfstand–live 0,95, Gitter-Netze
+  verlieren mit Arm 23–30 %, `away` gleich `live` (0,92–1,05) bei allen 10 Netzen über Zufall. Die falsche Farbe
+  kostete nur sp4 etwas (`static` +0,02–0,04). Zahlen: `results/robot_live_loop_v3.jsonl`. Video einzelner Läufe:
+  `rdf_thalamus_sml/src/pc_cvnn/netresearch_live_video.py`.
 - **Blickziel am Flächenschwerpunkt** (`robot_finds_c_f32`, 2026-11-14): exakt +0,04–0,05 (layer_s 0,74), der
   Formeffekt schrumpft von bis zu 0,29 auf bis zu 0,18, verschwindet aber nicht (L und U bleiben zurück).
   Zusammen mit einem Ausgang je Wert addiert sich beides: Formsuche exakt 0,76–0,81 (layer_s 0,81).
