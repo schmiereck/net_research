@@ -2999,5 +2999,24 @@ Encoder.
 
 ## Laufend / offen
 
+- Gelerntes Zeichen „keine Vorlage“ (`+rvt`, Auftrag Nutzer 2026-11-21): Wie `+rv`, aber Laufschritte senden
+  statt nichts ein eigenes, gelerntes Zeichen (16 Werte, `model.no_ref`, Start bei 0), das wie ein gewöhnlicher
+  Befehl in den Port geht, nicht durch den Vorlagen-Encoder. Geprüft (`scripts/check_ref_valid.py`, Teil 6):
+  - gleiche Anfangsgewichte wie `+rv`, dazu das Zeichen bei 0;
+  - Hinweis-Schritte rechnen wie `+rv`, Laufschritte wie ein Befehl gleich dem Zeichen;
+  - kein Gradient in den Vorlagen-Encoder aus Laufschritten, aber in das Zeichen;
+  - Rauchtest 300 Updates (vitmem, sp4), das Zeichen lernt.
+  Frage: Fehlte vitmem mit `+rv` das feste Zeichen für die Laufphase (dann hilft `+rvt`) oder der Gradient, den
+  `ref_enc(0)` in jedem Laufschritt in den Encoder gab (dann hilft `+rvt` nicht)? vitmem und sp4 mit
+  `+refl+rvt+rez3` (sp4 mit `+cell`), `robot_loop_cue_f32` und `robot_loop_blind_f32`, Seeds 0–4, 7, 12000 Updates:
+  24 Läufe, Worker mit 14 Prozessen. Vergleich mit denselben Seeds ohne `+rv` (vitmem 0 von 12 auf Zufall) und mit
+  `+rv` (6 von 12). Maße und Schwellen wie in der Nachmessung (Zufall: `near` ≤ 0,35; sp4 eingebrochen: < 0,75).
+  **Vorhersage vor dem Lauf (2026-11-21):** (1) Das Zeichen hilft nicht: vitmem mit `+rvt` mindestens 4 von 12
+  auf Zufall. Begründung: Auch mit `+rv` ist die Laufphase am Bild erkennbar (im Hinweis-Schritt liegt ein Muster
+  auf dem Bild, in den Laufschritten nicht); was ohne `+rv` zusätzlich da war, ist der Gradient durch den
+  gemeinsamen Encoder-Weg. (2) Damit vitmem `+rvt` gegen ohne `+rv`: Fisher einseitig p < 0,05. (3) sp4 mit `+rvt`:
+  höchstens 2 von 12 eingebrochen. (4) sp4, nicht eingebrochene Läufe: Mittel innerhalb 0,03 um ohne `+rv`
+  (0,896).
+
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

@@ -140,7 +140,7 @@ def split_size(name):
     differently sized nets are different model names everywhere (results, checkpoints). A '+cmd' suffix of the
     base name (command port, see attach_cmd) is removed here; has_cmd(name) tells whether it was there."""
     base, _, size = name.partition("@")
-    for suf in ("+cmd", "+cell", "+refl", "+ref", "+pw", "+rv", "+ret0", "+ret1", "+ret2", "+ret3", "+rez1", "+rez2", "+rez3"):
+    for suf in ("+cmd", "+cell", "+refl", "+ref", "+pw", "+rvt", "+rv", "+ret0", "+ret1", "+ret2", "+ret3", "+rez1", "+rez2", "+rez3"):
         base = base.replace(suf, "")
     return base, (int(float(size.rstrip("k")) * 1000) if size else None)
 
@@ -241,6 +241,9 @@ def construct(name, width):
         scale_port(model, PORT_WIDE)
     if "+rv" in name:                                          # steps without a picture send no command at all
         model.ref_valid = True                                 # (train.run_sequence); no new parameters
+    if "+rvt" in name:                                         # ... but a learned 'no picture' token instead: an
+        model.no_ref = torch.nn.Parameter(torch.zeros(N_CMD))  # explicit command that does not pass through the
+                                                               # address encoder (starts at zero, no RNG used)
     return model
 
 

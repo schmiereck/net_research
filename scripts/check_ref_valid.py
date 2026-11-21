@@ -58,3 +58,37 @@ g = sum(float(p.grad.abs().sum()) for p in m.ref_enc.parameters() if p.grad is n
 gc = sum(float(p.grad.abs().sum()) for p in m.cmd_in.parameters() if p.grad is not None)
 assert g == 0 and gc == 0, (g, gc)
 print("5 ok: no gradient into the address path from steps without a picture")
+
+# 6. '+rvt': steps without a picture send a learned token instead (model.no_ref, starts at zero)
+from netresearch.models import split_size
+for name in ["vitmem+refl+rez3", "layer_s_sp4+cell+refl+rez3"]:
+    tn = name.replace("+refl", "+refl+rvt")
+    assert split_size(tn)[0] == split_size(name)[0], tn
+    m0, mt = build_model(name.replace("+refl", "+refl+rv"), seed=3), build_model(tn, seed=3)
+    s0, st_ = m0.state_dict(), mt.state_dict()
+    assert set(st_) - set(s0) == {"no_ref"} and all(torch.equal(s0[k], st_[k]) for k in s0), "init differs"
+    assert torch.equal(mt.no_ref.detach(), torch.zeros_like(mt.no_ref))
+    # a fresh grid ignores its command (zero read-out at the start), so the rest uses a trained '+rv' net
+    m0 = load_checkpoint(name.replace("+refl", "+refl+rv"), "robot_loop_three_f32", 0)
+    mt.load_state_dict({**m0.state_dict(), "no_ref": mt.no_ref.detach()})
+    with torch.no_grad():
+        mt.no_ref.copy_(torch.randn_like(mt.no_ref))                                # a token that is not zero
+    mt.eval(); m0.eval()
+    with torch.no_grad():
+        f0, s_0 = run_sequence(m0, obs[:3], ref=ref[:3], ref_mask=rm[:3])
+        ft, s_t = run_sequence(mt, obs[:3], ref=ref[:3], ref_mask=rm[:3])
+        r1, _ = run_sequence(mt, obs[3:], state=s_t, ref=ref[3:], ref_mask=rm[3:])
+        tok = mt.no_ref.expand(obs.shape[0] - 3, obs.shape[1], -1)
+        r2, _ = run_sequence(mt, obs[3:], state=s_t, cmd=tok)                       # the token as a plain command
+        r0, _ = run_sequence(m0, obs[3:], state=s_0, ref=ref[3:], ref_mask=rm[3:])
+    assert torch.equal(f0, ft), "cue steps must equal '+rv' (same init, picture shown)"
+    assert torch.allclose(r1, r2, atol=1e-6), name
+    print(f"{tn:<34} same init as +rv plus a zero token; cue steps = +rv; run steps = token as command "
+          f"(diff {float((r1 - r2).abs().max()):.1e}); the token moves the output by {float((r1 - r0).abs().max()):.3f}")
+    # gradients from steps without a picture: into the token, not into the address encoder
+    mt.train(); mt.zero_grad()
+    lg, _ = run_sequence(mt, obs[3:], ref=ref[3:], ref_mask=rm[3:])
+    lg.sum().backward()
+    g = sum(float(p.grad.abs().sum()) for p in mt.ref_enc.parameters() if p.grad is not None)
+    assert g == 0 and float(mt.no_ref.grad.abs().sum()) > 0, (g, mt.no_ref.grad)
+print("6 ok: '+rvt' token reaches the port, the address encoder gets no gradient from steps without a picture")

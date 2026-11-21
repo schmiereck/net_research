@@ -36,7 +36,9 @@ def run_sequence(model, obs, state=None, resets=None, cmd=None, ref=None, ref_ma
     ref_mask [T,B] (1 = a picture is shown): only for models with '+rv' (model.ref_valid). Steps without a
     picture then send no command at all: no address-encoder output (a zero vector), and the image port adds no
     pattern (not even its bias). Without ref_mask a step counts as 'no picture' when its picture is all zero,
-    which is how every task and evaluation script shows 'no picture'. Models without '+rv' run as before:
+    which is how every task and evaluation script shows 'no picture'. '+rvt': steps without a picture send a
+    learned token (model.no_ref) instead, which reaches the port like any command but does not pass through the
+    address encoder. Models without '+rv' run as before:
     the address encoder also sees the blank picture and its output reaches the port."""
     T, B = obs.shape[:2]
     if obs.shape[-1] != 16:                                    # finer fovea: the model's front stage ("+retN")
@@ -49,6 +51,9 @@ def run_sequence(model, obs, state=None, resets=None, cmd=None, ref=None, ref_ma
                 ref_mask = ref.float().flatten(2).abs().amax(-1) > 0
             valid = torch.as_tensor(ref_mask, dtype=cmd.dtype, device=cmd.device).reshape(T, B)
             cmd = cmd * valid[..., None]
+            if getattr(model, "no_ref", None) is not None:      # '+rvt': steps without a picture send the learned
+                cmd = cmd + (1.0 - valid)[..., None] * model.no_ref  # token, an ordinary command for the port
+                valid = None
     if cmd is None or not getattr(model, "takes_cmd", False):
         cmd, valid = None, None
     try:
