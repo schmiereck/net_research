@@ -8,6 +8,7 @@
 4. The lateral signal reaches the new module (changing it changes the output).
 5. A tiny curriculum run with "freeze" for layer_s, hier_s and gru.
 """
+import json
 import sys
 from pathlib import Path
 
@@ -87,4 +88,52 @@ for name in ("layer_s", "hier_s", "gru"):
           + str(r.get("final", r.get("error", "")[-300:])))
     r = job(("freeze match_shift:60", name, 0, None, None))
     check("error" not in r, f"{name}: control 'freeze match_shift:60' runs " + str(r.get("final", r.get("error", "")[-300:])))
+# 6. probes "freeze:<opt>": they run, change what they say, and stage 1 is the same in every one (paired runs)
+from netresearch.models.route import FrozenRoute  # noqa: E402
+for name in ("layer_s", "hier_s"):
+    base = build_model(name, seed=3)
+    m = freeze_and_route(base, name, seed=3, opt="pfull")
+    check(m.lat.out_features == base.head.in_features and m.new.n_cmd == base.head.in_features,
+          f"{name}: pfull port carries the whole top representation ({m.lat.out_features} values)")
+    m = freeze_and_route(base, name, seed=3, opt="p64")
+    check(m.new.n_cmd == 64, f"{name}: p64 port has 64 values")
+    m = freeze_and_route(base, name, seed=3, opt="nogate")
+    with torch.no_grad():
+        out, _ = run_sequence(m, obs)
+        m.new.cmd = None
+    check(not m.use_gate, f"{name}: nogate has no gate")
+for name in ("layer_s", "hier_s"):                     # pcell: cell (r, k) of the new grid gets the frozen cell (r, k)
+    base = build_model(name, seed=3)
+    m = freeze_and_route(base, name, seed=3, opt="pcell")
+    for p in m.new.parameters():
+        with torch.no_grad():
+            if p.abs().sum() == 0:
+                p.normal_(0, 0.05)
+    seen = []
+    m.new.register_forward_pre_hook(lambda mod, a: seen.append(mod.cmd.clone()))
+    st = m.init_state(4)
+    with torch.no_grad():
+        m(obs[0, :4], st)
+        so_after = base(obs[0, :4], base.init_state(4))[1]
+    from netresearch.models.route import cell_view  # noqa: E402
+    cv = cell_view(base, so_after)
+    R_, K_ = (base.R, base.K) if hasattr(base, "K") else (base.R, base.C)
+    check(seen[0].shape == (4, R_, K_, 16), f"{name}: pcell gives one command per cell {tuple(seen[0].shape)}")
+    check(torch.allclose(seen[0], m.lat(cv)), f"{name}: pcell command of cell (r, k) comes from frozen cell (r, k)")
+    with torch.no_grad():
+        ref, _ = m(obs[0, :4], m.init_state(4))
+        m.lat.bias[3] += 1.0
+        moved, _ = m(obs[0, :4], m.init_state(4))
+    check((moved - ref).abs().max() > 1e-4, f"{name}: pcell signal changes the output")
+m = freeze_and_route(build_model("layer_s", seed=3), "layer_s", seed=3, opt="fc2")
+check(m.new.fc2.w.abs().sum() > 0, "layer_s: fc2 probe starts the second cell layer random")
+check(freeze_and_route(build_model("layer_s", seed=3), "layer_s", seed=3).new.fc2.w.abs().sum() == 0,
+      "layer_s: default new module starts it at zero")
+finals = {}
+for opt in ("", ":p64", ":pfull", ":fc2", ":nogate", ":pcell"):
+    r = job((f"keep_shift:60 freeze{opt} match_shift:30", "layer_s", 0, ["keep_shift", "match_shift"], None))
+    check("error" not in r, f"layer_s: 'freeze{opt}' runs " + str(r.get("final", r.get("error", "")[-300:])))
+    finals[opt] = r.get("frozen_final")
+check(len({json.dumps(v, sort_keys=True) for v in finals.values()}) == 1,
+      f"stage 1 identical in all probes (frozen net alone: {finals['']})")
 print("ALL OK" if ok else "SOME CHECKS FAILED")

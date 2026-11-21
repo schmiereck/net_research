@@ -8,7 +8,8 @@ A plan is a list of phases "task[+task...]:updates". Several tasks in a phase ar
 cosine), as a single run has. The word "freeze" between phases (PLAN_TRAINER Phase C, models/route.py) freezes
 the net trained so far and adds a new module of the same kind that reads the frozen net's top representation
 through its command port; only the new module, that read-out and an output gate learn from then on. "freeze" as
-the first word freezes the untrained net (control: same structure, no skill in the frozen part). --watch: tasks whose test score is recorded every 250 updates over the whole
+the first word freezes the untrained net (control: same structure, no skill in the frozen part); "freeze:<opt>"
+runs one of the probes in models/route.py. --watch: tasks whose test score is recorded every 250 updates over the whole
 plan (default: the tasks of the last phase).
 -> results/curriculum.jsonl: plan (also as "task"), model, seed, final scores, curve [[update, {task: score}],
 ...]. Runs already in the output file are skipped.
@@ -25,8 +26,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def parse(plan):
-    return [("freeze", 0) if p == "freeze" else (p.split(":")[0].split("+"), int(p.split(":")[1]))
-            for p in plan.split()]
+    return [("freeze", p.partition(":")[2]) if p.split(":")[0] == "freeze"
+            else (p.split(":")[0].split("+"), int(p.split(":")[1])) for p in plan.split()]
 
 
 def job(args):
@@ -67,7 +68,7 @@ def job(args):
         for k, (names, updates) in enumerate(phases):
             if names == "freeze":
                 from .models.route import freeze_and_route
-                model = freeze_and_route(model, model_name, params, seed)
+                model = freeze_and_route(model, model_name, params, seed, opt=updates)
                 continue
             specs = [make_task(t).spec for t in names]
             if any(s.pop for s in specs) and sum(s.role == "symbol" for s in specs) > 1:

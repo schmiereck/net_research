@@ -69,12 +69,15 @@ def split_writes(o, d_out, n_mem):
     return o[..., :d_out], o[..., d_out:d_out + 2 * n_mem], o[..., d_out + 2 * n_mem:]
 
 
-def cmd_cells(model, inp):
+def cmd_cells(model, inp, r=None):
     """Command port of the grids (model names "<grid>+cell"): the command vector (model.cmd [B, n_cmd], set by
-    train.run_sequence; zeros without a command) as an extra input of EVERY cell, like the global scratchpad."""
+    train.run_sequence; zeros without a command) as an extra input of EVERY cell, like the global scratchpad.
+    model.cmd [B, R, K, n_cmd] instead: one command per cell (row r, module k; models/route.py 'pcell')."""
     B, K = inp.shape[:2]
     if model.cmd is None:
         return torch.zeros(B, K, model.n_cmd, device=inp.device, dtype=inp.dtype)
+    if model.cmd.dim() == 4:
+        return model.cmd[:, r]
     return model.cmd[:, None].expand(-1, K, -1)
 
 
@@ -331,7 +334,7 @@ class LayerGrid(Model):
                     parts.append(self.reader.read(ctx, r, self.cols, inp))
                 inp = torch.cat(parts, -1)
             if self.n_cmd:
-                inp = torch.cat([inp, cmd_cells(self, inp)], -1)
+                inp = torch.cat([inp, cmd_cells(self, inp, r)], -1)
             hid = F.gelu(self.fc1(inp, r))
             if self.prod:
                 hid = torch.cat([hid, self.pa(now, r) * self.pb(held, r)], -1)
@@ -431,7 +434,7 @@ class HierGrid(Model):
                     parts.append(self.reader.read(ctx, r, cols, inp))
                 inp = torch.cat(parts, -1)
             if self.n_cmd:
-                inp = torch.cat([inp, cmd_cells(self, inp)], -1)
+                inp = torch.cat([inp, cmd_cells(self, inp, r)], -1)
             out = self.fc2(F.gelu(self.fc1(inp, r)), r)
             if mem:
                 out, wl, wg = split_writes(out, 4 * self.d, self.nl)

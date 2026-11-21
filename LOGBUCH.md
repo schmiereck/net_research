@@ -3239,5 +3239,25 @@ alle 250 Updates für beide Aufgaben).
 
 ## Laufend / offen
 
+- Phase C, Ursachen der Schwäche bei den Gittern (Auftrag Nutzer 2026-11-21: „Prüfe die Vermutungen zur Schwäche
+  bei den Gittern“). Plan wie P3 (`keep_shift:3000 freeze… match_shift:9000`), je eine Änderung
+  (`netresearch/models/route.py`, geprüft in `scripts/check_route.py` Teil 6):
+  - `freeze` unverändert (Seeds 0–2 als Wiederholung, Stufe 1 ist bei gleichem Seed bitgleich, geprüft);
+  - Vermutung 1a „durch 16 Werte“: `freeze:p64` (64 Werte), `freeze:pfull` (die ganze oberste Darstellung);
+  - Vermutung 1b „nur oben“: `freeze:pcell` (jede neue Zelle liest die gleiche eingefrorene Zelle, 16 Werte
+    je Zelle; layer_s: Ausgabe der Zelle, hier_s: ORP-Ausgang des Moduls);
+  - Vermutung 2 „frisches layer_s ignoriert den Befehl“: `freeze:fc2` (zweite Zellschicht startet zufällig).
+    hier_s startet sie ohnehin zufällig; dort ist `fc2` nur ein neu gewürfelter Start und zeigt, wie stark
+    der Start allein streut;
+  - zusätzlich: `freeze:nogate` (keine Beimischung der alten Ausgabe).
+  layer_s und hier_s, Seeds 0–4, 60 Läufe, Worker mit 14 Prozessen -> `results/route.jsonl`. Vergleich je Seed
+  gegen `freeze`; Maß: `match_shift` am Ende, Mittel über 10 Läufe (5 Seeds × 2 Netze); gelöst = ≥ 0,8.
+  **Vorhersage vor dem Lauf (2026-11-21):** (0) `freeze` Seeds 0–2 wiederholt die alten Werte auf ±0,01.
+  (1) Breite ist nicht der Engpass: `p64` und `pfull` je im Mittel innerhalb ±0,10 von `freeze`. (2) „Nur
+  oben“ ist der Engpass: `pcell` im Mittel mindestens 0,15 über `freeze` und gelöst in mindestens 7 von 10.
+  (3) Der Null-Start ist es nicht: `fc2` bei layer_s im Mittel innerhalb ±0,10 von `freeze`; bei hier_s (nur
+  neu gewürfelt) ebenso. (4) `nogate` im Mittel innerhalb ±0,10 von `freeze`. (5) Keine Variante erreicht das
+  Tempo des Feintunings: bei Update 6000 liegt jede im Mittel unter 0,80 (Feintuning der Gitter: 0,85).
+
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
