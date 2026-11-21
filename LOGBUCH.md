@@ -2938,19 +2938,66 @@ wir festlegen, sollte geprüft werden, ob das am Fehlen des Gradienten liegt (si
 **Belege.** `results/finds_loop.jsonl` (Zeilen `*+rv*` auf `robot_loop_cue_f32`, `robot_loop_blind_f32`,
 `robot_loop_two_f32`, je 18), `results/loop_refcurve.jsonl` (54 neue Zeilen), `results/checkpoints/robot_loop_{cue,blind,two}_f32/`.
 
-## Laufend / offen
+## 2026-11-21 — `+rv` mit einem Hinweis-Schritt, mehr Seeds: bei vitmem bestätigt (6 von 12 auf Zufall, ohne 0 von 12), bei sp4 nicht
 
-- `+rv` mit einem Hinweis-Schritt, Nachmessung mit mehr Seeds (Auftrag Nutzer 2026-11-20): Ist der Befund aus
-  Etappe 2 echt (vitmem auf cue und blind mit `+rv` 4 von 6 Läufen auf Zufall, ohne 0 von 6; sp4 Seed 0 halb
-  eingebrochen)? vitmem `+refl+rez3` und `+refl+rv+rez3`, layer_s_sp4 `+cell+refl+rez3` und `+cell+refl+rv+rez3`,
-  auf `robot_loop_cue_f32` und `robot_loop_blind_f32`, Seeds 3, 4, 7, 12000 Updates: 24 Läufe, Worker mit 14
-  Prozessen. Maß wie in Etappe 2: `near` nach dem letzten Schritt. „Auf Zufall“ heißt `near` ≤ 0,35,
-  „eingebrochen“ bei sp4 heißt `near` < 0,75 (gelernte sp4-Läufe bisher 0,85–0,93).
-  **Vorhersage vor dem Lauf (2026-11-20):** (1) vitmem mit `+rv`: mindestens 3 der 6 neuen Läufe auf Zufall; ohne
-  `+rv`: höchstens 1 von 6. (2) Zusammen mit Seeds 0–2 (12 Läufe je Variante) ist der Unterschied bei vitmem im
-  exakten Test nach Fisher (einseitig) p < 0,05. (3) sp4 mit `+rv`: mindestens 1 der 6 neuen Läufe eingebrochen;
-  ohne `+rv`: keiner. (4) sp4-Läufe, die nicht eingebrochen sind, liegen mit und ohne `+rv` im Mittel höchstens
-  0,03 auseinander: `+rv` entscheidet über Lernen oder Nicht-Lernen, nicht über die Güte danach.
+**Frage.** Ist der Befund aus Etappe 2 echt: Lernen mit `+rv` auf cue und blind mehr Läufe die Adresse nicht?
+
+**Gemacht.** Worker-Jobs `20261120-234122-rvseeds_blind` (102 min) und `20261120-234122-rvseeds_cue` (105 min),
+je 12 Läufe mit 14 Prozessen, Commit 70b6c29. Danach lokal `finds_loop_eval.py`, 1500 Startszenen. Zusammen mit
+Etappe 2 sind es je Netz, Aufgabe und Variante 6 Läufe (Seeds 0–4, 7). Vorhersage vor dem Lauf (wörtlich aus
+„Laufend / offen“):
+
+> - `+rv` mit einem Hinweis-Schritt, Nachmessung mit mehr Seeds (Auftrag Nutzer 2026-11-20): Ist der Befund aus
+>   Etappe 2 echt (vitmem auf cue und blind mit `+rv` 4 von 6 Läufen auf Zufall, ohne 0 von 6; sp4 Seed 0 halb
+>   eingebrochen)? vitmem `+refl+rez3` und `+refl+rv+rez3`, layer_s_sp4 `+cell+refl+rez3` und `+cell+refl+rv+rez3`,
+>   auf `robot_loop_cue_f32` und `robot_loop_blind_f32`, Seeds 3, 4, 7, 12000 Updates: 24 Läufe, Worker mit 14
+>   Prozessen. Maß wie in Etappe 2: `near` nach dem letzten Schritt. „Auf Zufall“ heißt `near` ≤ 0,35,
+>   „eingebrochen“ bei sp4 heißt `near` < 0,75 (gelernte sp4-Läufe bisher 0,85–0,93).
+>   **Vorhersage vor dem Lauf (2026-11-20):** (1) vitmem mit `+rv`: mindestens 3 der 6 neuen Läufe auf Zufall; ohne
+>   `+rv`: höchstens 1 von 6. (2) Zusammen mit Seeds 0–2 (12 Läufe je Variante) ist der Unterschied bei vitmem im
+>   exakten Test nach Fisher (einseitig) p < 0,05. (3) sp4 mit `+rv`: mindestens 1 der 6 neuen Läufe eingebrochen;
+>   ohne `+rv`: keiner. (4) sp4-Läufe, die nicht eingebrochen sind, liegen mit und ohne `+rv` im Mittel höchstens
+>   0,03 auseinander: `+rv` entscheidet über Lernen oder Nicht-Lernen, nicht über die Güte danach.
+
+**Ergebnis.** `near` nach dem letzten Schritt, Seeds 0 / 1 / 2 / 3 / 4 / 7 (die ersten drei aus Etappe 2):
+
+| Netz | Aufgabe | ohne `+rv` | mit `+rv` |
+|---|---|---|---|
+| vitmem | cue | 0,70 / 0,40 / 0,48 / 0,62 / 0,70 / 0,74 | 0,45 / 0,31 / 0,31 / 0,52 / 0,47 / 0,58 |
+| vitmem | blind | 0,64 / 0,57 / 0,74 / 0,62 / 0,43 / 0,45 | 0,42 / 0,31 / 0,32 / 0,82 / 0,31 / 0,35 |
+| sp4 | cue | 0,85 / 0,87 / 0,92 / 0,88 / 0,90 / 0,89 | 0,57 / 0,85 / 0,89 / 0,86 / 0,90 / 0,85 |
+| sp4 | blind | 0,89 / 0,92 / 0,92 / 0,90 / 0,91 / 0,91 | 0,45 / 0,91 / 0,93 / 0,91 / 0,86 / 0,82 |
+
+- vitmem auf Zufall (`near` ≤ 0,35): mit `+rv` 6 von 12 (cue 2, blind 4), ohne 0 von 12 (niedrigster 0,40).
+  Exakter Test nach Fisher, einseitig: p = 0,007. Mittel aller 12 Läufe ohne → mit: 0,590 → 0,430.
+- Die neuen Läufe auf Zufall sind blind Seed 4 (0,307) und Seed 7 (0,348). Bei cue liegen die neuen
+  `+rv`-Läufe bei 0,47–0,58, also unter allen neuen Läufen ohne `+rv` (0,62–0,74), aber über Zufall.
+- sp4 eingebrochen (`near` < 0,75): mit `+rv` 2 von 12 (beide Seed 0), ohne 0 von 12; p = 0,24. Die 6 neuen
+  `+rv`-Läufe liegen alle bei 0,82–0,91.
+- sp4, nicht eingebrochene Läufe im Mittel: ohne 0,896 (12 Läufe), mit 0,877 (10 Läufe), Abstand 0,019. Nur die
+  neuen Seeds: 0,899 gegen 0,865, Abstand 0,034.
+
+**Vergleich mit der Vorhersage.** (1) Teilweise: mit `+rv` 2 der 6 neuen Läufe auf Zufall (vorhergesagt mindestens
+3), ohne 0 von 6 (getroffen). (2) Getroffen: p = 0,007. (3) Verfehlt: kein neuer sp4-Lauf mit `+rv` eingebrochen.
+(4) Getroffen mit allen Läufen (0,019); nur mit den neuen Seeds knapp darüber (0,034). Bilanz: 2 getroffen, 1
+teilweise, 1 verfehlt.
+
+**Schluss.** (a) Für vitmem ist der Befund bestätigt: Mit einem einzigen Hinweis-Schritt macht `+rv` das Lernen
+der Adresse deutlich unzuverlässiger (6 von 12 auf Zufall gegen 0 von 12), am stärksten bei blind, wo der
+Hinweis-Schritt nur die Vorlage zeigt. (b) Für sp4 ist er nicht bestätigt. Die beiden Einbrüche kommen beide aus
+Seed 0; mit den neuen Seeds sieht man keinen Unterschied der Lösequote. Die gelernten Läufe liegen mit `+rv` eher
+etwas tiefer (0,02–0,03). (c) Zusammen mit Etappe 2 (two: vitmem mit `+rv` besser) hängt die Wirkung von `+rv`
+also an der Bauart und an der Zahl der Hinweis-Schritte. Ein Standard, der vitmem auf einer Stufe hilft und auf
+einer anderen schadet, ist keine reine Frage der Sauberkeit. (d) Die Ursache bleibt offen. Prüfbar ist die
+Frage, ob die Netze ohne `+rv` vom festen Befehl `ref_enc(0)` als Zeichen für die Laufphase profitieren. Dafür
+käme in Frage: Die Laufschritte senden ein eigenes, gelerntes Zeichen „keine Vorlage“, das nicht durch den
+Vorlagen-Encoder geht. Hilft das vitmem so wie ohne `+rv`, liegt es am Zeichen, nicht am Gradienten in den
+Encoder.
+
+**Belege.** `results/finds_loop.jsonl` (24 neue Zeilen, Seeds 3, 4, 7 auf `robot_loop_cue_f32` und
+`robot_loop_blind_f32`), `results/loop_refcurve.jsonl` (24 neue Zeilen), `results/checkpoints/robot_loop_{cue,blind}_f32/`.
+
+## Laufend / offen
 
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
