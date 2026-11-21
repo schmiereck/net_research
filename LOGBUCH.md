@@ -3392,5 +3392,13 @@ drei anderen Varianten für Seeds 5–9).
 
 ## Laufend / offen
 
+- Phase C, warum Seed 9 von layer_s mit `pcell` scheitert (Auftrag Nutzer 2026-11-21: „Prüfe, warum Seed 9 mit
+  pcell scheitert“). Lokale Diagnose (Stufe 1 lokal nachgerechnet; nicht bitgleich zum Worker, Unterschiede klein),
+  ohne Vorhersage gemacht: Lauf mit Blick ins Innere, Tausch eingefrorenes Netz × Start des neuen Moduls, lineare
+  Sonden auf das gemerkte Wort. Danach ein Versuch mit Vorhersage: Seed 9, `freeze:pcell`, zweite Stufe 24000
+  statt 9000 Updates (lokal, gleiches Skript wie die Diagnose).
+  **Vorhersage vor dem Lauf (2026-11-21):** Seed 9 verlässt die Hochebene (Wert ≥ 0,1) zwischen Update 6000 und
+  14000 der zweiten Stufe und erreicht am Ende mindestens 0,8.
+
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
