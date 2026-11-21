@@ -3390,6 +3390,54 @@ kann; der Grund ist offen.
 **Belege.** `results/route.jsonl` (124 Zeilen; Plan `keep_shift:3000 freeze:pcell+fc2 match_shift:9000` und die
 drei anderen Varianten für Seeds 5–9).
 
+## 2026-11-21 — Phase C, gru-Kontrolle: Das Gate verhinderte das Lernen; ohne Gate hilft sogar ein ungelerntes eingefrorenes gru
+
+**Frage.** Warum ergibt die gru-Kontrolle des ersten Tests (ungelerntes Netz eingefroren, dann `match_shift`)
+0,00, wo gru allein 0,43 erreicht?
+
+**Gemacht.** Job `20261121-224747-gru_nogate` (Commit 568ed77), 6 Läufe auf dem Worker. Vorhersage vor dem Lauf
+(wörtlich aus „Laufend / offen“):
+
+> - Phase C, offener Punkt (f) des ersten Tests: Warum ergibt die gru-Kontrolle (`freeze match_shift:9000`,
+>   ungelerntes Netz eingefroren) 0,00, wo gru allein 0,43 erreicht? Vermutung von damals: Die zufällige Ausgabe
+>   des ungelernten Netzes stört, weil das Gate sie anfangs zur Hälfte beimischt. Prüfung: dieselbe Kontrolle ohne
+>   Gate (`freeze:nogate match_shift:9000`), gru, Seeds 0–2; dazu `freeze:nogate` nach Stufe 1
+>   (`keep_shift:3000 freeze:nogate match_shift:9000`), gru, Seeds 0–2. 6 Läufe auf dem Worker ->
+>   `results/route.jsonl`. Wiederholt zum Vergleich: nichts (Kontrolle mit Gate liegt vor: 0,00 / 0,00 / 0,00).
+>   **Vorhersage vor dem Lauf (2026-11-21):** (1) Kontrolle ohne Gate: gru 0,3–0,5 in 3 von 3 (wie von null an),
+>   die Vermutung trifft also zu. (2) Nach Stufe 1 ohne Gate: gru ≥ 0,9 in 3 von 3 (mit Gate 0,97).
+
+**Ergebnis.** gru, `match_shift` am Ende, Seeds 0 / 1 / 2:
+
+| Plan | Ergebnis |
+|---|---|
+| von null an (`match_shift:12000`, erster Test) | 0,44 / 0,43 / 0,42 |
+| Kontrolle mit Gate (`freeze match_shift:9000`, erster Test) | 0,00 / 0,00 / 0,00 |
+| **Kontrolle ohne Gate** (`freeze:nogate match_shift:9000`) | **0,00 / 0,90 / 0,85** |
+| nach Stufe 1, mit Gate (erster Test) | 0,97 / 0,97 / 0,97 |
+| nach Stufe 1, ohne Gate (`keep_shift:3000 freeze:nogate match_shift:9000`) | 0,97 / 0,98 / 0,98 |
+
+- gru von null an steht schon nach 1500 Updates bei 0,36–0,39 und bleibt bei etwa 0,4.
+- Die Kontrolle mit Gate bleibt in allen 3 Läufen die ganze Zeit bei 0,00.
+- Ohne Gate verlassen Seeds 1 und 2 die Null nach 3000 bzw. 4500 Updates und steigen bis 0,90 / 0,85.
+  Seed 0 bleibt bei 0,00.
+
+**Vergleich mit der Vorhersage.** (1) Verfehlt in den Zahlen: Nur 2 von 3 Läufen kommen von der Null weg, und
+diese liegen mit 0,85–0,90 weit über 0,3–0,5. Die Richtung trifft: Ohne Gate lernt die Kontrolle in 2 von 3
+Läufen, mit Gate in keinem. (2) Getroffen: 0,97–0,98. Bilanz: 1 getroffen, 1 verfehlt.
+
+**Schluss.** (a) Das Gate war bei der gru-Kontrolle das Hindernis. Mit Gate bleibt keiner der drei Läufe über
+null, ohne Gate lernen zwei. Wie genau das Gate das neue Modul festhält, ist nicht gemessen. (b) Ein ungelerntes
+eingefrorenes gru hilft dem neuen gru sogar: 0,85–0,90 gegen 0,43 von null an, in 9000 statt 12000 Updates. Ein
+zufälliges rekurrentes Netz wirkt offenbar als fester Speicher (wie ein Reservoir beim esn), den das neue Modul
+lesen kann. Damit ist das ungelernte eingefrorene Netz beim gru keine saubere Kontrolle für „kein Können“; bei
+den Gittern war es eine (0,00 in 6 von 6 mit Gate, ohne Gate nicht gemessen). (c) Der Verbund hat doppelt so
+viele Parameter wie gru allein, und das neue Modul hat einen Befehls-Port (`gru+cmd`). Welcher der drei Gründe
+(Reservoir, mehr Parameter, Port) den Unterschied zu „von null an“ macht, trennt dieser Versuch nicht.
+(d) Nach Stufe 1 ändert das Gate beim gru nichts (0,97 mit und ohne).
+
+**Belege.** `results/route.jsonl` (6 neue Zeilen, Pläne mit `freeze:nogate`, Modell gru).
+
 ## Laufend / offen
 
 - Phase C, warum Seed 9 von layer_s mit `pcell` scheitert (Auftrag Nutzer 2026-11-21: „Prüfe, warum Seed 9 mit
@@ -3399,15 +3447,6 @@ drei anderen Varianten für Seeds 5–9).
   statt 9000 Updates (lokal, gleiches Skript wie die Diagnose).
   **Vorhersage vor dem Lauf (2026-11-21):** Seed 9 verlässt die Hochebene (Wert ≥ 0,1) zwischen Update 6000 und
   14000 der zweiten Stufe und erreicht am Ende mindestens 0,8.
-
-- Phase C, offener Punkt (f) des ersten Tests: Warum ergibt die gru-Kontrolle (`freeze match_shift:9000`,
-  ungelerntes Netz eingefroren) 0,00, wo gru allein 0,43 erreicht? Vermutung von damals: Die zufällige Ausgabe
-  des ungelernten Netzes stört, weil das Gate sie anfangs zur Hälfte beimischt. Prüfung: dieselbe Kontrolle ohne
-  Gate (`freeze:nogate match_shift:9000`), gru, Seeds 0–2; dazu `freeze:nogate` nach Stufe 1
-  (`keep_shift:3000 freeze:nogate match_shift:9000`), gru, Seeds 0–2. 6 Läufe auf dem Worker ->
-  `results/route.jsonl`. Wiederholt zum Vergleich: nichts (Kontrolle mit Gate liegt vor: 0,00 / 0,00 / 0,00).
-  **Vorhersage vor dem Lauf (2026-11-21):** (1) Kontrolle ohne Gate: gru 0,3–0,5 in 3 von 3 (wie von null an),
-  die Vermutung trifft also zu. (2) Nach Stufe 1 ohne Gate: gru ≥ 0,9 in 3 von 3 (mit Gate 0,97).
 
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
