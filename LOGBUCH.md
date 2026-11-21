@@ -3237,27 +3237,96 @@ Plan über 0,45; für gru ist die Leiter also kein sauberer Test des Erhalts.
 **Belege.** `results/route.jsonl` (45 Zeilen, Feld `frozen_final` für das eingefrorene Netz allein, Lernkurven
 alle 250 Updates für beide Aufgaben).
 
-## Laufend / offen
+## 2026-11-21 — Phase C, Schwäche der Gitter: das seitliche Signal „nur oben“ ist der Engpass, nicht die Breite
 
-- Phase C, Ursachen der Schwäche bei den Gittern (Auftrag Nutzer 2026-11-21: „Prüfe die Vermutungen zur Schwäche
-  bei den Gittern“). Plan wie P3 (`keep_shift:3000 freeze… match_shift:9000`), je eine Änderung
-  (`netresearch/models/route.py`, geprüft in `scripts/check_route.py` Teil 6):
-  - `freeze` unverändert (Seeds 0–2 als Wiederholung, Stufe 1 ist bei gleichem Seed bitgleich, geprüft);
-  - Vermutung 1a „durch 16 Werte“: `freeze:p64` (64 Werte), `freeze:pfull` (die ganze oberste Darstellung);
-  - Vermutung 1b „nur oben“: `freeze:pcell` (jede neue Zelle liest die gleiche eingefrorene Zelle, 16 Werte
-    je Zelle; layer_s: Ausgabe der Zelle, hier_s: ORP-Ausgang des Moduls);
-  - Vermutung 2 „frisches layer_s ignoriert den Befehl“: `freeze:fc2` (zweite Zellschicht startet zufällig).
-    hier_s startet sie ohnehin zufällig; dort ist `fc2` nur ein neu gewürfelter Start und zeigt, wie stark
-    der Start allein streut;
-  - zusätzlich: `freeze:nogate` (keine Beimischung der alten Ausgabe).
-  layer_s und hier_s, Seeds 0–4, 60 Läufe, Worker mit 14 Prozessen -> `results/route.jsonl`. Vergleich je Seed
-  gegen `freeze`; Maß: `match_shift` am Ende, Mittel über 10 Läufe (5 Seeds × 2 Netze); gelöst = ≥ 0,8.
-  **Vorhersage vor dem Lauf (2026-11-21):** (0) `freeze` Seeds 0–2 wiederholt die alten Werte auf ±0,01.
-  (1) Breite ist nicht der Engpass: `p64` und `pfull` je im Mittel innerhalb ±0,10 von `freeze`. (2) „Nur
-  oben“ ist der Engpass: `pcell` im Mittel mindestens 0,15 über `freeze` und gelöst in mindestens 7 von 10.
-  (3) Der Null-Start ist es nicht: `fc2` bei layer_s im Mittel innerhalb ±0,10 von `freeze`; bei hier_s (nur
-  neu gewürfelt) ebenso. (4) `nogate` im Mittel innerhalb ±0,10 von `freeze`. (5) Keine Variante erreicht das
-  Tempo des Feintunings: bei Update 6000 liegt jede im Mittel unter 0,80 (Feintuning der Gitter: 0,85).
+**Frage.** Warum lernen die Gitter-Netze beim Einfrieren und Andocken `match_shift` schwächer als beim Feintuning
+(erster Test: 2 von 6 gelöst gegen 6 von 6)? Geprüft werden die drei Vermutungen aus dem vorigen Eintrag: das
+seitliche Signal geht nur durch 16 Werte (1a), es kommt nur aus der obersten Darstellung (1b), ein frisches
+layer_s ignoriert anfangs den Befehl (2).
+
+**Gemacht.** Job `20261121-153910-route_probe` (Commit 60e60cf), 60 Läufe auf dem Worker mit 14 Prozessen. Je eine
+Änderung gegenüber `freeze` (`netresearch/models/route.py`, geprüft in `scripts/check_route.py` Teil 6). Stufe 1
+ist in allen Varianten gleich: `frozen_final` stimmt je Netz und Seed in allen sechs Varianten überein. Vorhersage
+vor dem Lauf (wörtlich aus „Laufend / offen“):
+
+> - Phase C, Ursachen der Schwäche bei den Gittern (Auftrag Nutzer 2026-11-21: „Prüfe die Vermutungen zur Schwäche
+>   bei den Gittern“). Plan wie P3 (`keep_shift:3000 freeze… match_shift:9000`), je eine Änderung
+>   (`netresearch/models/route.py`, geprüft in `scripts/check_route.py` Teil 6):
+>   - `freeze` unverändert (Seeds 0–2 als Wiederholung, Stufe 1 ist bei gleichem Seed bitgleich, geprüft);
+>   - Vermutung 1a „durch 16 Werte“: `freeze:p64` (64 Werte), `freeze:pfull` (die ganze oberste Darstellung);
+>   - Vermutung 1b „nur oben“: `freeze:pcell` (jede neue Zelle liest die gleiche eingefrorene Zelle, 16 Werte
+>     je Zelle; layer_s: Ausgabe der Zelle, hier_s: ORP-Ausgang des Moduls);
+>   - Vermutung 2 „frisches layer_s ignoriert den Befehl“: `freeze:fc2` (zweite Zellschicht startet zufällig).
+>     hier_s startet sie ohnehin zufällig; dort ist `fc2` nur ein neu gewürfelter Start und zeigt, wie stark
+>     der Start allein streut;
+>   - zusätzlich: `freeze:nogate` (keine Beimischung der alten Ausgabe).
+>   layer_s und hier_s, Seeds 0–4, 60 Läufe, Worker mit 14 Prozessen -> `results/route.jsonl`. Vergleich je Seed
+>   gegen `freeze`; Maß: `match_shift` am Ende, Mittel über 10 Läufe (5 Seeds × 2 Netze); gelöst = ≥ 0,8.
+>   **Vorhersage vor dem Lauf (2026-11-21):** (0) `freeze` Seeds 0–2 wiederholt die alten Werte auf ±0,01.
+>   (1) Breite ist nicht der Engpass: `p64` und `pfull` je im Mittel innerhalb ±0,10 von `freeze`. (2) „Nur
+>   oben“ ist der Engpass: `pcell` im Mittel mindestens 0,15 über `freeze` und gelöst in mindestens 7 von 10.
+>   (3) Der Null-Start ist es nicht: `fc2` bei layer_s im Mittel innerhalb ±0,10 von `freeze`; bei hier_s (nur
+>   neu gewürfelt) ebenso. (4) `nogate` im Mittel innerhalb ±0,10 von `freeze`. (5) Keine Variante erreicht das
+>   Tempo des Feintunings: bei Update 6000 liegt jede im Mittel unter 0,80 (Feintuning der Gitter: 0,85).
+
+**Ergebnis.** `match_shift` am Ende, Seeds 0–4:
+
+| Variante | layer_s | Mittel | hier_s | Mittel | alle 10: Mittel | Δ zu `freeze` (je Seed besser / schlechter) | gelöst | Update 6000 |
+|---|---|---|---|---|---|---|---|---|
+| `freeze` | 0,52 / 0,74 / 0,32 / 0,31 / 0,38 | 0,455 | 0,93 / 0,46 / 0,87 / 0,93 / 0,81 | 0,799 | 0,627 | — | 4/10 | 0,258 |
+| `p64` | 0,56 / 0,49 / 0,41 / 0,36 / 0,43 | 0,451 | 0,84 / 0,81 / 0,55 / 0,90 / 0,57 | 0,734 | 0,592 | −0,034 (5 / 5) | 3/10 | 0,266 |
+| `pfull` | 0,56 / 0,46 / 0,45 / 0,38 / 0,47 | 0,463 | 0,52 / 0,53 / 0,48 / 0,52 / 0,51 | 0,515 | 0,489 | −0,138 (5 / 5) | 0/10 | 0,220 |
+| `pcell` | 0,97 / 0,94 / 0,76 / 0,87 / 0,92 | 0,891 | 0,88 / 0,91 / 0,87 / 0,97 / 0,93 | 0,912 | **0,901** | **+0,274 (8 / 1)** | **9/10** | 0,165 |
+| `fc2` | 0,92 / 0,91 / 0,42 / 0,40 / 0,46 | 0,622 | 0,84 / 0,83 / 0,88 / 0,85 / 0,87 | 0,854 | 0,738 | +0,111 (7 / 2) | 7/10 | 0,266 |
+| `nogate` | 0,89 / 0,61 / 0,41 / 0,28 / 0,44 | 0,526 | 0,94 / 0,84 / 0,85 / 0,92 / 0,72 | 0,852 | 0,689 | +0,062 (4 / 3) | 5/10 | 0,283 |
+
+(„besser / schlechter“: Unterschied je Seed über 0,02.) Lernkurve, `match_shift` im Mittel über 5 Seeds, bei Update
+4500 / 6000 / 7500 / 9000 / 10500 / 12000:
+
+| | layer_s | hier_s |
+|---|---|---|
+| Feintuning (erster Test, Seeds 0–2) | 0,63 / 0,89 / 0,96 / 0,99 / 1,00 / 1,00 (beide Gitter zusammen) | (links) |
+| `freeze` | 0,03 / 0,12 / 0,24 / 0,32 / 0,43 / 0,45 | 0,14 / 0,39 / 0,63 / 0,74 / 0,80 / 0,80 |
+| `pcell` | 0,00 / 0,09 / 0,42 / 0,73 / 0,87 / 0,89 | 0,00 / 0,24 / 0,67 / 0,85 / 0,91 / 0,91 |
+| `fc2` | 0,04 / 0,18 / 0,41 / 0,53 / 0,60 / 0,62 | 0,14 / 0,35 / 0,64 / 0,78 / 0,85 / 0,85 |
+
+- `freeze` Seeds 0–2 wiederholt die Werte des ersten Tests exakt (alle Stellen gleich, auch `keep_shift` und das
+  eingefrorene Netz allein). Die drei Wiederholungen sind deshalb beim Abholen nicht neu angehängt worden.
+- `pcell` gegen `freeze`: gelöst 9 von 10 gegen 4 von 10 (Fisher einseitig p = 0,029), je Seed 8 besser, 1
+  schlechter (Vorzeichentest einseitig p = 0,020). Einziger ungelöster Lauf: layer_s Seed 2 mit 0,76.
+- `pcell` startet langsamer (Update 6000: 0,165 gegen 0,258), steigt dann steiler und liegt ab Update 7500 vorn.
+- `fc2` bei layer_s zerfällt in zwei Gruppen: Seeds 0/1 lösen (0,92 / 0,91), Seeds 2–4 liegen wie `freeze` bei
+  0,40–0,46. Bei hier_s (nur neu gewürfelt) +0,055.
+- `pfull` bei hier_s: alle fünf Läufe enden bei 0,48–0,53, keiner löst.
+- `keep_shift` im Verbund bleibt in allen 60 Läufen unter 0,6 (`nogate`: 0,00 in allen 10, `pfull`: 0,13–0,55).
+
+**Vergleich mit der Vorhersage.** (0) Getroffen: Die Wiederholung ist exakt. (1) Teilweise: `p64` −0,034
+(getroffen), `pfull` −0,138 (verfehlt, schlechter statt gleich). (2) Getroffen: +0,274 und 9 von 10 gelöst.
+(3) Teilweise: bei layer_s +0,167 (verfehlt, der Null-Start erklärt einen Teil), bei hier_s +0,055 (getroffen).
+(4) Getroffen: +0,062. (5) Getroffen: Bei Update 6000 liegt jede Variante bei höchstens 0,283. Bilanz: 4
+getroffen, 2 teilweise.
+
+**Schluss.** (a) Der Engpass ist, dass das neue Modul nur die oberste Darstellung sieht. Liest jede neue Zelle
+ihre eingefrorene Zelle, lösen beide Gitter `match_shift` (9 von 10, Mittel 0,90). Damit liegt das Andocken am
+Ende fast beim Feintuning (1,00), aber weiterhin langsamer: Es braucht bis Update 9000–10500, das Feintuning bis
+6000. (b) Die Breite des Ports ist es nicht: 64 Werte ändern nichts. Die ganze oberste Darstellung als Befehl
+schadet hier_s sogar: alle fünf Läufe enden bei rund 0,5, keiner löst. Der Grund ist nicht geprüft; dass alle
+fünf gleich hoch enden, sieht nach einem festen Teilerfolg aus. (c) Der Null-Start der zweiten Zellschicht
+erklärt bei layer_s einen Teil: 2 von 5 Seeds lösen mit zufälligem Start, 3 von 5 bleiben bei `freeze`. Neu
+gewürfelt streut hier_s um etwa ±0,05, der Effekt bei layer_s ist größer. (d) Das Gate ist zum Lernen nicht
+nötig: Ohne Beimischung lernt das neue Modul nicht schlechter (+0,06). Den Erhalt im Verbund leistet es ohnehin
+nicht; `keep_shift` geht in allen Varianten verloren, mit `nogate` ganz. Die Auswahl nach Aufgabe fehlt weiter.
+(e) Für die Bibliothek heißt das: Ein Eintrag sollte nicht nur seine oberste Darstellung veröffentlichen,
+sondern was jede Zelle weitergibt. Das ist bei Gittern natürlich (gleiche Form, Zelle zu Zelle), für Netze anderer
+Bauart aber nicht ohne Weiteres übertragbar. (f) Offen: ob `pcell` und ein zufälliger Start von fc2 zusammen
+layer_s schneller machen, und ob `pcell` auch auf der Blickschleifen-Leiter trägt.
+
+**Belege.** `results/route.jsonl` (99 Zeilen, davon 54 aus diesem Job; Feld `plan` mit der Variante, z. B.
+`keep_shift:3000 freeze:pcell match_shift:9000`). Die Wiederholungen `freeze` Seeds 0–2 stehen nur im
+Job-Ergebnis auf dem Share (`results/20261121-153910-route_probe/runs.jsonl`), sie gleichen den vorhandenen
+Zeilen exakt.
+
+## Laufend / offen
 
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

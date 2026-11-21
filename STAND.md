@@ -110,6 +110,12 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   von 6). Feintuning vergisst `keep_shift` sofort und ganz. Mischen beider Aufgaben gibt den Gittern beides (keep
   1,00, match 0,73–1,00): Sind die alten Daten da, schlägt Mischen das Einfrieren. Der Verbund verliert
   `keep_shift`, weil das Gate die Aufgabe nicht kennt; es fehlt die Auswahl nach Aufgabe.
+- **Schwäche der Gitter beim Andocken geklärt (2026-11-21):** Der Engpass ist, dass das neue Modul nur die
+  oberste Darstellung liest. Liest jede neue Zelle ihre eingefrorene Zelle (`freeze:pcell`), lösen beide Gitter
+  `match_shift` in 9 von 10 Läufen (sonst 4 von 10, Mittel 0,90 statt 0,63), am Ende fast wie Feintuning, aber
+  langsamer. Ein breiterer Port hilft nicht (64 Werte gleich, die ganze Darstellung schadet hier_s). Der
+  Null-Start der zweiten Zellschicht von layer_s erklärt einen Teil (2 von 5 Seeds). Das Gate ist zum Lernen
+  nicht nötig.
 - **Lesart:** Die langen Plateaus sind fehlende Zwischenziele. Verlangt eine Hilfsaufgabe die Zwischengröße als
   Ausgabe, verschwinden sie bei allen Architekturen. Das ist die Rolle, die ein Teacher übernehmen soll.
 - Auf den Roboter-Aufgaben trägt das Prinzip bisher nur teilweise: Bei „Hand zum Würfel“ hebt die Hilfsaufgabe

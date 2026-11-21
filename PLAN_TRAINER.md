@@ -1465,6 +1465,11 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
     hält bei den Gittern beide Aufgaben. Der Verbund verliert die alte Aufgabe (Gate ohne Aufgabenwissen).
     Ungeprüfte Gründe für die Schwäche: seitliches Signal nur oben und durch 16 Werte; frisches layer_s
     ignoriert anfangs den Befehl.
+  - **Gründe geprüft (2026-11-21, LOGBUCH):** „Nur oben“ ist der Engpass. Liest jede neue Zelle die gleiche
+    eingefrorene Zelle (`freeze:pcell`), lösen die Gitter 9 von 10 (sonst 4 von 10), langsamer als Feintuning.
+    Breite des Ports nicht (`p64` gleich, `pfull` schlechter). Null-Start von layer_s zum Teil (`fc2`: 2 von 5
+    Seeds lösen). Gate zum Lernen nicht nötig (`nogate` +0,06). Folgerung für die Bibliothek: Ein Eintrag
+    veröffentlicht, was jede Zelle weitergibt, nicht nur die oberste Darstellung; für andere Bauarten offen.
 
 **Phase D – Gelernter Teacher (Stufe 1)**
 - Ein kleiner Teacher, geteilt an allen Positionen, liest die Telemetrie und schreibt die Modulation.
