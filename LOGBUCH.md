@@ -3504,5 +3504,16 @@ probe_cell, probe_var, long).
 
 ## Laufend / offen
 
+- Phase C, Andocken mit langer zweiter Stufe bei layer_s: Ist `pcell` besser oder nur schneller? (Folge aus dem
+  Seed-9-Eintrag: Lösequoten bei 9000 Updates messen zum Teil das Tempo.) Pläne
+  `keep_shift:3000 freeze[:fc2|:pcell|:pcell+fc2] match_shift:24000`, layer_s, Seeds 0–9, 40 Läufe auf dem
+  Worker -> `results/route.jsonl`. Hinweis: Mit mehr Updates wird auch der Kosinus-Plan der Lernrate gestreckt;
+  der Vergleich ist „mehr Zeit“, nicht „dieselbe Kurve weiter“. Gelöst = `match_shift` ≥ 0,8. Vergleich mit den
+  Läufen mit 9000 Updates (vorige Einträge).
+  **Vorhersage vor dem Lauf (2026-11-21):** (1) `pcell` und `pcell+fc2` lösen je mindestens 9 von 10.
+  (2) `freeze` bleibt deutlich zurück: gelöst höchstens 5 von 10, Mittel mindestens 0,15 unter `pcell`.
+  (3) `fc2` liegt dazwischen: gelöst 4 bis 8 von 10. (4) Jede Variante liegt im Mittel mindestens so hoch wie mit
+  9000 Updates (`freeze` 0,49, `fc2` 0,66, `pcell` 0,77, `pcell+fc2` 0,85).
+
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
