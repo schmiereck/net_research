@@ -265,8 +265,10 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   jedem Laufschritt Gradient in den Vorlagen-Weg und half, ihn früh in Gang zu bringen.
   Nachmessung mit 6 Seeds je Variante (2026-11-21): bei vitmem bestätigt (cue und blind zusammen 6 von 12 auf
   Zufall, ohne 0 von 12, p = 0,007), bei sp4 nicht (2 von 12, beide Seed 0, p = 0,24). Die Wirkung von `+rv` hängt
-  an Bauart und Zahl der Hinweis-Schritte. Nächste mögliche Prüfung: ein eigenes, gelerntes Zeichen „keine
-  Vorlage“ in den Laufschritten statt `ref_enc(0)`.
+  an Bauart und Zahl der Hinweis-Schritte. Gelerntes Zeichen „keine Vorlage“ statt `ref_enc(0)` (`+rvt`,
+  2026-11-21): vitmem weiter 4 von 12 auf Zufall (ohne `+rv` 0 von 12, p = 0,047; gegen `+rv` kein messbarer
+  Unterschied), sp4 2 von 12 eingebrochen. Ein Zeichen allein ersetzt also nicht, was ohne `+rv` da war; das passt
+  zur Gradient-Vermutung, belegt sie aber nicht.
   **Falscher Körper (2026-11-18, nachgemessen 2026-11-19 auf allen Stufen):** Wer nach dem ersten Schritt auf einem
   falschen Körper steht, bleibt dort meist (`robot_loop_f32` 0,64–0,89, mit gemerkter Vorlage und bei drei Zielen
   0,80–0,98); Netze ohne Gedächtnis kommen öfter weg (0,26–0,32) als Netze mit (0,03–0,18). Vom richtigen Körper

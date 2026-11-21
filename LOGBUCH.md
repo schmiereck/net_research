@@ -3042,25 +3042,6 @@ Ziele. Das ist ein Blick auf einzelne Läufe, keine Messung.
 >   (3) Der Arm kostet weiter: Gitter-Netze mit `static` ≥ 0,5 verlieren mit `live` 15–30 % (vorher 21–28 %).
 >   (4) `away` gegen `live` je Netz mit `static` ≥ 0,2 im Verhältnis 0,9–1,2 (Ablenkung, nicht Verdecken, hält).
 >   (5) Spearman Prüfstand–`live` mindestens 0,9.
->
-> - Gelerntes Zeichen „keine Vorlage“ (`+rvt`, Auftrag Nutzer 2026-11-21): Wie `+rv`, aber Laufschritte senden
->   statt nichts ein eigenes, gelerntes Zeichen (16 Werte, `model.no_ref`, Start bei 0), das wie ein gewöhnlicher
->   Befehl in den Port geht, nicht durch den Vorlagen-Encoder. Geprüft (`scripts/check_ref_valid.py`, Teil 6):
->   - gleiche Anfangsgewichte wie `+rv`, dazu das Zeichen bei 0;
->   - Hinweis-Schritte rechnen wie `+rv`, Laufschritte wie ein Befehl gleich dem Zeichen;
->   - kein Gradient in den Vorlagen-Encoder aus Laufschritten, aber in das Zeichen;
->   - Rauchtest 300 Updates (vitmem, sp4), das Zeichen lernt.
->   Frage: Fehlte vitmem mit `+rv` das feste Zeichen für die Laufphase (dann hilft `+rvt`) oder der Gradient, den
->   `ref_enc(0)` in jedem Laufschritt in den Encoder gab (dann hilft `+rvt` nicht)? vitmem und sp4 mit
->   `+refl+rvt+rez3` (sp4 mit `+cell`), `robot_loop_cue_f32` und `robot_loop_blind_f32`, Seeds 0–4, 7, 12000 Updates:
->   24 Läufe, Worker mit 14 Prozessen. Vergleich mit denselben Seeds ohne `+rv` (vitmem 0 von 12 auf Zufall) und mit
->   `+rv` (6 von 12). Maße und Schwellen wie in der Nachmessung (Zufall: `near` ≤ 0,35; sp4 eingebrochen: < 0,75).
->   **Vorhersage vor dem Lauf (2026-11-21):** (1) Das Zeichen hilft nicht: vitmem mit `+rvt` mindestens 4 von 12
->   auf Zufall. Begründung: Auch mit `+rv` ist die Laufphase am Bild erkennbar (im Hinweis-Schritt liegt ein Muster
->   auf dem Bild, in den Laufschritten nicht); was ohne `+rv` zusätzlich da war, ist der Gradient durch den
->   gemeinsamen Encoder-Weg. (2) Damit vitmem `+rvt` gegen ohne `+rv`: Fisher einseitig p < 0,05. (3) sp4 mit `+rvt`:
->   höchstens 2 von 12 eingebrochen. (4) sp4, nicht eingebrochene Läufe: Mittel innerhalb 0,03 um ohne `+rv`
->   (0,896).
 
 **Ergebnis.** `near_all`, alter Wert (falsche Farbe) → neuer Wert:
 
@@ -3099,6 +3080,74 @@ aus dem Modell, Zeigebilder aus der Simulation). Für die Vorhersage der Rangfol
 
 **Belege.** `results/robot_live_loop_v3.jsonl` (39 Zeilen, Feld `scene_colour: own`); Wiki
 `befunde/netresearch-live-blickschleife.md`.
+
+## 2026-11-21 — `+rvt` (gelerntes Zeichen „keine Vorlage“): bringt vitmem nicht zurück (4 von 12 auf Zufall, ohne `+rv` 0 von 12)
+
+**Frage.** Fehlte vitmem mit `+rv` das feste Zeichen für die Laufphase (dann hilft `+rvt`) oder der Gradient, den
+`ref_enc(0)` in jedem Laufschritt in den Vorlagen-Encoder gab (dann hilft `+rvt` nicht)?
+
+**Gemacht.** Worker-Jobs `20261121-084252-rvt_cue` und `20261121-084253-rvt_blind` (je 105 min, 14 Prozesse,
+Commit 7bdb562), je vitmem und sp4 × Seeds 0–4, 7, 12000 Updates. Danach lokal `finds_loop_eval.py`, 1500
+Startszenen. Vergleich mit denselben Seeds ohne `+rv` und mit `+rv`. Vorhersage vor dem Lauf (wörtlich aus
+„Laufend / offen“, Commit 7bdb562):
+
+> - Gelerntes Zeichen „keine Vorlage“ (`+rvt`, Auftrag Nutzer 2026-11-21): Wie `+rv`, aber Laufschritte senden
+>   statt nichts ein eigenes, gelerntes Zeichen (16 Werte, `model.no_ref`, Start bei 0), das wie ein gewöhnlicher
+>   Befehl in den Port geht, nicht durch den Vorlagen-Encoder. Geprüft (`scripts/check_ref_valid.py`, Teil 6):
+>   - gleiche Anfangsgewichte wie `+rv`, dazu das Zeichen bei 0;
+>   - Hinweis-Schritte rechnen wie `+rv`, Laufschritte wie ein Befehl gleich dem Zeichen;
+>   - kein Gradient in den Vorlagen-Encoder aus Laufschritten, aber in das Zeichen;
+>   - Rauchtest 300 Updates (vitmem, sp4), das Zeichen lernt.
+>   Frage: Fehlte vitmem mit `+rv` das feste Zeichen für die Laufphase (dann hilft `+rvt`) oder der Gradient, den
+>   `ref_enc(0)` in jedem Laufschritt in den Encoder gab (dann hilft `+rvt` nicht)? vitmem und sp4 mit
+>   `+refl+rvt+rez3` (sp4 mit `+cell`), `robot_loop_cue_f32` und `robot_loop_blind_f32`, Seeds 0–4, 7, 12000 Updates:
+>   24 Läufe, Worker mit 14 Prozessen. Vergleich mit denselben Seeds ohne `+rv` (vitmem 0 von 12 auf Zufall) und mit
+>   `+rv` (6 von 12). Maße und Schwellen wie in der Nachmessung (Zufall: `near` ≤ 0,35; sp4 eingebrochen: < 0,75).
+>   **Vorhersage vor dem Lauf (2026-11-21):** (1) Das Zeichen hilft nicht: vitmem mit `+rvt` mindestens 4 von 12
+>   auf Zufall. Begründung: Auch mit `+rv` ist die Laufphase am Bild erkennbar (im Hinweis-Schritt liegt ein Muster
+>   auf dem Bild, in den Laufschritten nicht); was ohne `+rv` zusätzlich da war, ist der Gradient durch den
+>   gemeinsamen Encoder-Weg. (2) Damit vitmem `+rvt` gegen ohne `+rv`: Fisher einseitig p < 0,05. (3) sp4 mit `+rvt`:
+>   höchstens 2 von 12 eingebrochen. (4) sp4, nicht eingebrochene Läufe: Mittel innerhalb 0,03 um ohne `+rv`
+>   (0,896).
+
+**Ergebnis.** `near` nach dem letzten Schritt, Seeds 0 / 1 / 2 / 3 / 4 / 7:
+
+| Netz | Aufgabe | ohne `+rv` | mit `+rv` | mit `+rvt` |
+|---|---|---|---|---|
+| vitmem | cue | 0,70 / 0,40 / 0,48 / 0,62 / 0,70 / 0,74 | 0,45 / 0,31 / 0,31 / 0,52 / 0,47 / 0,58 | 0,31 / 0,36 / 0,31 / 0,65 / 0,66 / 0,71 |
+| vitmem | blind | 0,64 / 0,57 / 0,74 / 0,62 / 0,43 / 0,45 | 0,42 / 0,31 / 0,32 / 0,82 / 0,31 / 0,35 | 0,31 / 0,54 / 0,81 / 0,75 / 0,42 / 0,31 |
+| sp4 | cue | 0,85 / 0,87 / 0,92 / 0,88 / 0,90 / 0,89 | 0,57 / 0,85 / 0,89 / 0,85 / 0,90 / 0,85 | 0,77 / 0,81 / 0,90 / 0,87 / 0,91 / 0,85 |
+| sp4 | blind | 0,89 / 0,92 / 0,92 / 0,90 / 0,91 / 0,91 | 0,45 / 0,91 / 0,92 / 0,90 / 0,86 / 0,82 | 0,51 / 0,91 / 0,92 / 0,91 / 0,68 / 0,86 |
+
+- vitmem auf Zufall (`near` ≤ 0,35): ohne 0 von 12, mit `+rv` 6 von 12, mit `+rvt` 4 von 12. Mittel aller 12
+  Läufe: 0,590 / 0,430 / 0,512. Fisher einseitig `+rvt` gegen ohne: p = 0,047; `+rv` gegen `+rvt`: p = 0,34.
+- Mit `+rvt` liegen andere vitmem-Seeds auf Zufall als mit `+rv`: cue 0 und 2, blind 0 und 7 (mit `+rv`: cue 1
+  und 2, blind 1, 2, 4, 7). Seed 0 lag ohne `+rv` auf beiden Stufen hoch (0,70 / 0,64).
+- Alle Läufe steuern am Ende einen Körper an (`near` + `other` 0,97–1,00); wer auf Zufall liegt, wählt den
+  falschen.
+- sp4 eingebrochen (`near` < 0,75): ohne 0 von 12, mit `+rv` 2 von 12, mit `+rvt` 2 von 12 (blind Seed 0 mit 0,51,
+  blind Seed 4 mit 0,68; cue Seed 0 knapp darüber mit 0,77). Fisher gegen ohne: p = 0,24. Nicht eingebrochene
+  Läufe im Mittel: ohne 0,896, mit `+rv` 0,877, mit `+rvt` 0,872.
+
+**Vergleich mit der Vorhersage.** (1) Getroffen, genau an der Grenze: 4 von 12. (2) Getroffen, knapp: p = 0,047.
+(3) Getroffen: 2 von 12. (4) Getroffen: 0,872, Abstand 0,024. Bilanz: 4 getroffen.
+
+**Schluss.** (a) Das gelernte Zeichen bringt vitmem nicht auf den Stand ohne `+rv`: 4 von 12 Läufen lernen die
+Adresse nicht, ohne `+rv` keiner. Das spricht gegen die Deutung „es fehlte nur ein Zeichen für die Laufphase“ und
+passt zur Deutung „es fehlte der Gradient durch den gemeinsamen Encoder-Weg“. (b) Belegt ist diese Deutung damit
+nicht. Geprüft ist nur das Gegenteil, und auch das knapp (p = 0,047 bei der vorher gesetzten Grenze). Zwischen
+`+rv` und `+rvt` ist kein Unterschied messbar (6 gegen 4 von 12, p = 0,34). Dass das Zeichen ein wenig hilft, ist
+also möglich, aber nicht gezeigt. (c) Welche Seeds scheitern, wechselt mit der Variante. Das Scheitern hängt also
+am einzelnen Lauf, nicht an einem festen Seed; nur sp4 Seed 0 ist in beiden Varianten schwach. (d) Für sp4 bleibt
+das Bild wie bei `+rv`: gelegentliche Einbrüche (2 von 12), sonst etwa 0,02 tiefer als ohne `+rv`. (e) Für die
+offene Frage „`+rv` als Standard“ heißt das: Die Netze ohne `+rv` lernen die Adresse auf den Stufen mit einem
+Hinweis-Schritt zuverlässiger, und ein Zeichen allein ersetzt das nicht.
+
+**Belege.** `results/finds_loop.jsonl` (24 neue Zeilen `*+rvt*` auf `robot_loop_cue_f32` und
+`robot_loop_blind_f32`), `results/loop_refcurve.jsonl` (24 neue Zeilen), `results/checkpoints/robot_loop_{cue,blind}_f32/`.
+
+Nachtrag zum Eintrag „Live-Test mit eigener Szenenfarbe“ (selber Tag): Beim Einfügen hatte das Skript die damals
+noch offene `+rvt`-Vorhersage mit in das Zitat jenes Eintrags gezogen. Sie ist dort entfernt und steht hier.
 
 ## Laufend / offen
 
