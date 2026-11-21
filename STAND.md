@@ -118,6 +118,8 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   nicht nötig.
   Beides zusammen (`freeze:pcell+fc2`) macht layer_s schneller und sicherer: 9 von 10 Seeds gelöst (`pcell`
   allein 7, `freeze` 0), bei Update 7500 im Mittel 0,56 statt 0,33. Das Feintuning bleibt schneller.
+  Der einzige ungelöste Seed braucht nur länger (etwa 9000 Updates Anlauf, mit 24000 Updates 0,96); die lange
+  Anlaufzeit kommt vom eingefrorenen Netz, warum ist offen.
 - **Lesart:** Die langen Plateaus sind fehlende Zwischenziele. Verlangt eine Hilfsaufgabe die Zwischengröße als
   Ausgabe, verschwinden sie bei allen Architekturen. Das ist die Rolle, die ein Teacher übernehmen soll.
 - Auf den Roboter-Aufgaben trägt das Prinzip bisher nur teilweise: Bei „Hand zum Würfel“ hebt die Hilfsaufgabe

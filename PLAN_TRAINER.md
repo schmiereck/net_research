@@ -1476,6 +1476,9 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
   - **gru-Kontrolle (2026-11-21, LOGBUCH):** Die 0,00 kam vom Gate; ohne Gate lernt die Kontrolle in 2 von 3
     Läufen, sogar besser als gru von null an (0,85–0,90 gegen 0,43). Ein ungelerntes eingefrorenes gru ist also
     keine saubere Kontrolle für „kein Können“ (wirkt wie ein Reservoir; nicht getrennt von Parametern und Port).
+  - **Seed 9 mit `pcell` (2026-11-21, LOGBUCH):** kein Versagen, sondern eine Anlaufzeit von etwa 9000 Updates
+    (mit 24000 Updates 0,96); verursacht vom eingefrorenen Netz (Tausch), nicht von Gate, Größe oder fehlender
+    Information. Lösequoten bei festem Budget messen bei `pcell` zum Teil das Tempo.
 
 **Phase D – Gelernter Teacher (Stufe 1)**
 - Ein kleiner Teacher, geteilt an allen Positionen, liest die Telemetrie und schreibt die Modulation.

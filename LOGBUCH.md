@@ -3438,15 +3438,71 @@ viele Parameter wie gru allein, und das neue Modul hat einen Befehls-Port (`gru+
 
 **Belege.** `results/route.jsonl` (6 neue Zeilen, Pläne mit `freeze:nogate`, Modell gru).
 
-## Laufend / offen
+## 2026-11-21 — Phase C, Seed 9 mit `pcell`: kein Versagen, sondern eine sehr lange Anlaufzeit, verursacht vom eingefrorenen Netz
 
-- Phase C, warum Seed 9 von layer_s mit `pcell` scheitert (Auftrag Nutzer 2026-11-21: „Prüfe, warum Seed 9 mit
-  pcell scheitert“). Lokale Diagnose (Stufe 1 lokal nachgerechnet; nicht bitgleich zum Worker, Unterschiede klein),
-  ohne Vorhersage gemacht: Lauf mit Blick ins Innere, Tausch eingefrorenes Netz × Start des neuen Moduls, lineare
-  Sonden auf das gemerkte Wort. Danach ein Versuch mit Vorhersage: Seed 9, `freeze:pcell`, zweite Stufe 24000
-  statt 9000 Updates (lokal, gleiches Skript wie die Diagnose).
-  **Vorhersage vor dem Lauf (2026-11-21):** Seed 9 verlässt die Hochebene (Wert ≥ 0,1) zwischen Update 6000 und
-  14000 der zweiten Stufe und erreicht am Ende mindestens 0,8.
+**Frage.** Warum lernt layer_s Seed 9 `match_shift` weder mit `pcell` (0,07) noch mit `pcell+fc2` (0,00), während
+`freeze` (0,40) und `fc2` (0,36) dort lernen und die anderen Seeds mit `pcell` meist lösen?
+
+**Gemacht.** Lokal, Skripte in `scripts/route_seed9/`, Logs in `results/route_seed9/`. Stufe 1 (`keep_shift:3000`)
+für Seeds 0–9 lokal nachgerechnet, wie im Lehrplan. Sie ist nicht bitgleich zum Worker, aber nahe:
+`match_shift` des eingefrorenen Netzes von Seed 9 −0,138 lokal gegen −0,137. Dann ohne Vorhersage:
+(1) Größe der Zellzustände und des `pcell`-Befehls je Seed; (2) zweite Stufe mit Blick ins Innere (Gate,
+Befehl, Gradienten alle 250 Updates) für Seed 9 `pcell`, Seed 9 `freeze` und Seed 8 `pcell`; (3) Tausch:
+eingefrorenes Netz von Seed 9 mit Start und Trainingsfolge anderer Seeds, und umgekehrt (6000 Updates);
+(4) lineare Sonden auf das gemerkte Wort aus Bild 0 während der Kandidaten-Bilder 1–3. Zuletzt ein Versuch mit
+Vorhersage (wörtlich aus „Laufend / offen“):
+
+> - Phase C, warum Seed 9 von layer_s mit `pcell` scheitert (Auftrag Nutzer 2026-11-21: „Prüfe, warum Seed 9 mit
+>   pcell scheitert“). Lokale Diagnose (Stufe 1 lokal nachgerechnet; nicht bitgleich zum Worker, Unterschiede klein),
+>   ohne Vorhersage gemacht: Lauf mit Blick ins Innere, Tausch eingefrorenes Netz × Start des neuen Moduls, lineare
+>   Sonden auf das gemerkte Wort. Danach ein Versuch mit Vorhersage: Seed 9, `freeze:pcell`, zweite Stufe 24000
+>   statt 9000 Updates (lokal, gleiches Skript wie die Diagnose).
+>   **Vorhersage vor dem Lauf (2026-11-21):** Seed 9 verlässt die Hochebene (Wert ≥ 0,1) zwischen Update 6000 und
+>   14000 der zweiten Stufe und erreicht am Ende mindestens 0,8.
+
+**Ergebnis.**
+- (2) Wiederholung lokal: Seed 9 `pcell` 0,00 nach 9000 Updates, Seed 9 `freeze` 0,40, Seed 8 `pcell` 0,98, wie auf
+  dem Worker. In allen drei Läufen fällt das Gate innerhalb von 250 Updates auf etwa 0 (Ausgabe fast nur vom
+  neuen Modul). Alle starten auf derselben Hochebene (Verlust 0,636, Wert 0, Antwort immer „nein“). Seed 8
+  `pcell` und Seed 9 `freeze` verlassen sie bei Update 2000–3000; Seed 9 `pcell` nicht, seine Gradienten bleiben
+  3–5 Mal kleiner.
+- (3) Tausch, `pcell`, Wert nach 6000 Updates:
+
+  | eingefrorenes Netz | Start des neuen Moduls und Trainingsfolge | Wert |
+  |---|---|---|
+  | Seed 9 | Seed 9 / Seed 8 / Roll 21 / Roll 22 | 0,00 / 0,00 / 0,00 / 0,00 |
+  | Seed 8 | Seed 9 | 0,96 |
+
+- (1) Größe: Die Zellzustände von Seed 9 sind etwas größer als bei den meisten Seeds (Befehl rms 0,62 gegen
+  0,36–0,51), gleichauf mit Seed 3 (0,67), der mit `pcell` löst.
+- (4) Sonden: Das gemerkte Wort ist bei allen geprüften Seeds aus dem ganzen Zustand fast vollständig lesbar
+  (alle Zellen zusammen; Seed 9: 1,00 / 0,98 / 0,90 bei Bild 1 / 2 / 3; Seed 8: 1,00 / 0,94 / 0,78). Aus einer einzelnen Zelle liest
+  man bei Seed 9 0,61–0,80 der Bits, bei den anderen Seeds 0,58–0,79. Der Anteil des Worts an der Schwankung
+  einer Zelle (R²) ist bei Seed 9 mit 0,09–0,19 mit am größten (alle Seeds 0,03–0,27). Aus den 16 Startwerten
+  von `pcell` ist es bei Seed 9 nicht schlechter lesbar (0,60–0,65 gegen 0,56–0,67).
+  Hinweis: Eine erste Fassung der Sonden las die Zeile über dem Wort, alle Ziel-Bits waren 0. Die Werte hier
+  stammen aus der korrigierten Fassung.
+- Langer Lauf: Seed 9 `pcell` mit 24000 Updates in der zweiten Stufe bleibt bis Update 8000 bei 0. Bei 9000 liegt
+  er bei 0,10, bei 10000 bei 0,43, bei 14000 bei 0,85 und bei 23000 bei 0,96. Der Befehl wächst schon während
+  der Hochebene langsam (rms 0,62 → 1,74 bis Update 8000).
+
+**Vergleich mit der Vorhersage.** Getroffen: Die Hochebene endet bei etwa Update 9000 (vorhergesagt 6000–14000),
+der Wert am Ende ist 0,96 (≥ 0,8). Bilanz: 1 von 1 getroffen. Die Diagnose davor hatte keine Vorhersage.
+
+**Schluss.** (a) Seed 9 versagt mit `pcell` nicht grundsätzlich, er braucht nur sehr lange, um die Hochebene zu
+verlassen: etwa 9000 Updates. Bei 9000 Updates in der zweiten Stufe und abfallender Lernrate reicht die Zeit
+danach nicht mehr. (b) Die lange Anlaufzeit kommt vom eingefrorenen Netz, nicht vom Zufall des neuen Moduls oder
+der Trainingsfolge (Tausch: 0 von 4 gegen 1 von 1). (c) Ausgeschlossen sind: das Gate, die Größe der Zellzustände,
+fehlende oder schlecht lesbare Information über das gemerkte Wort. Was am eingefrorenen Netz von Seed 9 die
+Anlaufzeit verlängert, ist offen. (d) Für die Auswertung heißt das: Die Lösequoten bei festem Budget messen bei
+`pcell` zum Teil das Tempo. Ein Lauf auf der Hochebene ist nicht von einem unlösbaren zu unterscheiden, ohne ihn
+länger laufen zu lassen. Das gilt für die ungelösten Läufe der vorigen Einträge ebenso (z. B. `pcell` Seed 6
+mit 0,40).
+
+**Belege.** `scripts/route_seed9/` (README mit Aufrufen), `results/route_seed9/` (stage1, stats, stage2, swap,
+probe_cell, probe_var, long).
+
+## Laufend / offen
 
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
