@@ -254,7 +254,7 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   Prüfung mit breitem Port-Anfang (`+pw`, 2026-11-19): **negativ**, 0 von 12 Läufen lösen (ohne: attnmem 3/6,
   vitmem 2/6); die größere Anfangs-Streuung wird im Training zuerst wieder gedämpft. Die Henne-Ei-Deutung ist in
   dieser Form nicht bestätigt; `+pw` vergrößert auch das Muster auf dem Bild, beides ist nicht getrennt.
-  **Neuer Standard `+rv` (2026-11-19/20):** Ein Schritt ohne Vorlage sendet keinen Befehl mehr (vorher ging
+  **Variante `+rv` (2026-11-19 bis 21, kein Standard):** Ein Schritt ohne Vorlage sendet keinen Befehl mehr (vorher ging
   `ref_enc(0)` als konstanter Befehl in den Port). Etappe 1, drei Ziele: Bei 24000 Updates gleicher Endstand (sp4
   6/6, layer_s 3/6, gelöste Läufe −0,02). Bei 12000 Updates liegen die Gitter-Netze eher etwas tiefer (Mittel
   layer_s −0,13, sp4 −0,06, am4 −0,05, hier_s 0), vor allem bei den Zielen 2 und 3. attnmem und vitmem 4 von 12
@@ -269,6 +269,9 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   2026-11-21): vitmem weiter 4 von 12 auf Zufall (ohne `+rv` 0 von 12, p = 0,047; gegen `+rv` kein messbarer
   Unterschied), sp4 2 von 12 eingebrochen. Ein Zeichen allein ersetzt also nicht, was ohne `+rv` da war; das passt
   zur Gradient-Vermutung, belegt sie aber nicht.
+  **Beschluss (Nutzer, 2026-11-21): Port-Standard bleibt ohne `+rv`** (`+refl`; Schritte ohne Vorlage senden
+  `ref_enc(0)` als konstanten Befehl, das ist eine bekannte Eigenschaft, kein Fehler). `+rv` und `+rvt` bleiben als
+  geprüfte Varianten im Code. Das Thema Vorlagen-Port ist geschlossen; die Ursache bleibt ungeprüft.
   **Falscher Körper (2026-11-18, nachgemessen 2026-11-19 auf allen Stufen):** Wer nach dem ersten Schritt auf einem
   falschen Körper steht, bleibt dort meist (`robot_loop_f32` 0,64–0,89, mit gemerkter Vorlage und bei drei Zielen
   0,80–0,98); Netze ohne Gedächtnis kommen öfter weg (0,26–0,32) als Netze mit (0,03–0,18). Vom richtigen Körper
