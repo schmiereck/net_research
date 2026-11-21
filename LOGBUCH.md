@@ -3400,5 +3400,14 @@ drei anderen Varianten für Seeds 5–9).
   **Vorhersage vor dem Lauf (2026-11-21):** Seed 9 verlässt die Hochebene (Wert ≥ 0,1) zwischen Update 6000 und
   14000 der zweiten Stufe und erreicht am Ende mindestens 0,8.
 
+- Phase C, offener Punkt (f) des ersten Tests: Warum ergibt die gru-Kontrolle (`freeze match_shift:9000`,
+  ungelerntes Netz eingefroren) 0,00, wo gru allein 0,43 erreicht? Vermutung von damals: Die zufällige Ausgabe
+  des ungelernten Netzes stört, weil das Gate sie anfangs zur Hälfte beimischt. Prüfung: dieselbe Kontrolle ohne
+  Gate (`freeze:nogate match_shift:9000`), gru, Seeds 0–2; dazu `freeze:nogate` nach Stufe 1
+  (`keep_shift:3000 freeze:nogate match_shift:9000`), gru, Seeds 0–2. 6 Läufe auf dem Worker ->
+  `results/route.jsonl`. Wiederholt zum Vergleich: nichts (Kontrolle mit Gate liegt vor: 0,00 / 0,00 / 0,00).
+  **Vorhersage vor dem Lauf (2026-11-21):** (1) Kontrolle ohne Gate: gru 0,3–0,5 in 3 von 3 (wie von null an),
+  die Vermutung trifft also zu. (2) Nach Stufe 1 ohne Gate: gru ≥ 0,9 in 3 von 3 (mit Gate 0,97).
+
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
