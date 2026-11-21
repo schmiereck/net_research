@@ -2997,6 +2997,34 @@ Encoder.
 **Belege.** `results/finds_loop.jsonl` (24 neue Zeilen, Seeds 3, 4, 7 auf `robot_loop_cue_f32` und
 `robot_loop_blind_f32`), `results/loop_refcurve.jsonl` (24 neue Zeilen), `results/checkpoints/robot_loop_{cue,blind}_f32/`.
 
+## 2026-11-21 — Korrektur: Die Live-Tests liefen mit falscher Szenenfarbe
+
+**Frage.** Beim Bau der Video-Aufzeichnung für den Live-Test (Auftrag Nutzer 2026-11-21) aufgefallen: Stimmt die
+Farbe der Szenen im Live-Skript?
+
+**Gemacht.** Code gelesen (`rdf_thalamus_sml/src/pc_cvnn/netresearch_live_loop.py`, `make_scene`;
+`export_netresearch.py`, `_paint`). Danach korrigiert und mit dem neuen Video-Skript an drei Szenen angesehen.
+
+**Ergebnis.** `make_scene` malt die drei Körper einer Szene in einer eigenen Zufallsfarbe. Die Farbe steht in
+`geom_rgba` des Modells, nicht im gespeicherten Zustand `qpos`. Das Skript erzeugt zuerst alle 150 Szenen und
+rechnet sie danach. Damit lief jede Szene in der Farbe der zuletzt erzeugten. Die Zeigebilder wurden dagegen beim
+Erzeugen aufgenommen, also in der eigenen Farbe. In 149 von 150 Szenen hatten Zeigebild und Szene verschiedene
+Farben; im Prüfstand (`gazeshapec`) haben sie dieselbe.
+
+**Schluss.** (a) Betroffen sind alle Live-Zahlen: die Einträge „Erster Live-Test im Roboter-Simulator“, „Arm im
+Bild: Ablenkung, nicht Verdecken“ und „Live-Test mit der Prüfstands-Regel“. Sie gelten nur unter Vorbehalt, bis
+neu gemessen ist. (b) Weil `static` trotzdem nahe am Prüfstand lag (höchstens 0,04 Abstand), suchen die Netze
+offenbar vor allem nach der Form, die Farbe des Zeigebilds spielt wenig Rolle. Das ist eine Deutung, keine Messung.
+Die unerklärten leicht höheren `static`-Werte (Mittel +0,010) könnten hiermit zusammenhängen. (c) Korrigiert in
+Robot-Commit 17c0b19: Die Szene trägt ihre Farbe, vor jeder Szene wird neu gemalt (`show_scene`), neue Zeilen tragen
+`scene_colour: own`. Die Szenen selbst sind unverändert (die Farbe verbraucht keine Zufallszahlen). (d) Neu:
+`netresearch_live_video.py` zeichnet einzelne Läufe als Video auf (gleiche Szenen und Regeln). Erster Test mit
+layer_s_sp4, 24000 Updates, Seed 0, `live`, Szenen 0–2, Folgen A B C und A B A: 5 von 6 Läufen treffen alle drei
+Ziele. Das ist ein Blick auf einzelne Läufe, keine Messung.
+
+**Belege.** `rdf_thalamus_sml`, Commit 17c0b19; Wiki `befunde/netresearch-live-blickschleife.md` (Nachtrag
+2026-11-21).
+
 ## Laufend / offen
 
 - Gelerntes Zeichen „keine Vorlage“ (`+rvt`, Auftrag Nutzer 2026-11-21): Wie `+rv`, aber Laufschritte senden
