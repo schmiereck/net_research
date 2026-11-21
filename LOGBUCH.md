@@ -3326,21 +3326,71 @@ layer_s schneller machen, und ob `pcell` auch auf der Blickschleifen-Leiter trä
 Job-Ergebnis auf dem Share (`results/20261121-153910-route_probe/runs.jsonl`), sie gleichen den vorhandenen
 Zeilen exakt.
 
-## Laufend / offen
+## 2026-11-21 — Phase C, `pcell` mit zufälligem Start von fc2: layer_s lernt schneller und sicherer, bleibt aber hinter dem Feintuning
 
-- Phase C, `pcell` zusammen mit zufälligem Start von fc2 bei layer_s (Auftrag Nutzer 2026-11-21: „prüfe pcell
-  zusammen mit fc2 bei layer_s“). Frage: Lernt layer_s mit `freeze:pcell+fc2` schneller als mit `pcell` allein?
-  Begründung der Erwartung: Bei layer_s startet fc2 bei null, die Zelle reicht anfangs nur den Restpfad durch;
-  der Befehl je Zelle wirkt erst, wenn fc2 gewachsen ist. `pcell+fc2` unterscheidet sich von `pcell` nur in fc2
-  (geprüft in `scripts/check_route.py`), Stufe 1 ist gleich, also Vergleich je Seed.
-  Plan `keep_shift:3000 freeze:pcell+fc2 match_shift:9000`, layer_s, Seeds 0–9. Dazu `freeze`, `freeze:pcell`
-  und `freeze:fc2` für Seeds 5–9 (0–4 liegen vor), also alle vier Varianten auf 10 Seeds; 25 Läufe, Worker mit
-  14 Prozessen -> `results/route.jsonl`. Gelöst = `match_shift` ≥ 0,8.
-  **Vorhersage vor dem Lauf (2026-11-21):** (1) Schneller: bei Update 7500 liegt `pcell+fc2` im Mittel
-  mindestens 0,15 über `pcell` (dort 0,42 auf Seeds 0–4) und je Seed in mindestens 7 von 10 darüber.
-  (2) Am Ende kein Schaden: Mittel innerhalb ±0,05 von `pcell` oder darüber, gelöst in mindestens 8 von 10.
-  (3) Der Befund des vorigen Eintrags wiederholt sich auf Seeds 5–9: `pcell` löst mindestens 4 von 5,
-  `freeze` höchstens 2 von 5. (4) `fc2` allein löst auf Seeds 5–9 1 bis 3 von 5 (wie 2 von 5 auf Seeds 0–4).
+**Frage.** Lernt layer_s beim Andocken schneller, wenn jede neue Zelle ihre eingefrorene Zelle liest (`pcell`) UND
+die zweite Zellschicht des neuen Moduls zufällig startet (`fc2`)?
+
+**Gemacht.** Jobs `20261121-191851-pcell_fc2` und `20261121-191852-route_seeds59` (Commit 58a0b68), 25 Läufe auf dem
+Worker. Damit liegen für layer_s alle vier Varianten (`freeze`, `fc2`, `pcell`, `pcell+fc2`) auf Seeds 0–9 vor.
+Stufe 1 ist je Seed in allen vier Varianten gleich (`frozen_final` identisch). Vorhersage vor dem Lauf (wörtlich
+aus „Laufend / offen“):
+
+> - Phase C, `pcell` zusammen mit zufälligem Start von fc2 bei layer_s (Auftrag Nutzer 2026-11-21: „prüfe pcell
+>   zusammen mit fc2 bei layer_s“). Frage: Lernt layer_s mit `freeze:pcell+fc2` schneller als mit `pcell` allein?
+>   Begründung der Erwartung: Bei layer_s startet fc2 bei null, die Zelle reicht anfangs nur den Restpfad durch;
+>   der Befehl je Zelle wirkt erst, wenn fc2 gewachsen ist. `pcell+fc2` unterscheidet sich von `pcell` nur in fc2
+>   (geprüft in `scripts/check_route.py`), Stufe 1 ist gleich, also Vergleich je Seed.
+>   Plan `keep_shift:3000 freeze:pcell+fc2 match_shift:9000`, layer_s, Seeds 0–9. Dazu `freeze`, `freeze:pcell`
+>   und `freeze:fc2` für Seeds 5–9 (0–4 liegen vor), also alle vier Varianten auf 10 Seeds; 25 Läufe, Worker mit
+>   14 Prozessen -> `results/route.jsonl`. Gelöst = `match_shift` ≥ 0,8.
+>   **Vorhersage vor dem Lauf (2026-11-21):** (1) Schneller: bei Update 7500 liegt `pcell+fc2` im Mittel
+>   mindestens 0,15 über `pcell` (dort 0,42 auf Seeds 0–4) und je Seed in mindestens 7 von 10 darüber.
+>   (2) Am Ende kein Schaden: Mittel innerhalb ±0,05 von `pcell` oder darüber, gelöst in mindestens 8 von 10.
+>   (3) Der Befund des vorigen Eintrags wiederholt sich auf Seeds 5–9: `pcell` löst mindestens 4 von 5,
+>   `freeze` höchstens 2 von 5. (4) `fc2` allein löst auf Seeds 5–9 1 bis 3 von 5 (wie 2 von 5 auf Seeds 0–4).
+
+**Ergebnis.** layer_s, `match_shift`, Seeds 0–9:
+
+| Variante | am Ende je Seed 0–9 | Mittel | gelöst | Update 7500 (Mittel) | Update 9000 (Mittel) |
+|---|---|---|---|---|---|
+| `freeze` | 0,52 0,74 0,32 0,31 0,38 0,60 0,31 0,64 0,67 0,40 | 0,490 | 0/10 | 0,25 | 0,36 |
+| `fc2` | 0,92 0,91 0,42 0,40 0,46 0,91 0,58 0,70 0,92 0,36 | 0,659 | 4/10 | 0,41 | 0,55 |
+| `pcell` | 0,97 0,94 0,76 0,87 0,92 0,84 0,40 0,90 0,98 0,07 | 0,765 | 7/10 | 0,33 | 0,61 |
+| `pcell+fc2` | 0,97 0,95 0,91 0,93 0,96 0,86 0,91 0,97 0,99 0,00 | **0,845** | **9/10** | **0,56** | **0,77** |
+
+- `pcell+fc2` gegen `pcell` bei Update 7500, je Seed: −0,01 / +0,02 / +0,17 / +0,43 / +0,36 / +0,57 / +0,27 /
+  +0,50 / −0,03 / 0,00; im Mittel +0,23. Darüber in 7 von 10 Seeds, um mehr als 0,02 in 6.
+- Erstes Update mit `match_shift` ≥ 0,8: `pcell+fc2` 6750–9500 (Median 8750, Seed 9 nie), `pcell` 6500–10750
+  (3 von 10 nie). Feintuning (erster Test, Seeds 0–2): Mittel 0,89 bei Update 6000.
+- Am Ende `pcell+fc2` gegen `pcell` im Mittel +0,08; größter Gewinn Seed 6 (0,40 → 0,91), größter Verlust Seed 9
+  (0,07 → 0,00). Gelöst 9 gegen 7 von 10 (Fisher einseitig p = 0,29, nicht gesichert).
+- Seed 9 scheitert mit beiden `pcell`-Varianten (0,07 und 0,00, die ganze zweite Stufe flach), während `freeze`
+  (0,40) und `fc2` (0,36) dort lernen. Das eingefrorene Netz von Seed 9 hat `keep_shift` wie alle mit 1,00 gelernt;
+  auffällig ist nur, dass sein eigener `match_shift`-Wert mit −0,14 näher an null liegt als bei den anderen
+  Seeds (−0,35 bis −0,75). Beim `pcell`-Lauf von Seed 9 behält der Verbund `keep_shift` 0,60, als ob das Gate auf
+  der alten Ausgabe bliebe. Beides ist nicht geprüft.
+- Auf den neuen Seeds 5–9 löst `pcell` 3 von 5 (Seeds 0–4: 4 von 5), `freeze` 0 von 5, `fc2` 2 von 5.
+
+**Vergleich mit der Vorhersage.** (1) Getroffen: +0,23 im Mittel bei Update 7500, darüber in 7 von 10 Seeds
+(knapp: Seed 1 nur +0,02). (2) Getroffen: Mittel +0,08 über `pcell`, gelöst 9 von 10. (3) Teilweise: `freeze`
+0 von 5 getroffen, `pcell` nur 3 von 5 statt mindestens 4. (4) Getroffen: `fc2` 2 von 5. Bilanz: 3 getroffen,
+1 teilweise.
+
+**Schluss.** (a) Beide Ursachen wirken bei layer_s zusammen: Mit beiden Änderungen lernt layer_s schneller (bei
+Update 7500 im Mittel 0,56 statt 0,33) und löst 9 von 10 Seeds. Ohne Änderung löst es keinen, mit je einer 4
+bzw. 7. Ob die Kombination am Ende wirklich mehr Läufe löst als `pcell` allein, ist mit 10 Seeds nicht
+gesichert (p = 0,29); der Gewinn im Tempo ist deutlicher. (b) Das Feintuning bleibt schneller: Es erreicht 0,8 im
+Mittel vor Update 6000, `pcell+fc2` im Median bei 8750. (c) Auf zehn Seeds ist `pcell` allein bei layer_s
+schwächer als es die Seeds 0–4 nahelegten (7 von 10 statt 4 von 5 gelöst; zusammen mit hier_s im vorigen Eintrag
+9 von 10). Der Kern des vorigen Befunds hält: `freeze` löst bei layer_s keinen von 10. (d) Ein Seed (9) scheitert
+gerade mit dem Signal je Zelle, ohne es nicht. Ein Einzelfall, aber er zeigt, dass `pcell` auch ganz versagen
+kann; der Grund ist offen.
+
+**Belege.** `results/route.jsonl` (124 Zeilen; Plan `keep_shift:3000 freeze:pcell+fc2 match_shift:9000` und die
+drei anderen Varianten für Seeds 5–9).
+
+## Laufend / offen
 
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

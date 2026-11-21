@@ -1470,6 +1470,9 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
     Breite des Ports nicht (`p64` gleich, `pfull` schlechter). Null-Start von layer_s zum Teil (`fc2`: 2 von 5
     Seeds lösen). Gate zum Lernen nicht nötig (`nogate` +0,06). Folgerung für die Bibliothek: Ein Eintrag
     veröffentlicht, was jede Zelle weitergibt, nicht nur die oberste Darstellung; für andere Bauarten offen.
+  - **`pcell` + zufälliger Start von fc2 bei layer_s (2026-11-21, LOGBUCH):** 9 von 10 Seeds gelöst (`pcell`
+    allein 7, `freeze` 0), bei Update 7500 im Mittel 0,56 statt 0,33. Ein Seed scheitert mit beiden
+    `pcell`-Varianten (Grund offen). Das Feintuning bleibt schneller (0,8 vor Update 6000, hier Median 8750).
 
 **Phase D – Gelernter Teacher (Stufe 1)**
 - Ein kleiner Teacher, geteilt an allen Positionen, liest die Telemetrie und schreibt die Modulation.

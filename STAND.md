@@ -116,6 +116,8 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   langsamer. Ein breiterer Port hilft nicht (64 Werte gleich, die ganze Darstellung schadet hier_s). Der
   Null-Start der zweiten Zellschicht von layer_s erklärt einen Teil (2 von 5 Seeds). Das Gate ist zum Lernen
   nicht nötig.
+  Beides zusammen (`freeze:pcell+fc2`) macht layer_s schneller und sicherer: 9 von 10 Seeds gelöst (`pcell`
+  allein 7, `freeze` 0), bei Update 7500 im Mittel 0,56 statt 0,33. Das Feintuning bleibt schneller.
 - **Lesart:** Die langen Plateaus sind fehlende Zwischenziele. Verlangt eine Hilfsaufgabe die Zwischengröße als
   Ausgabe, verschwinden sie bei allen Architekturen. Das ist die Rolle, die ein Teacher übernehmen soll.
 - Auf den Roboter-Aufgaben trägt das Prinzip bisher nur teilweise: Bei „Hand zum Würfel“ hebt die Hilfsaufgabe
