@@ -120,6 +120,10 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   allein 7, `freeze` 0), bei Update 7500 im Mittel 0,56 statt 0,33. Das Feintuning bleibt schneller.
   Der einzige ungelöste Seed braucht nur länger (etwa 9000 Updates Anlauf, mit 24000 Updates 0,96); die lange
   Anlaufzeit kommt vom eingefrorenen Netz, warum ist offen.
+  **Mit langer zweiter Stufe (24000 Updates, 2026-11-22) relativiert:** Auch `freeze` löst dann 8 von 10, `fc2`
+  9, `pcell` und `pcell+fc2` 10 von 10. „Nur oben“ verlangsamt also vor allem; `pcell` bleibt schneller und
+  rettet die zwei langsamsten Seeds (0,97 statt 0,59/0,68), nicht gesichert. `pcell+fc2` erreicht 0,8 im Median
+  nach 5875 Updates, etwa so schnell wie Feintuning. Lösequoten beim Andocken brauchen eine Budgetangabe.
 - **Lesart:** Die langen Plateaus sind fehlende Zwischenziele. Verlangt eine Hilfsaufgabe die Zwischengröße als
   Ausgabe, verschwinden sie bei allen Architekturen. Das ist die Rolle, die ein Teacher übernehmen soll.
 - Auf den Roboter-Aufgaben trägt das Prinzip bisher nur teilweise: Bei „Hand zum Würfel“ hebt die Hilfsaufgabe

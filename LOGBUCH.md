@@ -3502,18 +3502,85 @@ mit 0,40).
 **Belege.** `scripts/route_seed9/` (README mit Aufrufen), `results/route_seed9/` (stage1, stats, stage2, swap,
 probe_cell, probe_var, long).
 
-## Laufend / offen
+## 2026-11-22 — Phase C, lange zweite Stufe: Andocken ohne Signal je Zelle löst auch, nur langsamer; `pcell` ist vor allem schneller
 
-- Phase C, Andocken mit langer zweiter Stufe bei layer_s: Ist `pcell` besser oder nur schneller? (Folge aus dem
-  Seed-9-Eintrag: Lösequoten bei 9000 Updates messen zum Teil das Tempo.) Pläne
-  `keep_shift:3000 freeze[:fc2|:pcell|:pcell+fc2] match_shift:24000`, layer_s, Seeds 0–9, 40 Läufe auf dem
-  Worker -> `results/route.jsonl`. Hinweis: Mit mehr Updates wird auch der Kosinus-Plan der Lernrate gestreckt;
-  der Vergleich ist „mehr Zeit“, nicht „dieselbe Kurve weiter“. Gelöst = `match_shift` ≥ 0,8. Vergleich mit den
-  Läufen mit 9000 Updates (vorige Einträge).
-  **Vorhersage vor dem Lauf (2026-11-21):** (1) `pcell` und `pcell+fc2` lösen je mindestens 9 von 10.
-  (2) `freeze` bleibt deutlich zurück: gelöst höchstens 5 von 10, Mittel mindestens 0,15 unter `pcell`.
-  (3) `fc2` liegt dazwischen: gelöst 4 bis 8 von 10. (4) Jede Variante liegt im Mittel mindestens so hoch wie mit
-  9000 Updates (`freeze` 0,49, `fc2` 0,66, `pcell` 0,77, `pcell+fc2` 0,85).
+**Frage.** Ist `pcell` beim Andocken von layer_s besser oder nur schneller? (Folge aus dem Seed-9-Eintrag:
+Lösequoten bei 9000 Updates messen zum Teil das Tempo.)
+
+**Gemacht.** Job `20261121-230321-route_long` (Commit 2e47e9c), 40 Läufe auf dem Worker mit 14 Prozessen.
+Vorhersage vor dem Lauf (wörtlich aus „Laufend / offen“):
+
+> - Phase C, Andocken mit langer zweiter Stufe bei layer_s: Ist `pcell` besser oder nur schneller? (Folge aus dem
+>   Seed-9-Eintrag: Lösequoten bei 9000 Updates messen zum Teil das Tempo.) Pläne
+>   `keep_shift:3000 freeze[:fc2|:pcell|:pcell+fc2] match_shift:24000`, layer_s, Seeds 0–9, 40 Läufe auf dem
+>   Worker -> `results/route.jsonl`. Hinweis: Mit mehr Updates wird auch der Kosinus-Plan der Lernrate gestreckt;
+>   der Vergleich ist „mehr Zeit“, nicht „dieselbe Kurve weiter“. Gelöst = `match_shift` ≥ 0,8. Vergleich mit den
+>   Läufen mit 9000 Updates (vorige Einträge).
+>   **Vorhersage vor dem Lauf (2026-11-21):** (1) `pcell` und `pcell+fc2` lösen je mindestens 9 von 10.
+>   (2) `freeze` bleibt deutlich zurück: gelöst höchstens 5 von 10, Mittel mindestens 0,15 unter `pcell`.
+>   (3) `fc2` liegt dazwischen: gelöst 4 bis 8 von 10. (4) Jede Variante liegt im Mittel mindestens so hoch wie mit
+>   9000 Updates (`freeze` 0,49, `fc2` 0,66, `pcell` 0,77, `pcell+fc2` 0,85).
+
+Stufe 1 ist in allen 40 Läufen dieselbe wie in den Läufen mit 9000 Updates (eingefrorenes Netz gleich, je Seed
+geprüft), der Vergleich ist also je Seed gepaart.
+
+**Ergebnis.** layer_s, `match_shift` am Ende, 24000 Updates in der zweiten Stufe:
+
+| Variante | am Ende je Seed 0–9 | Mittel | gelöst | mit 9000 Updates: Mittel / gelöst | erstes ≥ 0,8 (Median, Updates der 2. Stufe) |
+|---|---|---|---|---|---|
+| `freeze` | 0,99 0,99 0,98 0,98 0,93 1,00 0,68 0,97 1,00 0,59 | 0,911 | 8/10 | 0,490 / 0/10 | 9625 (2 nie) |
+| `fc2` | 1,00 1,00 0,97 0,93 0,99 1,00 0,99 1,00 1,00 0,59 | 0,946 | 9/10 | 0,659 / 4/10 | 7375 (1 nie) |
+| `pcell` | 1,00 1,00 0,99 1,00 1,00 0,97 0,98 0,99 1,00 0,97 | 0,989 | 10/10 | 0,765 / 7/10 | 7375 |
+| `pcell+fc2` | 1,00 1,00 1,00 1,00 1,00 0,99 0,99 1,00 1,00 0,96 | **0,994** | **10/10** | 0,845 / 9/10 | **5875** |
+
+Mittel im Verlauf (Updates der zweiten Stufe; gelöst in Klammern):
+
+| Variante | 6000 | 9000 | 12000 | 18000 |
+|---|---|---|---|---|
+| `freeze` | 0,40 (0) | 0,69 (4) | 0,80 (7) | 0,89 (8) |
+| `fc2` | 0,56 (3) | 0,77 (6) | 0,86 (8) | 0,94 (9) |
+| `pcell` | 0,50 (2) | 0,84 (6) | 0,93 (10) | 0,98 (10) |
+| `pcell+fc2` | 0,69 (5) | 0,83 (9) | 0,93 (9) | 0,99 (10) |
+
+- `pcell` gegen `freeze` am Ende je Seed: höher in 9 von 10 Seeds, niedriger in einem (Seed 5: 0,97 gegen 1,00).
+  Die großen Unterschiede liegen in den Seeds 9 (0,97 gegen 0,59), 6 (0,98 gegen 0,68) und 4 (1,00 gegen 0,93);
+  in den übrigen sieben Seeds liegen beide bei 0,97–1,00. Gelöst 10 gegen 8 von 10 (Fisher einseitig p = 0,24,
+  nicht gesichert).
+- Seed 9 (das eingefrorene Netz mit der langen Anlaufzeit) ist mit `freeze` und `fc2` der schwächste Lauf
+  (0,59 beide). Mit `pcell` kommt er auf 0,97, mit `pcell+fc2` auf 0,96, obwohl er bei `pcell+fc2` erst nach
+  10000 Updates 0,1 erreicht. Bei `freeze` und `fc2` beginnt er früh (0,1 nach 4750 bzw. 5500), bleibt aber
+  um 0,6.
+- Erstes ≥ 0,1: `freeze` und `fc2` steigen früher an (Median 2750 bzw. 2125) als `pcell` (4500) und
+  `pcell+fc2` (3750). Ohne Signal je Zelle beginnt das Lernen also früher, steigt aber langsamer.
+- Die gestreckte Lernrate allein hilft: Bei Update 9000 der zweiten Stufe liegt `freeze` im langen Lauf bei
+  0,69, im kurzen Lauf am Ende (auch Update 9000, Lernrate dort schon fast null) bei 0,49. Für die anderen
+  Varianten ebenso (`fc2` 0,77 gegen 0,66, `pcell` 0,84 gegen 0,77, `pcell+fc2` 0,83 gegen 0,85).
+- `keep_shift` des Verbunds am Ende: bei `pcell` und `pcell+fc2` 0,00–0,07, bei `freeze` und `fc2` 0,01–0,89
+  (Seeds 0 und 5 von `fc2` und 5 und 8 von `freeze` behalten 0,64–0,89). Wie im ersten Test: Das Gate kennt die
+  Aufgabe nicht, der Verbund verliert die alte Aufgabe; mit Signal je Zelle noch gründlicher.
+
+**Vergleich mit der Vorhersage.** (1) Getroffen: `pcell` und `pcell+fc2` lösen je 10 von 10. (2) Verfehlt:
+`freeze` löst 8 von 10 (vorhergesagt höchstens 5), Mittel 0,08 unter `pcell` (vorhergesagt mindestens 0,15).
+(3) Verfehlt: `fc2` löst 9 von 10 (vorhergesagt 4 bis 8). (4) Getroffen: Alle Mittel liegen höher als mit 9000
+Updates. Bilanz: 2 getroffen, 2 verfehlt.
+
+**Schluss.** (a) Das seitliche Signal „nur oben“ ist kein Engpass, der das Lernen verhindert, sondern einer, der
+es verlangsamt: Mit genug Zeit löst auch `freeze` 8 von 10 Seeds. Der Befund des Eintrags „Schwäche der
+Gitter“ (`pcell` 9 von 10 gegen `freeze` 4 von 10) war zum großen Teil ein Befund über das Tempo. Ich hatte das
+unterschätzt, wie die verfehlten Punkte (2) und (3) zeigen. (b) Es bleibt ein Vorteil von `pcell`, der über das
+Tempo hinausgehen könnte: alle 10 Seeds gelöst, auch die zwei, die mit `freeze` bei 0,59 und 0,68 hängen bleiben
+(Seeds 9 und 6). Ob diese zwei mit noch mehr Zeit ebenfalls lösen würden, ist offen; ihre Kurven steigen bis
+zum Ende noch (Seed 6: 0,40 bei Update 12000, 0,61 bei 18000, 0,68 am Ende), aber langsam. Mit 10 Seeds nicht gesichert (p = 0,24).
+(c) Am schnellsten ist `pcell+fc2` (0,8 im Median nach 5875 Updates). Das ist etwa so schnell wie das Feintuning
+im ersten Test (0,8 im Mittel vor Update 6000), aber nicht schneller. (d) Für die Bewertung von Architekturen
+heißt das: Beim Andocken müssen Lösequoten mit einer Angabe zum Budget kommen, und „nicht gelöst“ nach 9000
+Updates sagt wenig. Die Zeit bis 0,8 ist das bessere Maß. (e) Die Folgerung für die Bibliothek (ein Eintrag
+veröffentlicht, was jede Zelle weitergibt) bleibt sinnvoll, aber als Beschleunigung, nicht als Bedingung.
+
+**Belege.** `results/route.jsonl` (170 Zeilen; Pläne `keep_shift:3000 freeze[:fc2|:pcell|:pcell+fc2]
+match_shift:24000`, layer_s, Seeds 0–9).
+
+## Laufend / offen
 
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

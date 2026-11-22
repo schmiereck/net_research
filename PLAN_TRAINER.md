@@ -1479,6 +1479,11 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
   - **Seed 9 mit `pcell` (2026-11-21, LOGBUCH):** kein Versagen, sondern eine Anlaufzeit von etwa 9000 Updates
     (mit 24000 Updates 0,96); verursacht vom eingefrorenen Netz (Tausch), nicht von Gate, Größe oder fehlender
     Information. Lösequoten bei festem Budget messen bei `pcell` zum Teil das Tempo.
+  - **Lange zweite Stufe (2026-11-22, LOGBUCH):** Mit 24000 Updates löst auch `freeze` 8 von 10 (`fc2` 9,
+    `pcell` und `pcell+fc2` 10). „Nur oben“ verlangsamt, verhindert aber meist nicht; `pcell` rettet die zwei
+    langsamsten Seeds (nicht gesichert, p = 0,24). `pcell+fc2` am schnellsten (0,8 im Median nach 5875 Updates,
+    etwa wie Feintuning). Folgerung „Eintrag veröffentlicht jede Zelle“ bleibt, als Beschleunigung. Maß beim
+    Andocken künftig: Zeit bis 0,8, nicht Lösequote bei festem Budget.
 
 **Phase D – Gelernter Teacher (Stufe 1)**
 - Ein kleiner Teacher, geteilt an allen Positionen, liest die Telemetrie und schreibt die Modulation.
