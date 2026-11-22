@@ -3666,5 +3666,16 @@ auf dem Share; „von null an“: `results/loop_refcurve.jsonl`.
 
 ## Laufend / offen
 
+- Phase C, Blickschleifen-Leiter `cue → blind`, die nachgeholten Misch-Läufe (Auftrag Nutzer 2026-11-22): Die
+  Sperre im Lehrplan ist gelockert: Aufgaben einer Phase, die sich die Symbol-Fläche teilen, müssen dort denselben
+  Code haben; mehrere Schritt-Aufgaben im Populations-Code sind erlaubt, eine neben einem anderen Code (z. B.
+  `*_parts`) weiter nicht. Plan `robot_loop_cue_f32+robot_loop_blind_f32:24000`, `layer_s_sp4+cell+refl+rez3`
+  und `vitmem+refl+rez3`, Seeds 0–3, 8 Läufe auf dem Worker -> `results/route_loop.jsonl`. Vergleich mit dem
+  vorigen Eintrag (Feintuning, `freeze`, von null an).
+  **Vorhersage vor dem Lauf (2026-11-22):** (1) layer_s_sp4 löst beide Aufgaben: `near` ≥ 0,90 in `cue` und
+  `blind`, 4 von 4 (Punkt 5 der vorigen Vorhersage). (2) Mischen behält `cue` besser als Feintuning und `freeze`:
+  `cue`-Folgen-Wertung am Ende ≥ 0,75 bei layer_s_sp4 in 4 von 4 (Feintuning 0,65–0,69). (3) vitmem: `near` in
+  `blind` ≥ 0,80 in mindestens 3 von 4, aber unter dem Feintuning (0,92).
+
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

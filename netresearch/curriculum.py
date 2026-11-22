@@ -78,7 +78,10 @@ def job(args):
                 model = freeze_and_route(model, model_name, params, seed, opt=updates)
                 continue
             specs = [make_task(t).spec for t in names]
-            if any(s.pop for s in specs) and sum(s.role == "symbol" for s in specs) > 1:
+            # tasks of one phase that share the symbol area must use the same code there: several step tasks in
+            # the population code are fine (the area means the same, one step), one next to another code is not
+            sym = [s for s in specs if s.role == "symbol"]
+            if any(s.pop for s in sym) and not all(s.pop for s in sym):
                 raise ValueError(f"{'+'.join(names)}: a step task in the population code shares the symbol area "
                                  f"with another task; use its '<name>_bits' form in this phase")
             learners = [make_learner(model, make_task(t), updates, 64, seed + 100 * k + j)
