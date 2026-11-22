@@ -3718,5 +3718,21 @@ scheitert an der fehlenden Auswahl nach Aufgabe. Das ist der nächste Engpass vo
 
 ## Laufend / offen
 
+- Phase C, Blickschleifen-Leiter, zweite Sprosse `blind → two` (Leiter beschlossen 2026-11-21, Nutzer erlaubte
+  2026-11-22 ohne Rückfrage weiterzumachen): `two` verlangt mehr Neues (zwei Ziele behalten und nacheinander
+  ansteuern); hilft dort das Können aus `blind`, und wie schneiden die Varianten ab? Pläne Feintuning
+  `robot_loop_blind_f32:12000 robot_loop_two_f32:12000`, `... freeze ...`, `... freeze:pcell ...` (nur Gitter),
+  Mischen `robot_loop_blind_f32+robot_loop_two_f32:24000`; `layer_s_sp4+cell+refl+rez3` und `vitmem+refl+rez3`,
+  Seeds 0–1 (14 Läufe = eine Welle, der Worker ist bis 7 Uhr frei); beide Aufgaben alle 250 Updates. Von null an
+  liegt vor (`results/loop_refcurve.jsonl`, `robot_loop_two_f32:12000`, Seeds 0–2): layer_s_sp4 Folgen-Wertung
+  0,69–0,71, `near` 0,89–0,91, erstes ≥ 0,68 nach 7000–7250 Updates; vitmem 0,56–0,62, `near` 0,70–0,80, nie
+  ≥ 0,65. Worker -> `results/route_loop.jsonl`.
+  **Vorhersage vor dem Lauf (2026-11-22):** (1) layer_s_sp4 Feintuning: `two` ≥ 0,68 nach höchstens 3500 Updates
+  der zweiten Stufe und `near` am Ende ≥ 0,89, je 2 von 2. (2) layer_s_sp4 `freeze` und `freeze:pcell`: `two`
+  ≥ 0,68 früher als von null an (vor 7000) und `near` ≥ 0,85, je 2 von 2. (3) vitmem: Mit Feintuning erreicht
+  `two` ≥ 0,65 in 2 von 2 (von null an nie); mit `freeze` in höchstens 1 von 2. (4) Mischen bei layer_s_sp4:
+  `blind` bleibt am Ende ≥ 0,75 und `two` `near` ≥ 0,85, je 2 von 2; nach Feintuning liegt `blind` am Ende unter
+  0,75 (2 von 2).
+
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
