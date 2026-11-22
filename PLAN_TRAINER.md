@@ -1491,6 +1491,11 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
     Abbildung beider nebeneinander, ohne breiteren Port). Mit `+rv` fällt nur der eigene Befehl ohne Bild weg,
     das seitliche Signal fließt weiter. Code: `train.front` (Vorstufe je Netz), `FrozenRoute.own_front`;
     für die bisherigen Aufgaben bitgleich zum alten Code; Prüfungen in `scripts/check_route.py` (Teil 7).
+  - **Erste Sprosse `cue → blind` (2026-11-22, LOGBUCH):** layer_s_sp4: Andocken schneller als von null an (t75
+    Median 3125, `pcell` 2500, von null an 4875), Feintuning schneller (875) und etwas besser. vitmem: Andocken
+    schlechter als von null an, Feintuning besser. Bei so nahen Aufgaben lohnt Einfrieren nur, wenn die alte
+    Aufgabe bleiben muss, und das fehlt ohne Auswahl nach Aufgabe. Mischen gesperrt (zwei Schritt-Aufgaben
+    teilen die Symbol-Fläche), offen; ebenso `two`, `three`.
 
 **Phase D – Gelernter Teacher (Stufe 1)**
 - Ein kleiner Teacher, geteilt an allen Positionen, liest die Telemetrie und schreibt die Modulation.

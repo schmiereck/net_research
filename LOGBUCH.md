@@ -3580,28 +3580,91 @@ veröffentlicht, was jede Zelle weitergibt) bleibt sinnvoll, aber als Beschleuni
 **Belege.** `results/route.jsonl` (170 Zeilen; Pläne `keep_shift:3000 freeze[:fc2|:pcell|:pcell+fc2]
 match_shift:24000`, layer_s, Seeds 0–9).
 
-## Laufend / offen
+## 2026-11-22 — Phase C, Blickschleifen-Leiter `cue → blind`: Andocken hilft dem Gitter, Feintuning hilft mehr; bei vitmem schadet das Andocken
 
-- Phase C, zweiter Prüfstand, erste Sprosse der Blickschleifen-Leiter `cue → blind` (Auftrag Nutzer
-  2026-11-22): Hilft das eingefrorene Können aus `robot_loop_cue_f32` beim Lernen von `robot_loop_blind_f32`?
-  Verdrahtung nach Beschluss des Nutzers (Commit 7179067): jedes Netz mit eigener Netzhaut und eigenem
-  Adress-Encoder, im Port des neuen Moduls die Summe aus seitlichem und eigenem Befehl. Pläne:
-  Feintuning `robot_loop_cue_f32:12000 robot_loop_blind_f32:12000`, Mischen
-  `robot_loop_cue_f32+robot_loop_blind_f32:24000`, `robot_loop_cue_f32:12000 freeze robot_loop_blind_f32:12000`
-  und (nur Gitter) `... freeze:pcell ...`; Netze `layer_s_sp4+cell+refl+rez3` und `vitmem+refl+rez3`, Seeds 0–3
-  (statt 0–4: der Worker ist nur noch bis etwa 23 Uhr frei, 28 Läufe passen in zwei Wellen); beide Aufgaben alle
-  250 Updates gemessen. Von null an liegt vor (`results/loop_refcurve.jsonl`, `robot_loop_blind_f32:12000`,
-  Seeds 0–4): layer_s_sp4 Folgen-Wertung 0,80, `near` 0,94–0,95, erstes ≥ 0,68 nach 2750–4000 Updates (Median
-  3250); vitmem 0,65–0,70, `near` 0,77–0,87, erstes ≥ 0,68 nach 7500–9500 (einer nie). Hauptmaß: Updates der
-  zweiten Stufe bis Folgen-Wertung ≥ 0,68 und `near` von `blind` am Ende; dazu `cue` am Ende (Vergessen).
-  Worker -> `results/route_loop.jsonl`.
-  **Vorhersage vor dem Lauf (2026-11-22):** (1) Feintuning: `blind` ist nach höchstens 1000 Updates der zweiten
-  Stufe ≥ 0,68 (layer_s_sp4 4 von 4, vitmem mindestens 3 von 4); `cue` bleibt am Ende ≥ 0,68 (die Aufgaben
-  teilen das Behalten, wenig Vergessen). (2) `freeze` bei layer_s_sp4: ≥ 0,68 schneller als von null an (Median
-  höchstens 2500 Updates), `near` am Ende ≥ 0,90 in 4 von 4. (3) `freeze:pcell` bei layer_s_sp4 mindestens so
-  schnell wie `freeze` (Median nicht später) und `near` ≥ 0,90 in 4 von 4. (4) vitmem mit `freeze`: ≥ 0,68 in
-  mindestens 3 von 4, im Median schneller als von null an (unter 7500 Updates). (5) Mischen: layer_s_sp4 löst
-  beide Aufgaben (`near` ≥ 0,90 in beiden, 4 von 4).
+**Frage.** Hilft das eingefrorene Können aus `robot_loop_cue_f32` beim Lernen von `robot_loop_blind_f32`, mit der
+neuen Verdrahtung (eigene Netzhaut und eigener Adress-Encoder je Netz, Summe im Port)?
+
+**Gemacht.** Job `20261122-080110-loop_cue_blind` (Commit 5313995), Worker mit 14 Prozessen, 397 Minuten.
+Vorhersage vor dem Lauf (wörtlich aus „Laufend / offen“):
+
+> - Phase C, zweiter Prüfstand, erste Sprosse der Blickschleifen-Leiter `cue → blind` (Auftrag Nutzer
+>   2026-11-22): Hilft das eingefrorene Können aus `robot_loop_cue_f32` beim Lernen von `robot_loop_blind_f32`?
+>   Verdrahtung nach Beschluss des Nutzers (Commit 7179067): jedes Netz mit eigener Netzhaut und eigenem
+>   Adress-Encoder, im Port des neuen Moduls die Summe aus seitlichem und eigenem Befehl. Pläne:
+>   Feintuning `robot_loop_cue_f32:12000 robot_loop_blind_f32:12000`, Mischen
+>   `robot_loop_cue_f32+robot_loop_blind_f32:24000`, `robot_loop_cue_f32:12000 freeze robot_loop_blind_f32:12000`
+>   und (nur Gitter) `... freeze:pcell ...`; Netze `layer_s_sp4+cell+refl+rez3` und `vitmem+refl+rez3`, Seeds 0–3
+>   (statt 0–4: der Worker ist nur noch bis etwa 23 Uhr frei, 28 Läufe passen in zwei Wellen); beide Aufgaben alle
+>   250 Updates gemessen. Von null an liegt vor (`results/loop_refcurve.jsonl`, `robot_loop_blind_f32:12000`,
+>   Seeds 0–4): layer_s_sp4 Folgen-Wertung 0,80, `near` 0,94–0,95, erstes ≥ 0,68 nach 2750–4000 Updates (Median
+>   3250); vitmem 0,65–0,70, `near` 0,77–0,87, erstes ≥ 0,68 nach 7500–9500 (einer nie). Hauptmaß: Updates der
+>   zweiten Stufe bis Folgen-Wertung ≥ 0,68 und `near` von `blind` am Ende; dazu `cue` am Ende (Vergessen).
+>   Worker -> `results/route_loop.jsonl`.
+>   **Vorhersage vor dem Lauf (2026-11-22):** (1) Feintuning: `blind` ist nach höchstens 1000 Updates der zweiten
+>   Stufe ≥ 0,68 (layer_s_sp4 4 von 4, vitmem mindestens 3 von 4); `cue` bleibt am Ende ≥ 0,68 (die Aufgaben
+>   teilen das Behalten, wenig Vergessen). (2) `freeze` bei layer_s_sp4: ≥ 0,68 schneller als von null an (Median
+>   höchstens 2500 Updates), `near` am Ende ≥ 0,90 in 4 von 4. (3) `freeze:pcell` bei layer_s_sp4 mindestens so
+>   schnell wie `freeze` (Median nicht später) und `near` ≥ 0,90 in 4 von 4. (4) vitmem mit `freeze`: ≥ 0,68 in
+>   mindestens 3 von 4, im Median schneller als von null an (unter 7500 Updates). (5) Mischen: layer_s_sp4 löst
+>   beide Aufgaben (`near` ≥ 0,90 in beiden, 4 von 4).
+
+Die Misch-Läufe (8) sind nicht gelaufen: Der Lehrplan verbietet zwei Schritt-Aufgaben in einer Phase, weil sie
+sich die Symbol-Fläche teilen („use its '<name>_bits' form in this phase“). Bei `cue` und `blind` bedeutet die
+Fläche dasselbe (der nächste Blickschritt), die Sperre ist hier zu streng; ich habe sie nicht geändert. Die vier
+`freeze:pcell`-Läufe von vitmem brachen wie geplant sofort ab (pcell nur für Gitter). Es bleiben 20 Läufe.
+„Von null an“: `robot_loop_blind_f32:12000` aus `results/loop_refcurve.jsonl`, Seeds 0–3.
+
+**Ergebnis.** Zweite Stufe (`blind`), je Seed 0 / 1 / 2 / 3. t68 bzw. t75 = Updates der zweiten Stufe bis die
+Folgen-Wertung von `blind` erstmals ≥ 0,68 bzw. ≥ 0,75 ist (gemessen alle 250); „nie“ = nicht in 12000.
+
+| Netz, Variante | t68 | t75 | `blind` Folgen-Wertung am Ende | `near` `blind` | `cue` am Ende (Folgen / `near`) |
+|---|---|---|---|---|---|
+| layer_s_sp4 von null an | 4000 / 2750 / 3250 / 2750 | 5500 / 4750 / 4500 / 5250 | 0,80 / 0,80 / 0,80 / 0,80 | 0,94 / 0,95 / 0,95 / 0,95 | – |
+| layer_s_sp4 Feintuning | 250 / 250 / 250 / 250 | 1000 / 1000 / 750 / 500 | 0,82 / 0,82 / 0,83 / 0,83 | **0,96 / 0,96 / 0,97 / 0,96** | 0,65–0,69 / 0,78–0,86 |
+| layer_s_sp4 `freeze` | 1250 / 1250 / 750 / 500 | 3250 / 3000 / 2000 / 3750 | 0,78 / 0,78 / 0,81 / 0,78 | 0,94 / 0,94 / 0,95 / 0,94 | 0,63–0,72 / 0,75–0,87 |
+| layer_s_sp4 `freeze:pcell` | 1000 / 1000 / 1000 / 750 | 3000 / 2750 / 2250 / 2000 | 0,78 / 0,80 / 0,81 / 0,80 | 0,94 / 0,95 / 0,96 / 0,95 | 0,61–0,73 / 0,73–0,88 |
+| vitmem von null an | 8750 / 9500 / 7500 / 9250 | nie | 0,69 / 0,68 / 0,70 / 0,69 | 0,83 / 0,81 / 0,87 / 0,83 | – |
+| vitmem Feintuning | 250 / 2750 / 2750 / 2750 | 8250 / 8500 / 8500 / 8250 | 0,76 / 0,76 / 0,75 / 0,76 | **0,92 / 0,92 / 0,92 / 0,92** | 0,71–0,75 / 0,86–0,91 |
+| vitmem `freeze` | 250 / nie / nie / 3500 | nie | 0,70 / 0,67 / 0,65 / 0,68 | 0,86 / 0,79 / 0,76 / 0,84 | 0,65–0,69 / 0,76–0,84 |
+
+- Ende der ersten Stufe (`cue` 12000 Updates): layer_s_sp4 Folgen-Wertung 0,79–0,81, vitmem 0,66–0,72. `blind`
+  steht dabei schon bei 0,60–0,66 (layer_s_sp4) bzw. 0,56–0,68 (vitmem): Das `cue`-Netz kann `blind` zum Teil.
+  Das eingefrorene Netz allein auf `blind` am Ende: layer_s_sp4 0,58–0,65, vitmem 0,56–0,67.
+- Medianwerte layer_s_sp4: t68 von null an 3000, Feintuning 250, `freeze` 1000, `freeze:pcell` 1000; t75 4875 /
+  875 / 3125 / 2500.
+- Vergessen: Feintuning senkt `cue` bei layer_s_sp4 von 0,79–0,81 auf 0,65–0,69 (`near` 0,78–0,86; ein `cue`-Netz von null an
+  hat 0,92–0,95). Der Verbund nach `freeze` ebenso (0,61–0,73), obwohl das eingefrorene Netz `cue` allein weiter mit
+  0,77–0,80 kann: wie im ersten Test, das Gate kennt die Aufgabe nicht. Bei vitmem steigt `cue` durch das
+  Feintuning sogar (0,66–0,72 → 0,71–0,75).
+- Nicht gepaart: Die erste Stufe ist nicht in allen Varianten bitgleich. Bei layer_s_sp4 sind Feintuning und
+  `freeze` gleich, `freeze:pcell` weicht ab (`cue` 0,79–0,80 statt 0,80–0,81); bei vitmem weichen die Seeds 2 und
+  3 ab. Bei `keep_shift` waren alle Varianten gleich. Ursache nicht geprüft (Vermutung: nicht deterministische
+  Rechenwege von Faltung oder Attention auf dem Worker). Die Abweichungen sind klein.
+
+**Vergleich mit der Vorhersage.** (1) Verfehlt: layer_s_sp4 erreicht 0,68 nach 250 Updates (4 von 4), vitmem nur
+in 1 von 4 nach höchstens 1000 (dreimal 2750); `cue` bleibt bei layer_s_sp4 nur in 1 von 4 ≥ 0,68. (2) Getroffen:
+`freeze` Median 1000 (höchstens 2500), `near` 0,94–0,95 in 4 von 4. (3) Getroffen: `freeze:pcell` Median 1000
+(nicht später), `near` 0,94–0,96 in 4 von 4. (4) Verfehlt: vitmem mit `freeze` erreicht 0,68 nur in 2 von 4.
+(5) Nicht prüfbar, die Misch-Läufe sind nicht gelaufen. Bilanz: 2 getroffen, 2 verfehlt, 1 nicht prüfbar.
+
+**Schluss.** (a) Bei layer_s_sp4 hilft das Andocken: `blind` wird schneller gelernt als von null an (t75 im
+Median 3125 bzw. 2500 statt 4875) und erreicht dasselbe `near` (0,94–0,96). Es bleibt aber deutlich hinter dem
+Feintuning (t75 875, `near` 0,96–0,97). `pcell` ist hier höchstens etwas schneller als `freeze`. (b) Bei vitmem
+schadet das Andocken: `freeze` endet unter „von null an“ (`near` 0,76–0,86 gegen 0,81–0,87), Feintuning liegt
+klar darüber (0,92 in allen vier). Ein Grund könnte sein, dass vitmem nur die oberste Darstellung seitlich
+weitergeben kann (kein `pcell`), was beim ersten Prüfstand der Engpass war; das ist nicht geprüft. (c) `cue` und
+`blind` sind fast dieselbe Aufgabe (das `cue`-Netz kann `blind` schon zu 0,60–0,68). Für solche Nachbarn ist
+Weiterlernen derselben Gewichte der natürliche Weg; das Einfrieren lohnt sich erst, wenn die alte Aufgabe
+erhalten bleiben muss, und das leistet der Verbund ohne Auswahl nach Aufgabe nicht (`cue` fällt im Verbund wie
+beim Feintuning). (d) Der Vergleich „von null an“ hat halb so viele Updates insgesamt; für das Tempo der
+zweiten Stufe ist er der richtige, für den Endwert nicht. (e) Offen: Mischen (Sperre im Lehrplan), und ob die
+weiteren Sprossen (`two`, `three`), die mehr Neues verlangen, dem Andocken mehr Raum geben.
+
+**Belege.** `results/route_loop.jsonl` (20 Läufe), Rohdaten mit den 12 Fehlzeilen im Ergebnisordner des Jobs
+auf dem Share; „von null an“: `results/loop_refcurve.jsonl`.
+
+## Laufend / offen
 
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

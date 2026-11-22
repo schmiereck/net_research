@@ -124,6 +124,11 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   9, `pcell` und `pcell+fc2` 10 von 10. „Nur oben“ verlangsamt also vor allem; `pcell` bleibt schneller und
   rettet die zwei langsamsten Seeds (0,97 statt 0,59/0,68), nicht gesichert. `pcell+fc2` erreicht 0,8 im Median
   nach 5875 Updates, etwa so schnell wie Feintuning. Lösequoten beim Andocken brauchen eine Budgetangabe.
+- **Blickschleifen-Leiter, erste Sprosse `cue → blind` (2026-11-22):** Mit eigener Netzhaut und eigenem
+  Adress-Encoder je Netz und der Summe im Port hilft das Andocken layer_s_sp4 (`blind` schneller als von null an,
+  `near` 0,94–0,96), aber Feintuning ist klar besser (schneller, `near` 0,96–0,97). Bei vitmem schadet das
+  Andocken (`near` 0,76–0,86 gegen 0,81–0,87 von null an; Feintuning 0,92). Der Verbund verliert `cue` wie das
+  Feintuning. Die beiden Aufgaben sind fast gleich; Mischen lief nicht (Sperre im Lehrplan).
 - **Lesart:** Die langen Plateaus sind fehlende Zwischenziele. Verlangt eine Hilfsaufgabe die Zwischengröße als
   Ausgabe, verschwinden sie bei allen Architekturen. Das ist die Rolle, die ein Teacher übernehmen soll.
 - Auf den Roboter-Aufgaben trägt das Prinzip bisher nur teilweise: Bei „Hand zum Würfel“ hebt die Hilfsaufgabe
