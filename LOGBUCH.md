@@ -3582,5 +3582,26 @@ match_shift:24000`, layer_s, Seeds 0–9).
 
 ## Laufend / offen
 
+- Phase C, zweiter Prüfstand, erste Sprosse der Blickschleifen-Leiter `cue → blind` (Auftrag Nutzer
+  2026-11-22): Hilft das eingefrorene Können aus `robot_loop_cue_f32` beim Lernen von `robot_loop_blind_f32`?
+  Verdrahtung nach Beschluss des Nutzers (Commit 7179067): jedes Netz mit eigener Netzhaut und eigenem
+  Adress-Encoder, im Port des neuen Moduls die Summe aus seitlichem und eigenem Befehl. Pläne:
+  Feintuning `robot_loop_cue_f32:12000 robot_loop_blind_f32:12000`, Mischen
+  `robot_loop_cue_f32+robot_loop_blind_f32:24000`, `robot_loop_cue_f32:12000 freeze robot_loop_blind_f32:12000`
+  und (nur Gitter) `... freeze:pcell ...`; Netze `layer_s_sp4+cell+refl+rez3` und `vitmem+refl+rez3`, Seeds 0–3
+  (statt 0–4: der Worker ist nur noch bis etwa 23 Uhr frei, 28 Läufe passen in zwei Wellen); beide Aufgaben alle
+  250 Updates gemessen. Von null an liegt vor (`results/loop_refcurve.jsonl`, `robot_loop_blind_f32:12000`,
+  Seeds 0–4): layer_s_sp4 Folgen-Wertung 0,80, `near` 0,94–0,95, erstes ≥ 0,68 nach 2750–4000 Updates (Median
+  3250); vitmem 0,65–0,70, `near` 0,77–0,87, erstes ≥ 0,68 nach 7500–9500 (einer nie). Hauptmaß: Updates der
+  zweiten Stufe bis Folgen-Wertung ≥ 0,68 und `near` von `blind` am Ende; dazu `cue` am Ende (Vergessen).
+  Worker -> `results/route_loop.jsonl`.
+  **Vorhersage vor dem Lauf (2026-11-22):** (1) Feintuning: `blind` ist nach höchstens 1000 Updates der zweiten
+  Stufe ≥ 0,68 (layer_s_sp4 4 von 4, vitmem mindestens 3 von 4); `cue` bleibt am Ende ≥ 0,68 (die Aufgaben
+  teilen das Behalten, wenig Vergessen). (2) `freeze` bei layer_s_sp4: ≥ 0,68 schneller als von null an (Median
+  höchstens 2500 Updates), `near` am Ende ≥ 0,90 in 4 von 4. (3) `freeze:pcell` bei layer_s_sp4 mindestens so
+  schnell wie `freeze` (Median nicht später) und `near` ≥ 0,90 in 4 von 4. (4) vitmem mit `freeze`: ≥ 0,68 in
+  mindestens 3 von 4, im Median schneller als von null an (unter 7500 Updates). (5) Mischen: layer_s_sp4 löst
+  beide Aufgaben (`near` ≥ 0,90 in beiden, 4 von 4).
+
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

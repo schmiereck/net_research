@@ -47,6 +47,12 @@ def job(args):
         model = build_model(model_name, 100_000, seed=seed)
         params = model_name.partition("@")[2]
         params = int(float(params.rstrip("k")) * 1000) if params else 100_000
+        rng = torch.get_rng_state()
+        for names, opt in phases:                        # fail early on a probe this net does not have (e.g.
+            if names == "freeze":                        # 'pcell' for a non-grid), not after the first stage
+                from .models.route import freeze_and_route
+                freeze_and_route(build_model(model_name, 100_000, seed=seed), model_name, params, seed, opt=opt)
+        torch.set_rng_state(rng)                         # the check leaves the run as it was
         watch = watch or phases[-1][0]
         wt = {t: make_task(t) for t in watch}
         curve, ref_curve, done, t0 = [], [], 0, time.time()
