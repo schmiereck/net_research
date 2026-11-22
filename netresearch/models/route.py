@@ -13,6 +13,15 @@ Nothing flows back into the frozen net (requires_grad off, its outputs detached)
 The lateral signal is only the top representation, not every layer (as in Progressive Networks): the same tap
 exists for every architecture, and it is the place a module would publish to a bus.
 
+The task's own input reaches both nets, each through its OWN front (decided with the user 2026-11-22, for the
+gaze ladder): every net has its own retina ("+retN" / "+rezN") and its own address encoder ("+ref" / "+refl"), the
+frozen one frozen, the new one trained (train.front per net). The frozen net gets its own command as before. The
+new module's port carries the SUM of the lateral command and its own task command (from its address encoder or
+the task's cmd): with "+refl" the encoder ends in a linear map, so the sum is a linear map of both side by side,
+without a wider port. A net without a command port of its own takes no task command (as in run_sequence).
+'+rv' in the new module: the task command is zeroed on steps without a picture (as usual), but the port's
+pattern is not switched off there, since the lateral signal still flows.
+
 Probes (curriculum word "freeze:<opt>", LOGBUCH 2026-11-21), each changes one thing:
     p64     the port carries 64 values instead of 16 (grids only)
     pfull   the port carries the whole top representation (as many values as it has; grids only)
@@ -54,7 +63,7 @@ class _Tap:
 
 class FrozenRoute(nn.Module):
     stateful = True
-    takes_cmd = False                                  # the task's command port is not wired through (not needed yet)
+    own_front = True                                   # train.run_sequence hands the raw step input (step_in)
 
     def __init__(self, frozen, new, lateral_dim, new_dim, n_port=N_CMD, gate=True):
         super().__init__()
@@ -71,6 +80,7 @@ class FrozenRoute(nn.Module):
         self.n_old = None
         self.width_used = getattr(new, "width_used", None)
         self.cmd = None
+        self.step_in = None                            # (cmd, ref, ref_mask) of this step, each [1, B, ...] or None
 
     def init_state(self, batch, device="cpu"):
         so = self.frozen.init_state(batch, device) if self.frozen.stateful else ()
@@ -79,14 +89,27 @@ class FrozenRoute(nn.Module):
         return tuple(so) + tuple(sn)
 
     def forward(self, x, state):
+        from ..train import front                      # here, not at the top: train imports the models package
         so, sn = state[:self.n_old], state[self.n_old:]
+        cmd, ref, mask = self.step_in or (None, None, None)
         self.frozen.eval()                             # no dropout / no running statistics in the frozen net
         with torch.no_grad():
-            out_old, so = self.frozen(x, so)
+            xo, co, vo = front(self.frozen, x[None], cmd, ref, mask)
+            self.frozen.cmd = None if co is None else co[0]
+            self.frozen.cmd_valid = None if vo is None else vo[0]
+            try:
+                out_old, so = self.frozen(xo[0], so)
+            finally:
+                self.frozen.cmd, self.frozen.cmd_valid = None, None
             lat = cell_view(self.frozen, so) if self.per_cell else self.tap_old.value
-        self.new.cmd = self.lat(lat.detach())
+        xn, cn, _ = front(self.new, x[None], cmd, ref, mask)
+        c = self.lat(lat.detach())
+        if cn is not None:                             # the sum in the port: lateral + the new module's own command
+            cn = cn[0]
+            c = c + (cn[:, None, None] if c.dim() == 4 else cn)
+        self.new.cmd = c
         try:
-            out_new, sn = self.new(x, sn)
+            out_new, sn = self.new(xn[0], sn)
         finally:
             self.new.cmd = None
         if not self.use_gate:
@@ -123,6 +146,7 @@ def freeze_and_route(frozen, name, target_params=100_000, seed=0, opt=""):
     else:                                              # a grid with a wider '+cell' port, same width as usual
         base = split_size(name)[0]
         assert base.split("_")[0] in ("layer", "hier"), "a wider port exists for grids only"
+        assert base == name.partition("@")[0], "p64 / pfull build the bare grid, without the net's suffixes"
         width = matched_width(base, target_params)
         torch.manual_seed(seed + 7919)
         new = MODELS[base][0](width=width, n_cmd=n_port)

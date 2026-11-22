@@ -1484,6 +1484,13 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
     langsamsten Seeds (nicht gesichert, p = 0,24). `pcell+fc2` am schnellsten (0,8 im Median nach 5875 Updates,
     etwa wie Feintuning). Folgerung „Eintrag veröffentlicht jede Zelle“ bleibt, als Beschleunigung. Maß beim
     Andocken künftig: Zeit bis 0,8, nicht Lösequote bei festem Budget.
+  - **Verdrahtung für die Blickschleifen-Leiter (Beschluss Nutzer 2026-11-22, umgesetzt):** Jedes Netz hat seine
+    eigene Netzhaut (`+rezN`) und seinen eigenen Adress-Encoder (`+refl`); das eingefrorene Netz bekommt dieselbe
+    Referenz und seinen eigenen Befehl (ohne Gradient). Im Port des neuen Moduls liegt die SUMME aus seitlichem
+    Befehl und eigenem Aufgabenbefehl (mit `+refl` endet der Encoder linear, die Summe ist also eine lineare
+    Abbildung beider nebeneinander, ohne breiteren Port). Mit `+rv` fällt nur der eigene Befehl ohne Bild weg,
+    das seitliche Signal fließt weiter. Code: `train.front` (Vorstufe je Netz), `FrozenRoute.own_front`;
+    für die bisherigen Aufgaben bitgleich zum alten Code; Prüfungen in `scripts/check_route.py` (Teil 7).
 
 **Phase D – Gelernter Teacher (Stufe 1)**
 - Ein kleiner Teacher, geteilt an allen Positionen, liest die Telemetrie und schreibt die Modulation.

@@ -7,6 +7,9 @@
 3. The frozen part computes exactly what the net alone computes (same state handling, resets included).
 4. The lateral signal reaches the new module (changing it changes the output).
 5. A tiny curriculum run with "freeze" for layer_s, hier_s and gru.
+7. Gaze ladder (own fronts, sum in the port): each net has its own retina and address encoder, the frozen part
+   computes what the frozen net alone computes, the new port gets lateral + its own encoder's command, the new
+   front learns and the frozen one does not; tiny curriculum runs cue -> freeze -> blind.
 """
 import json
 import sys
@@ -142,4 +145,48 @@ for opt in ("", ":p64", ":pfull", ":fc2", ":nogate", ":pcell", ":pcell+fc2"):
     finals[opt] = r.get("frozen_final")
 check(len({json.dumps(v, sort_keys=True) for v in finals.values()}) == 1,
       f"stage 1 identical in all probes (frozen net alone: {finals['']})")
+# 7. gaze ladder: own retina and address encoder per net, the new port carries lateral + own command
+task = make_task("robot_loop_cue_f32")
+b = {k: torch.tensor(v) for k, v in task.sample(6, np.random.default_rng(1)).items()}
+for name in ("layer_s_sp4+cell+refl+rez3", "vitmem+refl+rez3", "layer_s_sp4+cell+refl+rv+rez3"):
+    for opt in ("", "pcell") if "layer" in name else ("",):
+        base = build_model(name, seed=3)
+        with torch.no_grad():                           # nudge the zero-started retina correction, so it matters
+            base.retina.body[-1].weight.normal_(0, 0.05)
+            alone, _ = run_sequence(base, b["obs"], cmd=b.get("cmd"), ref=b["ref"], ref_mask=b["ref_mask"])
+        m = freeze_and_route(base, name, seed=3, opt=opt)
+        tag = f"{name}{':' + opt if opt else ''}"
+        check(m.new.retina is not m.frozen.retina and m.new.ref_enc is not m.frozen.ref_enc,
+              f"{tag}: each net has its own retina and address encoder")
+        outs_old, seen, lat_only = [], [], []
+        h1 = m.frozen.register_forward_hook(lambda mod, a, o: outs_old.append(o[0]))
+        h2 = m.new.register_forward_pre_hook(lambda mod, a: seen.append(mod.cmd.clone()))
+        h3 = m.lat.register_forward_hook(lambda mod, a, o: lat_only.append(o.clone()))
+        with torch.no_grad():
+            run_sequence(m, b["obs"], cmd=b.get("cmd"), ref=b["ref"], ref_mask=b["ref_mask"])
+        h1.remove(); h2.remove(); h3.remove()
+        check(torch.allclose(torch.stack(outs_old), alone, atol=1e-5), f"{tag}: frozen part = frozen net alone "
+              "(own retina, own encoder)")
+        from netresearch.train import front  # noqa: E402
+        with torch.no_grad():
+            _, cn, _ = front(m.new, b["obs"], b.get("cmd"), b["ref"], b["ref_mask"])
+        diff = torch.stack(seen) - torch.stack(lat_only)
+        want = cn[:, :, None, None].expand_as(diff) if diff.dim() == 5 else cn
+        check(torch.allclose(diff, want, atol=1e-5), f"{tag}: port = lateral + own encoder command")
+        if "+rv" in name:
+            blank = b["ref_mask"] == 0
+            check(bool(blank.any()) and diff[blank].abs().max() < 1e-6,
+                  f"{tag}: '+rv' steps without a picture add no own command (lateral only)")
+        L = make_learner(m, task, 10, 8, 0)
+        snap = {k: v.clone() for k, v in m.frozen.state_dict().items()}
+        train_loop(m, [L], 10, 2e-3, 10 ** 9)
+        check(all(torch.equal(v, m.frozen.state_dict()[k]) for k, v in snap.items()), f"{tag}: frozen net unchanged")
+        g_new = [p.grad for p in list(m.new.retina.parameters()) + list(m.new.ref_enc.parameters())]
+        check(all(g is not None and g.abs().sum() > 0 for g in g_new), f"{tag}: new retina and encoder learn")
+for plan in ("robot_loop_cue_f32:40 freeze robot_loop_blind_f32:40",
+             "robot_loop_cue_f32:40 freeze:pcell robot_loop_blind_f32:40"):
+    r = job((plan, "layer_s_sp4+cell+refl+rez3", 0, ["robot_loop_cue_f32", "robot_loop_blind_f32"], None))
+    check("error" not in r, f"layer_s_sp4: '{plan}' runs " + str(r.get("final", r.get("error", "")[-500:])))
+r = job(("robot_loop_cue_f32:40 freeze robot_loop_blind_f32:40", "vitmem+refl+rez3", 0, None, None))
+check("error" not in r, "vitmem: cue freeze blind runs " + str(r.get("final", r.get("error", "")[-500:])))
 print("ALL OK" if ok else "SOME CHECKS FAILED")

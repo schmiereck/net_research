@@ -41,21 +41,9 @@ def run_sequence(model, obs, state=None, resets=None, cmd=None, ref=None, ref_ma
     address encoder. Models without '+rv' run as before:
     the address encoder also sees the blank picture and its output reaches the port."""
     T, B = obs.shape[:2]
-    if obs.shape[-1] != 16:                                    # finer fovea: the model's front stage ("+retN")
-        obs = model.retina(obs.reshape(T * B, *obs.shape[2:]).float()).view(T, B, 3, 16, 16)
-    valid = None
-    if ref is not None and hasattr(model, "ref_enc"):
-        cmd = model.ref_enc(ref.float())
-        if getattr(model, "ref_valid", False):
-            if ref_mask is None:
-                ref_mask = ref.float().flatten(2).abs().amax(-1) > 0
-            valid = torch.as_tensor(ref_mask, dtype=cmd.dtype, device=cmd.device).reshape(T, B)
-            cmd = cmd * valid[..., None]
-            if getattr(model, "no_ref", None) is not None:      # '+rvt': steps without a picture send the learned
-                cmd = cmd + (1.0 - valid)[..., None] * model.no_ref  # token, an ordinary command for the port
-                valid = None
-    if cmd is None or not getattr(model, "takes_cmd", False):
-        cmd, valid = None, None
+    if getattr(model, "own_front", False):                     # models/route.py: every net runs its own front
+        return _run_own_front(model, obs, state, resets, cmd, ref, ref_mask)
+    obs, cmd, valid = front(model, obs, cmd, ref, ref_mask)
     try:
         if not model.stateful:
             if cmd is not None:
@@ -78,6 +66,49 @@ def run_sequence(model, obs, state=None, resets=None, cmd=None, ref=None, ref_ma
     finally:
         if cmd is not None:
             model.cmd, model.cmd_valid = None, None
+
+
+def _run_own_front(model, obs, state, resets, cmd, ref, ref_mask):
+    """A model that runs the front of each of its nets itself (models/route.py FrozenRoute): the raw step input
+    (image, cmd, ref picture, ref_mask) is handed over as model.step_in, the model calls front() per net."""
+    T, B = obs.shape[:2]
+    if state is None:
+        state = model.init_state(B)
+    outs = []
+    try:
+        for t in range(T):
+            if resets is not None:
+                state = reset_state(state, 1.0 - resets[t])
+            model.step_in = tuple(None if v is None else torch.as_tensor(v)[t:t + 1]
+                                  for v in (cmd, ref, ref_mask))
+            o, state = model(obs[t], state)
+            outs.append(o)
+        return torch.stack(outs), state
+    finally:
+        model.step_in = None
+
+
+def front(model, obs, cmd=None, ref=None, ref_mask=None):
+    """The part of run_sequence before the net: obs [T,B,3,H,W] through the model's retina ("+retN"), the ref
+    pictures through its address encoder ("+ref"), '+rv' / '+rvt' handling. -> (obs [T,B,3,16,16], cmd [T,B,...]
+    or None, valid [T,B] or None)."""
+    T, B = obs.shape[:2]
+    if obs.shape[-1] != 16:                                    # finer fovea: the model's front stage ("+retN")
+        obs = model.retina(obs.reshape(T * B, *obs.shape[2:]).float()).view(T, B, 3, 16, 16)
+    valid = None
+    if ref is not None and hasattr(model, "ref_enc"):
+        cmd = model.ref_enc(ref.float())
+        if getattr(model, "ref_valid", False):
+            if ref_mask is None:
+                ref_mask = ref.float().flatten(2).abs().amax(-1) > 0
+            valid = torch.as_tensor(ref_mask, dtype=cmd.dtype, device=cmd.device).reshape(T, B)
+            cmd = cmd * valid[..., None]
+            if getattr(model, "no_ref", None) is not None:      # '+rvt': steps without a picture send the learned
+                cmd = cmd + (1.0 - valid)[..., None] * model.no_ref  # token, an ordinary command for the port
+                valid = None
+    if cmd is None or not getattr(model, "takes_cmd", False):
+        cmd, valid = None, None
+    return obs, cmd, valid
 
 
 def make_opt(model, updates, lr):
