@@ -3664,18 +3664,59 @@ weiteren Sprossen (`two`, `three`), die mehr Neues verlangen, dem Andocken mehr 
 **Belege.** `results/route_loop.jsonl` (20 Läufe), Rohdaten mit den 12 Fehlzeilen im Ergebnisordner des Jobs
 auf dem Share; „von null an“: `results/loop_refcurve.jsonl`.
 
-## Laufend / offen
+## 2026-11-22 — Phase C, `cue → blind` mit Mischen: Mischen gibt beide Aufgaben ganz, als einzige Variante
 
-- Phase C, Blickschleifen-Leiter `cue → blind`, die nachgeholten Misch-Läufe (Auftrag Nutzer 2026-11-22): Die
-  Sperre im Lehrplan ist gelockert: Aufgaben einer Phase, die sich die Symbol-Fläche teilen, müssen dort denselben
-  Code haben; mehrere Schritt-Aufgaben im Populations-Code sind erlaubt, eine neben einem anderen Code (z. B.
-  `*_parts`) weiter nicht. Plan `robot_loop_cue_f32+robot_loop_blind_f32:24000`, `layer_s_sp4+cell+refl+rez3`
-  und `vitmem+refl+rez3`, Seeds 0–3, 8 Läufe auf dem Worker -> `results/route_loop.jsonl`. Vergleich mit dem
-  vorigen Eintrag (Feintuning, `freeze`, von null an).
-  **Vorhersage vor dem Lauf (2026-11-22):** (1) layer_s_sp4 löst beide Aufgaben: `near` ≥ 0,90 in `cue` und
-  `blind`, 4 von 4 (Punkt 5 der vorigen Vorhersage). (2) Mischen behält `cue` besser als Feintuning und `freeze`:
-  `cue`-Folgen-Wertung am Ende ≥ 0,75 bei layer_s_sp4 in 4 von 4 (Feintuning 0,65–0,69). (3) vitmem: `near` in
-  `blind` ≥ 0,80 in mindestens 3 von 4, aber unter dem Feintuning (0,92).
+**Frage.** Wie schneidet Mischen beider Aufgaben auf der ersten Sprosse der Blickschleifen-Leiter ab (die Läufe
+fehlten im vorigen Eintrag wegen der Sperre im Lehrplan)?
+
+**Gemacht.** Sperre gelockert (Commit 673f9c9: Aufgaben einer Phase, die sich die Symbol-Fläche teilen, müssen
+denselben Code haben; mehrere Schritt-Aufgaben im Populations-Code sind erlaubt, `*_parts` neben einer
+Schritt-Aufgabe weiter nicht; lokal beides geprüft). Job `20261122-201050-loop_mix`, Worker mit 8 Prozessen,
+fertig vor 23 Uhr. Vorhersage vor dem Lauf (wörtlich aus „Laufend / offen“):
+
+> - Phase C, Blickschleifen-Leiter `cue → blind`, die nachgeholten Misch-Läufe (Auftrag Nutzer 2026-11-22): Die
+>   Sperre im Lehrplan ist gelockert: Aufgaben einer Phase, die sich die Symbol-Fläche teilen, müssen dort denselben
+>   Code haben; mehrere Schritt-Aufgaben im Populations-Code sind erlaubt, eine neben einem anderen Code (z. B.
+>   `*_parts`) weiter nicht. Plan `robot_loop_cue_f32+robot_loop_blind_f32:24000`, `layer_s_sp4+cell+refl+rez3`
+>   und `vitmem+refl+rez3`, Seeds 0–3, 8 Läufe auf dem Worker -> `results/route_loop.jsonl`. Vergleich mit dem
+>   vorigen Eintrag (Feintuning, `freeze`, von null an).
+>   **Vorhersage vor dem Lauf (2026-11-22):** (1) layer_s_sp4 löst beide Aufgaben: `near` ≥ 0,90 in `cue` und
+>   `blind`, 4 von 4 (Punkt 5 der vorigen Vorhersage). (2) Mischen behält `cue` besser als Feintuning und `freeze`:
+>   `cue`-Folgen-Wertung am Ende ≥ 0,75 bei layer_s_sp4 in 4 von 4 (Feintuning 0,65–0,69). (3) vitmem: `near` in
+>   `blind` ≥ 0,80 in mindestens 3 von 4, aber unter dem Feintuning (0,92).
+
+**Ergebnis.** Plan `robot_loop_cue_f32+robot_loop_blind_f32:24000` (je Aufgabe 12000 Updates im Wechsel), Seeds
+0 / 1 / 2 / 3. t68 = Updates insgesamt bis die Folgen-Wertung erstmals ≥ 0,68 ist.
+
+| Netz | `cue` Folgen / `near` am Ende | `blind` Folgen / `near` am Ende | t68 (beide Aufgaben gleich) |
+|---|---|---|---|
+| layer_s_sp4 | 0,82 / 0,82 / 0,82 / 0,82 — 0,95–0,96 | 0,81 / 0,82 / 0,82 / 0,81 — 0,95–0,96 | 6250 / 5000 / 4500 / 5000 |
+| vitmem | 0,74 / 0,74 / 0,70 / 0,73 — 0,83–0,89 | 0,74 / 0,74 / 0,70 / 0,73 — 0,83–0,89 | 13250 / 12500 / 15000 / 11000 |
+
+Zum Vergleich aus dem vorigen Eintrag (`blind` `near` am Ende / `cue` Folgen-Wertung am Ende):
+layer_s_sp4 Feintuning 0,96–0,97 / 0,65–0,69, `freeze` 0,94–0,95 / 0,63–0,72, von null an 0,94–0,95 / –;
+vitmem Feintuning 0,92 / 0,71–0,75, `freeze` 0,76–0,86 / 0,65–0,69, von null an 0,81–0,87 / –.
+
+- Die beiden Aufgaben laufen beim Mischen fast deckungsgleich (Unterschied in der Folgen-Wertung höchstens
+  0,005): Das Netz lernt sie als eine Aufgabe.
+- layer_s_sp4 verlässt die Hochebene nach 4500–6250 Updates insgesamt, also nach 2250–3125 je Aufgabe, so früh
+  wie von null an (2750–4000). vitmem nach 11000–15000 insgesamt.
+
+**Vergleich mit der Vorhersage.** (1) Getroffen: layer_s_sp4 `near` 0,95–0,96 in beiden Aufgaben, 4 von 4.
+(2) Getroffen: `cue` 0,82 in 4 von 4 (≥ 0,75; Feintuning 0,65–0,69). (3) Getroffen: vitmem `blind` `near`
+0,83–0,89 in 4 von 4, unter dem Feintuning (0,92). Bilanz: 3 von 3 getroffen.
+
+**Schluss.** (a) Auf dieser Sprosse ist Mischen die einzige Variante, die beide Aufgaben ganz kann: layer_s_sp4
+0,95–0,96 in beiden, während Feintuning und der Verbund nach `freeze` `cue` auf 0,61–0,73 verlieren. Wie im
+ersten Test (Vergleichs-Leiter) gilt: Sind die alten Daten da, schlägt Mischen das Einfrieren. (b) Für eine
+neue Aufgabe allein ist Feintuning etwas besser (layer_s_sp4 `blind` 0,96–0,97, vitmem 0,92 gegen 0,83–0,89 beim
+Mischen), bei der Hälfte der Updates für die neue Aufgabe beim Mischen. (c) Das Andocken hat hier keinen
+Vorteil, den nicht eine andere Variante besser liefert; sein Zweck (die alte Aufgabe ohne alte Daten behalten)
+scheitert an der fehlenden Auswahl nach Aufgabe. Das ist der nächste Engpass von Phase C, nicht die Verdrahtung.
+
+**Belege.** `results/route_loop.jsonl` (jetzt 28 Läufe; Plan `robot_loop_cue_f32+robot_loop_blind_f32:24000`).
+
+## Laufend / offen
 
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

@@ -128,7 +128,8 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   Adress-Encoder je Netz und der Summe im Port hilft das Andocken layer_s_sp4 (`blind` schneller als von null an,
   `near` 0,94–0,96), aber Feintuning ist klar besser (schneller, `near` 0,96–0,97). Bei vitmem schadet das
   Andocken (`near` 0,76–0,86 gegen 0,81–0,87 von null an; Feintuning 0,92). Der Verbund verliert `cue` wie das
-  Feintuning. Die beiden Aufgaben sind fast gleich; Mischen lief nicht (Sperre im Lehrplan).
+  Feintuning. Die beiden Aufgaben sind fast gleich. Mischen (Sperre gelockert) gibt als einzige Variante beide
+  Aufgaben ganz (layer_s_sp4 `near` 0,95–0,96 in beiden). Nächster Engpass: die Auswahl nach Aufgabe.
 - **Lesart:** Die langen Plateaus sind fehlende Zwischenziele. Verlangt eine Hilfsaufgabe die Zwischengröße als
   Ausgabe, verschwinden sie bei allen Architekturen. Das ist die Rolle, die ein Teacher übernehmen soll.
 - Auf den Roboter-Aufgaben trägt das Prinzip bisher nur teilweise: Bei „Hand zum Würfel“ hebt die Hilfsaufgabe
