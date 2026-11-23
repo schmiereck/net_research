@@ -4044,5 +4044,20 @@ netresearch.library summary --file results/library_pop.jsonl --suites servo robo
 
 ## Laufend / offen
 
+- Phase D, Stufe D.0 (Konzept PLAN_TRAINER, Freigabe Nutzer 2026-11-23 mit allen Empfehlungen): die Leiter auf
+  der numseq-Familie der Bibliothek, um Meta-Train- und Meta-Test-Aufgaben zu wählen. Neue Fälle `lib_<Name>`
+  in `adapt.py` (die zwölf Ausgaben von `library.TASKS`, jetzt `adapt.NUMSEQ_TASKS`; k Trainingsfolgen,
+  Test auf 512 ungesehenen). Startnetze layer_s@25k numseq Seeds 0–2, 5, 6 festgelegt in
+  `data/base_nets/numseq` (0,90–0,94). `fastweights inner`, layer_s@25k, Seeds 0–2 (die Meta-Train-Netze;
+  5–6 bleiben für den Meta-Test), k = 64 / 512, Regeln adam, grad@task, dfa@task, delta_head@task,
+  rls_rf@task, 200 Updates, Worker -> `results/phase_d_ladder.jsonl`. Bezug: `prev` k = 64 (Vorarbeit 2) Kopf
+  `rls_rf` 0,21, `dfa` 0,07 / 0,56, `grad` 0,78 / 0,94 (s20 / s200); xormask (layer_s, k = 64) Kopf
+  delta_head 0,48 / 0,85, `grad` 0,04.
+  **Vorhersage vor dem Lauf (2026-11-23),** k = 64, Mittel über Seeds und Varianten: (1) `prev`, `prev2`,
+  `prev3`: „Kopf reicht nicht, `grad` löst“, d. h. grad@task nach 200 Updates ≥ 0,7 und rls_rf@task ≤ 0,4,
+  3 von 3. (2) `xm0F`, `xmA5`, `xm33`, `xmFF`: „Kopf reicht“, rls_rf@task nach 200 Updates ≥ 0,5 und über
+  grad@task, 4 von 4. (3) `plus1`, `minus1`, `plus2`, `minus2`, `diff`: „niemand löst“, keine Regel (auch Adam)
+  ≥ 0,5 nach 200 Updates, 5 von 5. (4) dfa@task nach 20 Updates ≤ 0,15 auf allen 12 Aufgaben.
+
 - Noch in Bits: `*_parts` (die Anpassungs-Studien servo / robot sind seit 2026-11-23 umgestellt); nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

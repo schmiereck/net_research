@@ -178,6 +178,25 @@ def case_mid(name, variant, k):
     return make(k, "train"), make(N_TEST, "test")
 
 
+# new outputs on the numseq inputs (library.py suites six / twelve / drift; cases lib_<name>)
+NUMSEQ_TASKS = {"xm0F": lambda w: w[:, 3] ^ 0x0F, "xmA5": lambda w: w[:, 3] ^ 0xA5, "plus1": lambda w: (w[:, 3] + 1) % 256,
+                "minus1": lambda w: (w[:, 3] - 1) % 256, "prev": lambda w: w[:, 2], "prev2": lambda w: w[:, 1],
+                # suite "twelve" adds (appended: the data seeds of the first six stay unchanged)
+                "xm33": lambda w: w[:, 3] ^ 0x33, "xmFF": lambda w: w[:, 3] ^ 0xFF, "plus2": lambda w: (w[:, 3] + 2) % 256,
+                "minus2": lambda w: (w[:, 3] - 2) % 256, "prev3": lambda w: w[:, 0],
+                "diff": lambda w: (w[:, 2] - w[:, 1]) % 256}           # step of the sequence (an inner computation)
+
+
+def case_lib(name, variant, k):
+    """Another output on the base numseq inputs (NUMSEQ_TASKS); k training sequences, scored on unseen ones."""
+    rng = np.random.default_rng(zlib.crc32(("lib_" + name).encode()) + 7919 * variant)
+
+    def make(n, split):
+        w = _numseq_words(n, rng, split)
+        return _batch(w, np.full(n, 3), NUMSEQ_TASKS[name](w))
+    return make(k, "train"), make(N_TEST, "test")
+
+
 CASES = {
     "fixcycle": ("cycle", lambda v, k: case_fixcycle(v, k), [6], 4),       # base, maker, ks, n variants
     "double": ("numseq", lambda v, k: case_rule("double", v, k), KS, 2),
@@ -205,6 +224,8 @@ def case_servo(device, variant, k, pop=True):
 
 
 SERVO_CASES = ["flipx", "swap", "rot90", "strong", "weak", "offx"]
+for _n in NUMSEQ_TASKS:                                       # phase D family (PLAN_TRAINER)
+    CASES["lib_" + _n] = ("numseq", lambda v, k, _n=_n: case_lib(_n, v, k), KS, 2)
 for _d in SERVO_CASES:
     CASES["servo_" + _d] = ("servo", lambda v, k, _d=_d: case_servo(_d, v, k), KS, 2)
     CASES["servo_" + _d + "_bits"] = ("servo_bits", lambda v, k, _d=_d: case_servo(_d, v, k, False), KS, 2)

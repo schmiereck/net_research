@@ -75,19 +75,14 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from .adapt import _batch, _numseq_words, spec_of, start_net, step_target
+from .adapt import NUMSEQ_TASKS, _batch, _numseq_words, spec_of, start_net, step_target
 from .context import ALPHA, B, M, _loss_acc
 from .fastweights import Fast, default_eta
 from .slots import LVL, Y
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "results" / "library.jsonl"
-TASKS = {"xm0F": lambda w: w[:, 3] ^ 0x0F, "xmA5": lambda w: w[:, 3] ^ 0xA5, "plus1": lambda w: (w[:, 3] + 1) % 256,
-         "minus1": lambda w: (w[:, 3] - 1) % 256, "prev": lambda w: w[:, 2], "prev2": lambda w: w[:, 1],
-         # suite "twelve" adds (appended: the data seeds of the first six stay unchanged)
-         "xm33": lambda w: w[:, 3] ^ 0x33, "xmFF": lambda w: w[:, 3] ^ 0xFF, "plus2": lambda w: (w[:, 3] + 2) % 256,
-         "minus2": lambda w: (w[:, 3] - 2) % 256, "prev3": lambda w: w[:, 0],
-         "diff": lambda w: (w[:, 2] - w[:, 1]) % 256}           # step of the sequence (an inner computation)
+TASKS = NUMSEQ_TASKS                                       # adapt.py (also the adaptation cases lib_<name>)
 ORDERS = [["xm0F", "prev", "plus1", "xmA5", "prev2", "minus1"], ["prev", "plus1", "xm0F", "minus1", "xmA5", "prev2"]]
 ORDERS12 = [["xm0F", "prev", "plus1", "xm33", "prev2", "minus2", "xmA5", "diff", "plus2", "xmFF", "prev3", "minus1"],
             ["prev", "plus2", "xm33", "minus1", "prev3", "xmA5", "plus1", "diff", "xmFF", "prev2", "minus2", "xm0F"]]
