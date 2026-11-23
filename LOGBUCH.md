@@ -4120,5 +4120,23 @@ Phase D: Meta-Train xm0F, xmA5, xm33 (Kopf) und prev2, prev3 (innen), Startnetze
   D.3-Regel nach 20 Updates ≥ 0,40 (Erfolgskriterium des Konzepts). (4) Über den Trainings-Horizont hinaus
   verliert die D.3-Regel: `prev` nach 200 Updates unter dfa@task (0,70).
 
+- Phase D, Position im Netz (Frage des Nutzers 2026-11-23: braucht der Teacher die Position, oder je Schicht
+  einen eigenen?): `teacher.py --pos` (Commit ac1392b; alle drei Varianten bei Start bitgleich zu dfa@task).
+  `map` = ein MLP für fc1, fc2 und Kopf mit Schicht-Kennung im Eingang und eigener Schrittweite je Schicht (wie
+  D.3), `blind` = dasselbe MLP ohne Kennung und mit einer gemeinsamen Schrittweite (die Schicht ist nur noch an
+  der Telemetrie erkennbar), `split` = ein eigenes MLP je Schicht (1401 Parameter). Ausgangslage aus D.2 / D.3:
+  D.2 (nur Schrittweiten, σ 0,1, lr 0,05) erreicht Validierung 0,44 mit Kopf × 34 und innen fast aus (fc1 × 0,16,
+  fc2 × 0,014): Kopf-Aufgaben 0,68–0,72, prev2 / prev3 0,08 / 0,03. D.3 (σ 0,05, lr 0,02) nur 0,17, steigt
+  aber noch: prev2 / prev3 0,39 / 0,34, Kopf-Aufgaben 0,03–0,04, Kopf × 3. Die kleinen Schritte von D.3 fanden
+  die Kopf-Schrittweite in 300 Generationen nicht. Damit die drei Varianten vergleichbar sind und nicht alle an
+  der ES-Einstellung scheitern, laufen alle drei mit σ 0,1, lr 0,05, 300 Generationen, sonst wie D.3 (`map`
+  also als D.3b neu). Worker -> `results/teacher.jsonl`. Idealwert bei Auswahl je Episode (Kopf-Aufgaben wie
+  D.2, prev2 / prev3 wie D.3): etwa 0,57.
+  **Vorhersage vor dem Lauf (2026-11-23):** (1) `map` (D.3b) übertrifft D.2: Validierung am Ende ≥ 0,46, mit
+  prev2 ≥ 0,15 bei Kopf-Aufgaben ≥ 0,60; die Episoden-Telemetrie (S, ΔS) reicht für eine teilweise Auswahl
+  „innen schreiben ja / nein“. (2) `blind` bleibt um ≥ 0,05 unter `map`: ohne Kennung und mit einer
+  Schrittweite lässt sich „Kopf schnell, innen vorsichtig“ nur über die Telemetrie ausdrücken. (3) `split`
+  liegt höchstens 0,02 über `map` (dreifache Parameterzahl, mehr ES-Rauschen; die Schicht-Kennung reicht).
+
 - Noch in Bits: `*_parts` (die Anpassungs-Studien servo / robot sind seit 2026-11-23 umgestellt); nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
