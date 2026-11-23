@@ -1570,6 +1570,11 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
   - **Risiken:** Rauschen der Fitness bei 8 Episoden (gemeinsamer Zufall, notfalls mehr Episoden);
     Kurzhorizont-Verzerrung; Überanpassung an die Familie (Meta-Test getrennt); explodierende schnelle
     Gewichte (Norm von F begrenzen). Lernt der Teacher nur eine Schrittweite, zeigt das D.2.
+  - **D.0 erledigt (2026-11-23, LOGBUCH):** Kopf reicht bei xm0F / xmA5 / xm33 / xmFF (rls_rf 0,52–0,59,
+    grad ≤ 0,04, dfa 0,01: die inneren dfa-Updates zerstören den Kopf), nur Backprop innen löst prev / prev2 /
+    prev3 (grad 0,90–0,96, Kopf ≤ 0,24), niemand löst plus / minus / diff bei k = 64. Meta-Train xm0F, xmA5, xm33,
+    prev2, prev3 (Seeds 0–2); Meta-Test prev, xmFF (k = 64) und diff (k = 512) auf Seeds 5–6. Der Teacher muss
+    also je Episode entscheiden, ob er innen schreibt. D.1 erledigt: `netresearch/teacher.py`, bitgleich zu dfa.
 
 **Phase E – Teacher liest Gewichte (Stufe 2)**
 - Zusätzlich eine Zusammenfassung des Moduls selbst (Weight-Space-Encoder, permutationsinvariant) und ein

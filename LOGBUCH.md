@@ -4042,22 +4042,83 @@ netresearch.library summary --file results/library_pop.jsonl --suites servo robo
 `data/base_nets/servo`, `data/base_nets/robot_gaze`; Bit-Bezug `results/fastinner_servo.jsonl`,
 `results/library.jsonl`.
 
+## 2026-11-23 — Phase D, D.0: die numseq-Familie teilt sich in „Kopf reicht“, „nur Backprop innen löst“ und „niemand löst“; `dfa` zerstört die Kopf-Aufgaben
+
+**Frage.** Welche Aufgaben der numseq-Familie eignen sich für das Meta-Training des Teachers und welche für den
+Meta-Test? Wo reicht Schreiben am Kopf, wo braucht es innere Änderungen, die nur Backprop findet?
+
+**Gemacht.** Job `20261123-184213-d0_ladder` (Commit 2464fcd), Worker, 360 Läufe, alle ohne Fehler. Vorhersage
+vor dem Lauf (wörtlich aus „Laufend / offen“):
+
+> - Phase D, Stufe D.0 (Konzept PLAN_TRAINER, Freigabe Nutzer 2026-11-23 mit allen Empfehlungen): die Leiter auf
+>   der numseq-Familie der Bibliothek, um Meta-Train- und Meta-Test-Aufgaben zu wählen. Neue Fälle `lib_<Name>`
+>   in `adapt.py` (die zwölf Ausgaben von `library.TASKS`, jetzt `adapt.NUMSEQ_TASKS`; k Trainingsfolgen,
+>   Test auf 512 ungesehenen). Startnetze layer_s@25k numseq Seeds 0–2, 5, 6 festgelegt in
+>   `data/base_nets/numseq` (0,90–0,94). `fastweights inner`, layer_s@25k, Seeds 0–2 (die Meta-Train-Netze;
+>   5–6 bleiben für den Meta-Test), k = 64 / 512, Regeln adam, grad@task, dfa@task, delta_head@task,
+>   rls_rf@task, 200 Updates, Worker -> `results/phase_d_ladder.jsonl`. Bezug: `prev` k = 64 (Vorarbeit 2) Kopf
+>   `rls_rf` 0,21, `dfa` 0,07 / 0,56, `grad` 0,78 / 0,94 (s20 / s200); xormask (layer_s, k = 64) Kopf
+>   delta_head 0,48 / 0,85, `grad` 0,04.
+>   **Vorhersage vor dem Lauf (2026-11-23),** k = 64, Mittel über Seeds und Varianten: (1) `prev`, `prev2`,
+>   `prev3`: „Kopf reicht nicht, `grad` löst“, d. h. grad@task nach 200 Updates ≥ 0,7 und rls_rf@task ≤ 0,4,
+>   3 von 3. (2) `xm0F`, `xmA5`, `xm33`, `xmFF`: „Kopf reicht“, rls_rf@task nach 200 Updates ≥ 0,5 und über
+>   grad@task, 4 von 4. (3) `plus1`, `minus1`, `plus2`, `minus2`, `diff`: „niemand löst“, keine Regel (auch Adam)
+>   ≥ 0,5 nach 200 Updates, 5 von 5. (4) dfa@task nach 20 Updates ≤ 0,15 auf allen 12 Aufgaben.
+
+**Ergebnis.** Testwertung (exakt, 512 ungesehene Folgen) nach 20 / 200 Updates, Mittel über Seeds 0–2 und je 2
+Varianten:
+
+| k = 64 | rls_rf@task | delta_head@task | dfa@task | grad@task | Adam |
+|---|---|---|---|---|---|
+| xm0F | 0,59 / 0,59 | 0,57 / 0,78 | 0,01 / 0,01 | 0,03 / 0,04 | 0,04 / 0,05 |
+| xmA5 | 0,57 / 0,57 | 0,52 / 0,75 | 0,01 / 0,01 | 0,03 / 0,03 | 0,02 / 0,04 |
+| xm33 | 0,58 / 0,58 | 0,51 / 0,76 | 0,01 / 0,01 | 0,03 / 0,04 | 0,02 / 0,04 |
+| xmFF | 0,52 / 0,52 | 0,33 / 0,66 | 0,01 / 0,01 | 0,01 / 0,03 | 0,01 / 0,03 |
+| prev | 0,25 / 0,24 | 0,06 / 0,16 | 0,21 / 0,70 | 0,79 / 0,94 | 0,81 / 0,99 |
+| prev2 | 0,23 / 0,23 | 0,05 / 0,15 | 0,13 / 0,72 | 0,80 / 0,96 | 0,86 / 0,99 |
+| prev3 | 0,09 / 0,09 | 0,02 / 0,06 | 0,08 / 0,66 | 0,71 / 0,90 | 0,72 / 0,96 |
+| plus1 / minus1 | 0,23–0,24 | 0,30–0,34 / 0,30–0,31 | 0,01 | 0,21 / 0,19–0,20 | 0,27–0,28 / 0,27–0,29 |
+| plus2 / minus2 | 0,22–0,24 | 0,34 / 0,28–0,30 | 0,01 | 0,13–0,17 / 0,13–0,18 | 0,18–0,23 / 0,19–0,25 |
+| diff | 0,03 / 0,03 | 0,02 / 0,03 | 0,01 / 0,04 | 0,15 / 0,21 | 0,14 / 0,25 |
+
+- Mit k = 512 reicht der Kopf auch für `prev` / `prev2` (rls_rf 0,77–0,79), und `diff` wird mit Backprop lösbar
+  (grad 0,34 / 0,87, Adam 0,24 / 0,94; Kopf 0,18, dfa 0,12).
+- Fitness des Teachers (Mittel der Testwertung nach 1, 5, 10, 20 Updates) auf den gewählten Meta-Train-Aufgaben
+  (prev2, prev3, xm0F, xmA5, xm33): dfa@task 0,019, delta_head@task 0,12, grad@task 0,165, rls_rf@task 0,42
+  (Kopf, zweite Ordnung, ein Update reicht); je Aufgabe die bessere aus delta_head und grad: 0,27.
+- `prev` hier dfa 0,21 / 0,70 statt 0,07 / 0,56 in der Vorarbeit 2: andere Ziehungen der 64 Beispiele (Fall
+  `lib_prev` statt `prev`) und Orakel-Gate; die Streuung der Ziehungen ist also groß.
+
+**Vergleich mit der Vorhersage.** (1) Getroffen: grad@task 0,90–0,96, rls_rf@task 0,09–0,24. (2) Getroffen:
+rls_rf@task 0,52–0,59, grad@task ≤ 0,04. (3) Getroffen: höchstens 0,34 (delta_head bei minus1, plus2).
+(4) Verfehlt: 11 von 12, `prev` 0,21. Bilanz: 3 getroffen, 1 verfehlt.
+
+**Schluss.** (a) Die Familie trennt sauber: Kopf-Aufgaben (XOR mit einer Maske), Aufgaben für innere Änderungen
+(Kopieren einer früheren Zahl) und bei k = 64 unlösbare (Rechnen mit Übertrag, Differenz). (b) `dfa` schadet den
+Kopf-Aufgaben (0,01 gegen delta_head 0,75–0,78): Die inneren Updates zerstören, was der Kopf lernt. Backprop auf
+die schnellen Gewichte lernt sie ebenfalls nicht (0,03–0,04). Ein guter Teacher muss also je Episode
+entscheiden, ob er innen schreibt; das ist das Meta-Lernziel, nicht nur „schneller als dfa“. (c) Wahl für
+Phase D: Meta-Train xm0F, xmA5, xm33 (Kopf) und prev2, prev3 (innen), Startnetze Seeds 0–2. Meta-Test `prev`
+(nah), `xmFF` (Kopf, ausgelassen) und `diff` mit k = 512 (fern, eine innere Rechnung), auf Seeds 5–6.
+
+**Belege.** `results/phase_d_ladder.jsonl` (360 Zeilen), Zusammenfassung `python -m netresearch.fastweights summary
+--file results/phase_d_ladder.jsonl`.
+
 ## Laufend / offen
 
-- Phase D, Stufe D.0 (Konzept PLAN_TRAINER, Freigabe Nutzer 2026-11-23 mit allen Empfehlungen): die Leiter auf
-  der numseq-Familie der Bibliothek, um Meta-Train- und Meta-Test-Aufgaben zu wählen. Neue Fälle `lib_<Name>`
-  in `adapt.py` (die zwölf Ausgaben von `library.TASKS`, jetzt `adapt.NUMSEQ_TASKS`; k Trainingsfolgen,
-  Test auf 512 ungesehenen). Startnetze layer_s@25k numseq Seeds 0–2, 5, 6 festgelegt in
-  `data/base_nets/numseq` (0,90–0,94). `fastweights inner`, layer_s@25k, Seeds 0–2 (die Meta-Train-Netze;
-  5–6 bleiben für den Meta-Test), k = 64 / 512, Regeln adam, grad@task, dfa@task, delta_head@task,
-  rls_rf@task, 200 Updates, Worker -> `results/phase_d_ladder.jsonl`. Bezug: `prev` k = 64 (Vorarbeit 2) Kopf
-  `rls_rf` 0,21, `dfa` 0,07 / 0,56, `grad` 0,78 / 0,94 (s20 / s200); xormask (layer_s, k = 64) Kopf
-  delta_head 0,48 / 0,85, `grad` 0,04.
-  **Vorhersage vor dem Lauf (2026-11-23),** k = 64, Mittel über Seeds und Varianten: (1) `prev`, `prev2`,
-  `prev3`: „Kopf reicht nicht, `grad` löst“, d. h. grad@task nach 200 Updates ≥ 0,7 und rls_rf@task ≤ 0,4,
-  3 von 3. (2) `xm0F`, `xmA5`, `xm33`, `xmFF`: „Kopf reicht“, rls_rf@task nach 200 Updates ≥ 0,5 und über
-  grad@task, 4 von 4. (3) `plus1`, `minus1`, `plus2`, `minus2`, `diff`: „niemand löst“, keine Regel (auch Adam)
-  ≥ 0,5 nach 200 Updates, 5 von 5. (4) dfa@task nach 20 Updates ≤ 0,15 auf allen 12 Aufgaben.
+- Phase D, Stufen D.2 und D.3 (Konzept PLAN_TRAINER, freigegeben 2026-11-23): `netresearch/teacher.py`
+  (Commit nach D.0; bei θ = 0 bitgleich zu dfa@task geprüft). Meta-Train wie im D.0-Eintrag (prev2, prev3, xm0F,
+  xmA5, xm33; Seeds 0–2; k = 64), Fitness = Testwertung nach 1, 5, 10, 20 Updates gemittelt, 8 Episoden je
+  Generation, Population 48. D.2 (Kontrolle, nur die drei Schrittweiten je Abbildung): 100 Generationen,
+  σ 0,1, lr 0,05. D.3 (Teacher-MLP, 469 Parameter): 300 Generationen, σ 0,05, lr 0,02. Worker ->
+  `results/teacher.jsonl`. Bezug Fitness auf den Meta-Train-Aufgaben: dfa 0,019, delta_head 0,12, grad 0,165,
+  je Aufgabe das Bessere aus delta_head und grad 0,27, rls_rf (Kopf, zweite Ordnung) 0,42. Danach D.5 auf
+  dem Meta-Test (Seeds 5–6): `prev` und `xmFF` mit k = 64, `diff` mit k = 512, bis 200 Updates.
+  **Vorhersage vor dem Lauf (2026-11-23):** (1) D.2: Validierungs-Fitness am Ende ≤ 0,13 (eine Schrittweite
+  kann nur zwischen „innen lernen“ für prev und „innen aus“ für die Kopf-Aufgaben wählen). (2) D.3:
+  Validierungs-Fitness ≥ 0,15, also über dfa, delta_head und D.2, aber unter 0,27. (3) D.5 `prev` mit der
+  D.3-Regel nach 20 Updates ≥ 0,40 (Erfolgskriterium des Konzepts). (4) Über den Trainings-Horizont hinaus
+  verliert die D.3-Regel: `prev` nach 200 Updates unter dfa@task (0,70).
 
 - Noch in Bits: `*_parts` (die Anpassungs-Studien servo / robot sind seit 2026-11-23 umgestellt); nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

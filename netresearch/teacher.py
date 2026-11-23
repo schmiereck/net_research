@@ -24,7 +24,8 @@ ES (outer loop): antithetic pairs, centred ranks, Adam on the mean. Fitness of a
 generation's episodes (case x start net x draw of the k examples; both halves of a pair see the same ones) of
 the test score on unseen sequences after 1, 5, 10 and 20 updates.
 -> results/teacher.jsonl (one row per generation: fitness of the mean on fixed validation episodes every
-   VAL_EVERY generations), results/teacher/<name>.pt (theta of the mean, the best validated theta).
+   VAL_EVERY generations; the last row carries theta and the best validated theta), and
+   <checkpoint dir>/teacher/<name>.pt (results/checkpoints/teacher locally, fetched with --checkpoints).
 """
 import argparse
 import json
@@ -41,7 +42,8 @@ from .fastweights import Fast, default_eta
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "results" / "teacher.jsonl"
-TDIR = ROOT / "results" / "teacher"
+from .train import CKPT_DIR                                 # noqa: E402  (worker: its own dir, fetched with --checkpoints)
+TDIR = CKPT_DIR / "teacher"
 MODEL = "layer_s@25k"
 MAPS = ["fc1", "fc2", "head"]
 N_IN, HID = 9, 16
@@ -52,7 +54,9 @@ N_THETA = sum(SIZES)
 T_FIT, T_POINTS = 20, (1, 5, 10, 20)
 K = 64
 VAL_EVERY = 10
-TRAIN_CASES = ["lib_prev2", "lib_prev3", "lib_xm0F", "lib_xmA5"]        # placeholder until D.0 decides
+# D.0 (LOGBUCH 2026-11-23): "head is enough" xm0F / xmA5 / xm33, "only inner backprop solves" prev2 / prev3;
+# meta-test: prev (near), xmFF (head task held out), diff with k = 512 (far; inner computation)
+TRAIN_CASES = ["lib_prev2", "lib_prev3", "lib_xm0F", "lib_xmA5", "lib_xm33"]
 
 
 def unpack(theta):
@@ -206,6 +210,8 @@ def run(name, mode, cases, seeds, gens, pop, n_ep, sigma, lr, workers, out, seed
                 torch.save({"theta": theta, "best": best[1], "best_val": best[0], "mode": mode, "gen": g,
                             "cases": cases, "seeds": seeds}, TDIR / f"{name}.pt")
             if g == gens:
+                row.update({"theta": [round(float(x), 6) for x in theta],
+                            "best": [round(float(x), 6) for x in best[1]], "best_val": best[0]})
                 f.write(json.dumps(row) + "\n")
                 break
             eps = [(cases[rng.integers(len(cases))], seeds[rng.integers(len(seeds))], int(rng.integers(10_000)))
