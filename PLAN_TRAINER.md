@@ -1495,8 +1495,13 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
     Median 3125, `pcell` 2500, von null an 4875), Feintuning schneller (875) und etwas besser. vitmem: Andocken
     schlechter als von null an, Feintuning besser. Bei so nahen Aufgaben lohnt Einfrieren nur, wenn die alte
     Aufgabe bleiben muss, und das fehlt ohne Auswahl nach Aufgabe. Mischen (Sperre gelockert, 2026-11-22):
-    einzige Variante mit beiden Aufgaben ganz (layer_s_sp4 0,95–0,96 in beiden, vitmem 0,83–0,89). Offen:
-    `two`, `three`; Auswahl nach Aufgabe als nächster Engpass.
+    einzige Variante mit beiden Aufgaben ganz (layer_s_sp4 0,95–0,96 in beiden, vitmem 0,83–0,89).
+  - **Zweite Sprosse `blind → two` (2026-11-23, LOGBUCH, Seeds 0–1):** Vorwissen hilft deutlich, aber über
+    Feintuning (layer_s_sp4 t68 2250 / 4000 statt 7000–7250, vitmem erstmals ≥ 0,65). Andocken kaum besser als
+    von null an (`pcell` etwas), Verbund verliert `blind` stärker als Feintuning; Mischen wieder als einzige
+    Variante beide Aufgaben ganz (layer_s_sp4). Die Erwartung „mehr Neues gibt dem Andocken mehr Raum“ ist hier
+    nicht bestätigt. Offen: `three`; Auswahl nach Aufgabe als nächster Engpass (ohne sie hat der Verbund
+    keinen eigenen Vorteil).
 
 **Phase D – Gelernter Teacher (Stufe 1)**
 - Ein kleiner Teacher, geteilt an allen Positionen, liest die Telemetrie und schreibt die Modulation.

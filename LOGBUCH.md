@@ -3716,23 +3716,79 @@ scheitert an der fehlenden Auswahl nach Aufgabe. Das ist der nächste Engpass vo
 
 **Belege.** `results/route_loop.jsonl` (jetzt 28 Läufe; Plan `robot_loop_cue_f32+robot_loop_blind_f32:24000`).
 
-## Laufend / offen
+## 2026-11-23 — Phase C, zweite Sprosse `blind → two`: Feintuning und Mischen tragen das Können weiter, das Andocken kaum
 
-- Phase C, Blickschleifen-Leiter, zweite Sprosse `blind → two` (Leiter beschlossen 2026-11-21, Nutzer erlaubte
-  2026-11-22 ohne Rückfrage weiterzumachen): `two` verlangt mehr Neues (zwei Ziele behalten und nacheinander
-  ansteuern); hilft dort das Können aus `blind`, und wie schneiden die Varianten ab? Pläne Feintuning
-  `robot_loop_blind_f32:12000 robot_loop_two_f32:12000`, `... freeze ...`, `... freeze:pcell ...` (nur Gitter),
-  Mischen `robot_loop_blind_f32+robot_loop_two_f32:24000`; `layer_s_sp4+cell+refl+rez3` und `vitmem+refl+rez3`,
-  Seeds 0–1 (14 Läufe = eine Welle, der Worker ist bis 7 Uhr frei); beide Aufgaben alle 250 Updates. Von null an
-  liegt vor (`results/loop_refcurve.jsonl`, `robot_loop_two_f32:12000`, Seeds 0–2): layer_s_sp4 Folgen-Wertung
-  0,69–0,71, `near` 0,89–0,91, erstes ≥ 0,68 nach 7000–7250 Updates; vitmem 0,56–0,62, `near` 0,70–0,80, nie
-  ≥ 0,65. Worker -> `results/route_loop.jsonl`.
-  **Vorhersage vor dem Lauf (2026-11-22):** (1) layer_s_sp4 Feintuning: `two` ≥ 0,68 nach höchstens 3500 Updates
-  der zweiten Stufe und `near` am Ende ≥ 0,89, je 2 von 2. (2) layer_s_sp4 `freeze` und `freeze:pcell`: `two`
-  ≥ 0,68 früher als von null an (vor 7000) und `near` ≥ 0,85, je 2 von 2. (3) vitmem: Mit Feintuning erreicht
-  `two` ≥ 0,65 in 2 von 2 (von null an nie); mit `freeze` in höchstens 1 von 2. (4) Mischen bei layer_s_sp4:
-  `blind` bleibt am Ende ≥ 0,75 und `two` `near` ≥ 0,85, je 2 von 2; nach Feintuning liegt `blind` am Ende unter
-  0,75 (2 von 2).
+**Frage.** Hilft auf der zweiten Sprosse der Blickschleifen-Leiter das Können aus `blind` beim Lernen von `two`
+(zwei Ziele behalten und nacheinander ansteuern), und wie schneiden Feintuning, `freeze`, `freeze:pcell` und
+Mischen ab?
+
+**Gemacht.** Job `20261122-225827-loop_blind_two` (Commit d974235), Worker, eine Welle mit 14 Läufen (die zwei
+vitmem-`pcell`-Läufe brechen wie gewollt vor dem Training ab, vitmem hat kein `pcell`). Vorhersage vor dem Lauf
+(wörtlich aus „Laufend / offen“):
+
+> - Phase C, Blickschleifen-Leiter, zweite Sprosse `blind → two` (Leiter beschlossen 2026-11-21, Nutzer erlaubte
+>   2026-11-22 ohne Rückfrage weiterzumachen): `two` verlangt mehr Neues (zwei Ziele behalten und nacheinander
+>   ansteuern); hilft dort das Können aus `blind`, und wie schneiden die Varianten ab? Pläne Feintuning
+>   `robot_loop_blind_f32:12000 robot_loop_two_f32:12000`, `... freeze ...`, `... freeze:pcell ...` (nur Gitter),
+>   Mischen `robot_loop_blind_f32+robot_loop_two_f32:24000`; `layer_s_sp4+cell+refl+rez3` und `vitmem+refl+rez3`,
+>   Seeds 0–1 (14 Läufe = eine Welle, der Worker ist bis 7 Uhr frei); beide Aufgaben alle 250 Updates. Von null an
+>   liegt vor (`results/loop_refcurve.jsonl`, `robot_loop_two_f32:12000`, Seeds 0–2): layer_s_sp4 Folgen-Wertung
+>   0,69–0,71, `near` 0,89–0,91, erstes ≥ 0,68 nach 7000–7250 Updates; vitmem 0,56–0,62, `near` 0,70–0,80, nie
+>   ≥ 0,65. Worker -> `results/route_loop.jsonl`.
+>   **Vorhersage vor dem Lauf (2026-11-22):** (1) layer_s_sp4 Feintuning: `two` ≥ 0,68 nach höchstens 3500 Updates
+>   der zweiten Stufe und `near` am Ende ≥ 0,89, je 2 von 2. (2) layer_s_sp4 `freeze` und `freeze:pcell`: `two`
+>   ≥ 0,68 früher als von null an (vor 7000) und `near` ≥ 0,85, je 2 von 2. (3) vitmem: Mit Feintuning erreicht
+>   `two` ≥ 0,65 in 2 von 2 (von null an nie); mit `freeze` in höchstens 1 von 2. (4) Mischen bei layer_s_sp4:
+>   `blind` bleibt am Ende ≥ 0,75 und `two` `near` ≥ 0,85, je 2 von 2; nach Feintuning liegt `blind` am Ende unter
+>   0,75 (2 von 2).
+
+**Ergebnis.** Seeds 0 / 1. Erste Stufe (`blind`, 12000 Updates) am Ende (Update 11750): layer_s_sp4 `blind`
+0,80 / 0,80, vitmem 0,71 / 0,69; `two` können die Netze dann noch nicht (0,30–0,38). t68 = Updates der zweiten
+Stufe bis die Folgen-Wertung in `two` erstmals ≥ 0,68 ist (beim Mischen: Updates insgesamt, die Hälfte davon
+für `two`).
+
+| Netz, Variante | `two` Folgen am Ende | `two` `near` | t65 (Seed 0 / 1) — t68 (Seed 0 / 1) | `blind` Folgen am Ende (Verbund) | eingefroren allein `blind` |
+|---|---|---|---|---|---|
+| layer_s_sp4 Feintuning | 0,74 / 0,73 | 0,92 / 0,92 | 1000 / 2000 — 2250 / 4000 | 0,55 / 0,56 | – |
+| layer_s_sp4 `freeze` | 0,69 / 0,69 | 0,89 / 0,90 | 4500 / 5250 — 6750 / 7500 | 0,39 / 0,44 | 0,80 / 0,80 |
+| layer_s_sp4 `freeze:pcell` | 0,70 / 0,70 | 0,91 / 0,91 | 4000 / 4250 — 5000 / 7500 | 0,55 / 0,51 | 0,80 / 0,80 |
+| layer_s_sp4 Mischen (24000) | 0,74 / 0,74 | 0,92 / 0,93 | 7250 / 6250 — 9500 / 9000 insgesamt | 0,82 / 0,83 (`near` 0,96 / 0,97) | – |
+| layer_s_sp4 von null an (Seeds 0–2) | 0,69–0,71 | 0,89–0,91 | – / 7000–7250 | – | – |
+| vitmem Feintuning | 0,69 / 0,68 | 0,91 / 0,90 | 5750 / 6250 — 7750 / 8000 | 0,63 / 0,69 | – |
+| vitmem `freeze` | 0,59 / 0,59 | 0,80 / 0,78 | nie | 0,39 / 0,34 | 0,69 / 0,68 |
+| vitmem Mischen (24000) | 0,64 / 0,58 | 0,82 / 0,70 | nie | 0,72 / 0,66 | – |
+| vitmem von null an (Seeds 0–2) | 0,56–0,62 | 0,70–0,80 | nie | – | – |
+
+- Feintuning: Das Können aus `blind` trägt bei beiden Netzen. layer_s_sp4 erreicht 0,68 nach 2250 / 4000
+  statt 7000–7250 Updates und endet höher (0,73–0,74 gegen 0,69–0,71). vitmem schafft `two` erstmals (≥ 0,65 in
+  2 von 2, `near` 0,90–0,91 gegen 0,70–0,80 von null an). `blind` geht dabei zum Teil verloren (layer_s_sp4
+  0,80 → 0,55–0,56).
+- `freeze`: bei layer_s_sp4 etwa so schnell und so gut wie von null an; `pcell` etwas schneller (einmal 5000).
+  Bei vitmem besser als von null an, aber klar unter dem Feintuning. Der Verbund verliert `blind` stärker als
+  das Feintuning (0,34–0,55); das eingefrorene Netz allein kann es unverändert.
+- Mischen: layer_s_sp4 hat beide Aufgaben (`two` so gut wie Feintuning, `blind` sogar über dem Stand von `blind` allein
+  nach 12000 Updates, 0,80). vitmem lernt `two` beim Mischen langsamer (nie ≥ 0,65).
+
+**Vergleich mit der Vorhersage.** (1) Verfehlt: `near` 0,92 in 2 von 2, aber t68 2250 und 4000, nur einer
+unter 3500. (2) Verfehlt: `freeze` t68 6750 / 7500, `pcell` 5000 / 7500, je nur einer vor 7000 (`near`
+0,89–0,91 erfüllt). (3) Getroffen: vitmem Feintuning ≥ 0,65 in 2 von 2, `freeze` in 0 von 2. (4) Getroffen:
+Mischen `blind` 0,82 / 0,83, `two` `near` 0,92 / 0,93; nach Feintuning `blind` 0,55 / 0,56. Bilanz: 2 getroffen,
+2 verfehlt.
+
+**Schluss.** (a) Auf dieser Sprosse verlangt die neue Aufgabe mehr Neues, und das Vorwissen hilft deutlich, aber
+über das Weiterlernen derselben Gewichte: Feintuning halbiert bei layer_s_sp4 die Zeit bis 0,68 und hebt vitmem
+erstmals über die Schwelle. (b) Das Andocken nutzt das eingefrorene Können kaum: layer_s_sp4 so schnell wie von
+null an, mit `pcell` etwas schneller; bei vitmem hilft es etwas, aber weniger als Feintuning. Die Vermutung
+der vorigen Einträge, dass Andocken mehr Raum bekommt, wenn die Aufgabe mehr Neues verlangt, ist hier nicht
+bestätigt (zwei Seeds). (c) Wie auf der ersten Sprosse ist Mischen bei layer_s_sp4 die einzige Variante mit
+beiden Aufgaben ganz; bei vitmem kostet es auf `two` Tempo. (d) Damit bleibt der Befund: Ohne Auswahl nach
+Aufgabe hat der Verbund keinen eigenen Vorteil, er verliert die alte Aufgabe sogar stärker als Feintuning
+(Gate mischt beide Ausgänge). Nur zwei Seeds; die Zeiten streuen stark (layer_s_sp4 Feintuning 2250 / 4000).
+
+**Belege.** `results/route_loop.jsonl` (jetzt 42 Läufe; die 14 neuen mit `robot_loop_two_f32` im Plan), Rohdaten
+mit den 2 Fehlzeilen im Ergebnisordner des Jobs auf dem Share; „von null an“: `results/loop_refcurve.jsonl`.
+
+## Laufend / offen
 
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

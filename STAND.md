@@ -130,6 +130,12 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   Andocken (`near` 0,76–0,86 gegen 0,81–0,87 von null an; Feintuning 0,92). Der Verbund verliert `cue` wie das
   Feintuning. Die beiden Aufgaben sind fast gleich. Mischen (Sperre gelockert) gibt als einzige Variante beide
   Aufgaben ganz (layer_s_sp4 `near` 0,95–0,96 in beiden). Nächster Engpass: die Auswahl nach Aufgabe.
+- **Zweite Sprosse `blind → two` (2026-11-23, Seeds 0–1):** Das Können aus `blind` hilft über Feintuning:
+  layer_s_sp4 erreicht 0,68 nach 2250 / 4000 statt 7000–7250 Updates (Ende 0,73–0,74, `near` 0,92), vitmem
+  schafft `two` erstmals (0,68–0,69, `near` 0,90–0,91 gegen 0,70–0,80 von null an). Das Andocken nutzt es kaum
+  (layer_s_sp4 `freeze` so schnell wie von null an, `pcell` etwas schneller; vitmem `near` 0,78–0,80), und der
+  Verbund verliert `blind` stärker als das Feintuning. Mischen gibt layer_s_sp4 wieder beide Aufgaben ganz
+  (`two` 0,74, `blind` 0,82–0,83); vitmem lernt `two` beim Mischen langsamer.
 - **Lesart:** Die langen Plateaus sind fehlende Zwischenziele. Verlangt eine Hilfsaufgabe die Zwischengröße als
   Ausgabe, verschwinden sie bei allen Architekturen. Das ist die Rolle, die ein Teacher übernehmen soll.
 - Auf den Roboter-Aufgaben trägt das Prinzip bisher nur teilweise: Bei „Hand zum Würfel“ hebt die Hilfsaufgabe
