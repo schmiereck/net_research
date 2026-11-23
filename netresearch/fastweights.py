@@ -74,7 +74,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .adapt import CASES, SPEC, STEPS, base_score, score_on, start_net
+from .adapt import CASES, SPEC, STEPS, base_score, score_on, spec_of, start_net
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "results" / "fastweights.jsonl"
@@ -113,9 +113,9 @@ class Fast:
     With a gate, every forward first runs the frozen net once (fast weights off) to get the head input h,
     the gate g(h) in [0, 1] per example, and then runs again with all fast contributions scaled by g."""
 
-    def __init__(self, model, rule, eta, seed):
+    def __init__(self, model, rule, eta, seed, spec=SPEC):
         from .models.grid import CellLinear
-        self.model, self.rule, self.eta = model, rule, eta
+        self.model, self.rule, self.eta, self.spec = model, rule, eta, spec      # spec: output code of the case
         self.base, self.gate_kind = split_rule(rule)
         for p in model.parameters():
             p.requires_grad_(False)
@@ -201,7 +201,7 @@ class Fast:
         keep = b["mask"][0] > 0
         p = self.phi(x)[keep]
         r = torch.zeros_like(logits[0])
-        r[:, SPEC.out_slice] = RLS_M * (2 * b["target"][0] - 1) - logits[0][:, SPEC.out_slice]
+        r[:, self.spec.out_slice] = RLS_M * (2 * b["target"][0] - 1) - logits[0][:, self.spec.out_slice]
         Q = self.F["_Q"]
         Pp = p / self.eta + p @ Q                           # p P, P = I / eta + Q
         K = torch.linalg.solve(torch.eye(len(p)) + Pp @ p.T, Pp).T   # P p^T (I + p P p^T)^-1  (P symmetric)
@@ -256,9 +256,9 @@ class Fast:
     def _err(self, b):
         from .train import run_sequence
         logits, _ = run_sequence(self.model, b["obs"])
-        lg = logits[0][:, SPEC.out_slice]
+        lg = logits[0][:, self.spec.out_slice]
         e = torch.zeros_like(logits[0])
-        e[:, SPEC.out_slice] = (torch.sigmoid(lg) - b["target"][0]) * b["mask"][0][:, None]
+        e[:, self.spec.out_slice] = (torch.sigmoid(lg) - b["target"][0]) * b["mask"][0][:, None]
         return logits, e
 
     def _apply(self, n, x, d):
@@ -271,7 +271,7 @@ class Fast:
         if self.opt is not None:                            # lora, grad: the gradient through the frozen net
             from .train import run_sequence, supervised_loss
             logits, _ = run_sequence(self.model, b["obs"])
-            loss = supervised_loss(SPEC, logits, b["target"], b["mask"])
+            loss = supervised_loss(self.spec, logits, b["target"], b["mask"])
             self.opt.zero_grad()
             loss.backward()
             self.opt.step()
@@ -308,7 +308,7 @@ class Fast:
         tgt, mask = b["target"][0], b["mask"][0]
 
         def per_example_loss():
-            lg = run_sequence(self.model, b["obs"])[0][0][:, SPEC.out_slice]
+            lg = run_sequence(self.model, b["obs"])[0][0][:, self.spec.out_slice]
             return F.binary_cross_entropy_with_logits(lg, tgt, reduction="none").mean(-1) * mask
         clean = per_example_loss()
         self.noise = []
@@ -328,10 +328,11 @@ def curve(model_name, seed, variant, rule, eta, case="fixcycle", k=6):
     from .tasks import make_task
     task = make_task(base_name)
     b, tb = maker(variant + 10 * seed, k)
+    spec = spec_of(base_name)
     if rule == "adam":
         from .adapt import adapt_curve
-        return (*adapt_curve(model, b, tb, task, eta, False, seed + variant), None)
-    fw = Fast(model, rule, eta, seed * 100 + variant)
+        return (*adapt_curve(model, b, tb, task, eta, False, seed + variant, spec), None)
+    fw = Fast(model, rule, eta, seed * 100 + variant, spec)
     info = None
     if fw.gate_kind and fw.gate_kind != "task":
         base = fw.fit_gate(b, task, seed * 100 + variant + 1)
@@ -343,7 +344,7 @@ def curve(model_name, seed, variant, rule, eta, case="fixcycle", k=6):
     for s in range(STEPS[-1] + 1):
         if s in STEPS:
             fw.task_on = 1.0
-            cur.append([s, score_on(model, tb)])
+            cur.append([s, score_on(model, tb, spec)])
             fw.task_on = 0.0
             ret.append([s, base_score(model, task)])
         if s < STEPS[-1]:

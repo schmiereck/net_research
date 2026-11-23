@@ -22,6 +22,10 @@ base task's own sequences, only the asked output changes; scored on unseen seque
     plus1      base numseq. Output = next number + 1 (mod 256, carries).
     cycle2     base cycle.  Output = the word after the next one (2P..15 rows visible).
 
+Step cases (servo_<device>, robot_green / robot_blue): the step in the population code like their base tasks
+servo / robot_gaze (32 outputs in the symbol area, SPEC_POP); "<case>_bits" is the same case in the old 8-bit
+code on the base "<base>_bits" (results before 2026-11-23). Pinned base nets: data/base_nets/<base task>.
+
 Methods (all Adam, full batch on the k examples):
     adam      fine-tuning of the start net, lr 1e-3
     adam_lo   the same with lr 1e-4 (less forgetting, slower)
@@ -55,6 +59,33 @@ KS = [8, 64, 512]                 # number of training examples for the rule cas
 N_TEST = 512
 METHODS = {"adam": (1e-3, False), "adam_lo": (1e-4, False), "replay": (1e-3, True), "scratch": (1e-3, False)}
 SPEC = TaskSpec("adapt", "patterns", "supervised", "bits", WORD, seq_len=1, chance=0.0)
+# step cases on a base task in the population code (servo, robot_gaze; their old 8-bit form is "<name>_bits"):
+# the step as 32 outputs in the symbol area, scored by the strongest unit per axis (tasks/servo.py)
+SPEC_POP = TaskSpec("adapt_pop", "patterns", "supervised", "bits", 32, seq_len=1, chance=0.0, role="symbol", pop=True)
+
+
+def spec_of(base):
+    """Output code of the cases on `base`: SPEC_POP if the base task gives its step in the population code."""
+    from .tasks import make_task
+    return SPEC_POP if make_task(base).spec.pop else SPEC
+
+
+def exact(spec, lg, target):
+    """Per example 1.0 if the whole answer is right (lg: logits of the task's slice)."""
+    if spec.pop:
+        return (lg.reshape(*lg.shape[:-1], 2, 16).argmax(-1)
+                == target.reshape(*lg.shape[:-1], 2, 16).argmax(-1)).all(-1).float()
+    return ((lg > 0).float() == target).float().min(-1).values
+
+
+def step_target(dx, dy, pop):
+    """Signed steps -> targets [n, 8] (bits) or [n, 32] (population code, width STEP_SIGMA). Steps outside -8..7
+    wrap around in both codes (the bits keep 4 per axis; e.g. flipx of -8 gives +8 -> -8, as in the base tasks)."""
+    from .tasks.servo import STEP_SIGMA, command_bits, pop_code
+    if not pop:
+        return command_bits(dx, dy)
+    st = (np.stack([dx, dy], 1).astype(np.int64) + 8) % 16 - 8
+    return pop_code(st, STEP_SIGMA)
 
 
 def _batch(words, n_visible, target):
@@ -157,26 +188,34 @@ CASES = {
     "plus1": ("numseq", lambda v, k: case_mid("plus1", v, k), KS, 2),
     "cycle2": ("cycle", lambda v, k: case_mid("cycle2", v, k), KS, 2),
 }
-def case_servo(device, variant, k):
-    """Servo calibration (tasks/servo.py): base inputs, the command of another device; unseen test situations."""
-    from .tasks.servo import servo_batch
+def case_servo(device, variant, k, pop=True):
+    """Servo calibration (tasks/servo.py): base inputs, the command of another device; unseen test situations.
+    pop: the command in the population code (base servo), else in 8 bits (base servo_bits); same data."""
+    from .tasks.servo import bits_steps, servo_batch
     from .train import to_t
     rng = np.random.default_rng(zlib.crc32(device.encode()) + 7919 * variant)
-    return to_t(servo_batch(device, k, rng, "train")), to_t(servo_batch(device, N_TEST, rng, "test"))
+    out = []
+    for n, split in ((k, "train"), (N_TEST, "test")):
+        b = servo_batch(device, n, rng, split)
+        if pop:
+            st = bits_steps(b["target"][0])
+            b["target"] = step_target(st[:, 0], st[:, 1], True)[None]
+        out.append(to_t(b))
+    return tuple(out)
 
 
 SERVO_CASES = ["flipx", "swap", "rot90", "strong", "weak", "offx"]
 for _d in SERVO_CASES:
     CASES["servo_" + _d] = ("servo", lambda v, k, _d=_d: case_servo(_d, v, k), KS, 2)
+    CASES["servo_" + _d + "_bits"] = ("servo_bits", lambda v, k, _d=_d: case_servo(_d, v, k, False), KS, 2)
 
 
-def case_robot(target, variant, k):
+def case_robot(target, variant, k, pop=True):
     """Another target on the same robot images (base robot_gaze = step to the red cube): the step to the green /
     blue cube (images with all three cubes, data/robot/gazemulti_*; library.py suite robot). The base net's head
     input carries the red cube's place, not the others' (head rules 0.01 there, LOGBUCH / PLAN_TRAINER Phase B):
     the case for "the head is not enough". Train: k images of the training file, test: N_TEST unseen images."""
     from .tasks.robot import DATA
-    from .tasks.servo import command_bits
     from .train import to_t
     col = {"green": 2, "blue": 4}[target]
     rng = np.random.default_rng(zlib.crc32(target.encode()) + 7919 * variant)
@@ -186,24 +225,24 @@ def case_robot(target, variant, k):
         i = rng.permutation(len(d["obs"]))[:n]
         c = d["cells"][i].astype(np.int64)
         return to_t({"obs": (d["obs"][i].astype(np.float32) / 255.0)[None],
-                     "target": command_bits(c[:, col], c[:, col + 1])[None], "mask": np.ones((1, n), np.float32)})
+                     "target": step_target(c[:, col], c[:, col + 1], pop)[None], "mask": np.ones((1, n), np.float32)})
     return make(k, "train"), make(N_TEST, "test")
 
 
 for _t in ("green", "blue"):
-    CASES["robot_" + _t] = ("robot_gaze_bits", lambda v, k, _t=_t: case_robot(_t, v, k), KS, 2)
-BASE_UPDATES = {"servo": 6000, "robot_gaze": 6000, "robot_gaze_bits": 6000}                    # the grid nets need 4x the benchmark budget for servo
+    CASES["robot_" + _t] = ("robot_gaze", lambda v, k, _t=_t: case_robot(_t, v, k), KS, 2)
+    CASES["robot_" + _t + "_bits"] = ("robot_gaze_bits", lambda v, k, _t=_t: case_robot(_t, v, k, False), KS, 2)
+BASE_UPDATES = {"servo": 6000, "servo_bits": 6000, "robot_gaze": 6000, "robot_gaze_bits": 6000}                    # the grid nets need 4x the benchmark budget for servo
 PHASE_A = ["fixcycle", "double", "trib", "countbig"]          # "--cases all" of the phase A run
 
 
 # ------------------------------------------------------------------------------------------ measuring
 @torch.no_grad()
-def score_on(model, b):
+def score_on(model, b, spec=SPEC):
     from .train import run_sequence
     model.eval()
     logits, _ = run_sequence(model, b["obs"])
-    pred = (logits[..., SPEC.out_slice] > 0).float()
-    acc = ((pred == b["target"]).float().min(-1).values * b["mask"]).sum() / b["mask"].sum()
+    acc = (exact(spec, logits[..., spec.out_slice], b["target"]) * b["mask"]).sum() / b["mask"].sum()
     model.train()
     return round(float(acc), 4)
 
@@ -218,7 +257,7 @@ BASE_NETS = Path(__file__).resolve().parents[1] / "data" / "base_nets"   # pinne
 
 def start_net(model_name, base, seed):
     from .train import load_checkpoint, run
-    pinned = BASE_NETS / base.removesuffix("_bits") / f"{model_name}_s{seed}.pt"   # pinned step-task nets: old code
+    pinned = BASE_NETS / base / f"{model_name}_s{seed}.pt"    # step tasks: <name> population code, <name>_bits 8 bits
     if pinned.exists():                           # base nets trained on the main PC (workers train slightly
         return load_checkpoint(model_name, base, seed, pinned)   # different weights: CPU rounding)
     m = load_checkpoint(model_name, base, seed)
@@ -228,7 +267,7 @@ def start_net(model_name, base, seed):
     return m
 
 
-def adapt_curve(model, train_b, test_b, base_task, lr, replay, seed):
+def adapt_curve(model, train_b, test_b, base_task, lr, replay, seed, spec=SPEC):
     from .train import supervised_loss, run_sequence, to_t
     opt = torch.optim.Adam(model.parameters(), lr=lr)
     rng = np.random.default_rng(seed)
@@ -236,12 +275,12 @@ def adapt_curve(model, train_b, test_b, base_task, lr, replay, seed):
     curve, ret = [], []
     for s in range(STEPS[-1] + 1):
         if s in STEPS:
-            curve.append([s, score_on(model, test_b)])
+            curve.append([s, score_on(model, test_b, spec)])
             ret.append([s, base_score(model, base_task)])
         if s == STEPS[-1]:
             break
         logits, _ = run_sequence(model, train_b["obs"])
-        loss = supervised_loss(SPEC, logits, train_b["target"], train_b["mask"])
+        loss = supervised_loss(spec, logits, train_b["target"], train_b["mask"])
         if replay:
             rb = to_t(base_task.sample(64, rng))
             lg, _ = run_sequence(model, rb["obs"])
@@ -272,7 +311,7 @@ def _job(args):
                         m = build_model(model_name, seed=seed + 100)
                     else:
                         m = start_net(model_name, base, seed)          # fresh copy of the start net
-                    curve, ret = adapt_curve(m, train_b, test_b, task, lr, replay, seed + v)
+                    curve, ret = adapt_curve(m, train_b, test_b, task, lr, replay, seed + v, spec_of(base))
                     rows.append({"variant": v, "k": k, "method": method, "curve": curve, "retention": ret})
         return {"model": model_name, "case": case, "base": base, "seed": seed, "params": count_params(start),
                 "start_base_score": base_score(start, task), "steps": STEPS, "runs": rows,

@@ -75,7 +75,7 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from .adapt import SPEC, _batch, _numseq_words, start_net
+from .adapt import _batch, _numseq_words, spec_of, start_net, step_target
 from .context import ALPHA, B, M, _loss_acc
 from .fastweights import Fast, default_eta
 from .slots import LVL, Y
@@ -130,7 +130,12 @@ SUITES = {"six": {"tasks": list(ORDERS[0]), "orders": ORDERS, "plan": phases},
           "servo": {"tasks": list(ORDERS_SERVO[0]), "orders": ORDERS_SERVO, "plan": phases, "base": "servo"},
           # robot fovea images (tasks/robot.py), base = look at the red cube. New skills on the same images:
           # look at the green / blue cube, and calibrations of the gaze command (eye_<servo device>)
-          "robot": {"tasks": list(ORDERS_ROBOT[0]), "orders": ORDERS_ROBOT, "plan": phases, "base": "robot_gaze"}}
+          "robot": {"tasks": list(ORDERS_ROBOT[0]), "orders": ORDERS_ROBOT, "plan": phases, "base": "robot_gaze"},
+          # servo and robot give the step in the population code (as their base tasks since 2026-11-14); the
+          # same suites in the old 8-bit code (results before 2026-11-23, results/library.jsonl):
+          "servo_bits": {"tasks": list(ORDERS_SERVO[0]), "orders": ORDERS_SERVO, "plan": phases, "base": "servo_bits"},
+          "robot_bits": {"tasks": list(ORDERS_ROBOT[0]), "orders": ORDERS_ROBOT, "plan": phases,
+                         "base": "robot_gaze_bits"}}
 
 
 def drift_data(a, b, seed, variant, n_batches):
@@ -144,10 +149,10 @@ def drift_data(a, b, seed, variant, n_batches):
     return da
 
 
-def robot_data(name, seed, variant, n):
+def robot_data(name, seed, variant, n, pop=False):
     """n examples of the multi-target gaze images (data/robot/gazemulti_train.npz) with the asked output."""
     from .tasks.robot import DATA
-    from .tasks.servo import DEVICES, command_bits
+    from .tasks.servo import DEVICES
     from .train import to_t
     if not _robot:
         _robot.update(np.load(DATA / "gazemulti_train.npz"))
@@ -159,18 +164,23 @@ def robot_data(name, seed, variant, n):
         dx, dy = c[:, k], c[:, k + 1]
     else:
         dx, dy = DEVICES[name[4:]](c[:, 0], c[:, 1])
-    return to_t({"obs": (_robot["obs"][idx].astype(np.float32) / 255.0)[None], "target": command_bits(dx, dy)[None],
+    return to_t({"obs": (_robot["obs"][idx].astype(np.float32) / 255.0)[None], "target": step_target(dx, dy, pop)[None],
                  "mask": np.ones((1, n), np.float32)})
 
 
-def task_data(name, seed, variant, n):
-    from .tasks.servo import DEVICES, servo_batch
+def task_data(name, seed, variant, n, pop=False):
+    """pop: step tasks (servo devices, robot) with the step in the population code (same data)."""
+    from .tasks.servo import DEVICES, bits_steps, servo_batch
     if name in ROBOT_TARGETS or name.startswith("eye_"):
-        return robot_data(name, seed, variant, n)
+        return robot_data(name, seed, variant, n, pop)
     if name in DEVICES:
         from .train import to_t
         rng = np.random.default_rng(zlib.crc32(name.encode()) + 101 * seed + variant)
-        return to_t(servo_batch(name, n, rng, "train"))
+        b = servo_batch(name, n, rng, "train")
+        if pop:
+            st = bits_steps(b["target"][0])
+            b["target"] = step_target(st[:, 0], st[:, 1], True)[None]
+        return to_t(b)
     rng = np.random.default_rng(7919 * (list(TASKS).index(name) + 1) + 101 * seed + variant)
     w = _numseq_words(n, rng, "train")
     return _batch(w, np.full(n, 3), TASKS[name](w))
@@ -179,12 +189,12 @@ def task_data(name, seed, variant, n):
 class Slot:
     """One library entry: one set of fast weights, or for rule 'pick' two candidates (delta_head, dfa)."""
 
-    def __init__(self, model, rule, seed):
+    def __init__(self, model, rule, seed, spec=None):
         names = ["delta_head", "dfa"] if rule.startswith("pick") else [rule]
         self.margin = rule == "pickm"
         self.members = []
         for i, r in enumerate(names):
-            fw = Fast(model, r + "@task", default_eta(r + "@task"), seed + 17 * i)
+            fw = Fast(model, r + "@task", default_eta(r + "@task"), seed + 17 * i, *([spec] if spec else []))
             fw.task_on = 0.0
             self.members.append(fw)
         self.reset()
@@ -289,6 +299,7 @@ def stream(model_name, seed, variant, rule, mode, suite="six"):
     model = start_net(model_name, base, seed)
     torch.manual_seed(seed + variant)
     task = make_task(base)
+    SPEC, pop = spec_of(base), task.spec.pop                     # output code of the new tasks (as the base)
     if suite == "six":                                          # as before (same data streams)
         data = {t: task_data(t, seed, variant, (FIRST + SECOND) * B) for t in order}
     else:
@@ -296,7 +307,7 @@ def stream(model_name, seed, variant, rule, mode, suite="six"):
         for p, n in plan:
             if p != "base":
                 need[p] = need.get(p, 0) + n
-        data = {t: drift_data("plus1", "plus2", seed, variant, n) if t == DRIFT else task_data(t, seed, variant, n * B)
+        data = {t: drift_data("plus1", "plus2", seed, variant, n) if t == DRIFT else task_data(t, seed, variant, n * B, pop)
                 for t, n in need.items()}
     used = {t: 0 for t in data}
     rng = np.random.default_rng(seed * 100 + variant + 7)
@@ -308,7 +319,7 @@ def stream(model_name, seed, variant, rule, mode, suite="six"):
     drift_frac = DRIFT_FRAC_STRICT if "e" in flags else DRIFT_FRAC          # e: stricter fork threshold
     cap = int(mk.group(1)) if mk else len(S["tasks"])          # library capacity (mature sets); oracle: a slot per task
     K = cap + (mode != "oracle")                                # + 1 working buffer
-    slots = [Slot(model, rule, seed * 100 + variant + 1000 * i) for i in range(K)]
+    slots = [Slot(model, rule, seed * 100 + variant + 1000 * i, SPEC) for i in range(K)]
 
     def set_active(a):
         for i, sl in enumerate(slots, 1):

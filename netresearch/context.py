@@ -39,7 +39,7 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from .adapt import CASES, SPEC, start_net
+from .adapt import CASES, exact, spec_of, start_net
 from .fastweights import Fast, default_eta
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -56,8 +56,7 @@ def _loss_acc(model, b, spec):
     from .train import run_sequence, supervised_loss
     logits, _ = run_sequence(model, b["obs"])
     loss = float(supervised_loss(spec, logits, b["target"], b["mask"]))
-    pred = (logits[..., spec.out_slice] > 0).float()
-    ok = (pred == b["target"]).float().min(-1).values * b["mask"]
+    ok = exact(spec, logits[..., spec.out_slice], b["target"]) * b["mask"]
     return loss, float(ok.sum() / b["mask"].sum())
 
 
@@ -72,7 +71,8 @@ def stream(model_name, seed, variant, case, rule, mode):
     new_b, _ = CASES[case][1](variant + 10 * seed, n_new)          # fresh training-split examples, in order
     rng = np.random.default_rng(seed * 100 + variant + 7)
     eta = default_eta(rule + "@task")                              # tuned for the task-gated rule
-    fw = Fast(model, rule + "@task", eta, seed * 100 + variant)
+    nspec = spec_of(base_name)
+    fw = Fast(model, rule + "@task", eta, seed * 100 + variant, nspec)
 
     def base_batch():
         return to_t(task.sample(B, rng))
@@ -88,7 +88,7 @@ def stream(model_name, seed, variant, case, rule, mode):
             if phase == "new":
                 b = {k: v[:, i_new * B:(i_new + 1) * B] for k, v in new_b.items()}
                 i_new += 1
-                spec = SPEC
+                spec = nspec
             else:
                 b, spec = base_batch(), task.spec
             if mode == "oracle":

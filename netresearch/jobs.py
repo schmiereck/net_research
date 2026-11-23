@@ -12,7 +12,8 @@ A job runs the commit that is checked out here when submitting; it must be pushe
 (without --out / --workers: the worker sets them; a job can fix the process count with --workers here).
 With --sieve the worker runs "netresearch.sieve run" instead: stage by stage, only what the sieve unlocks.
 With --module NAME it runs "netresearch.NAME run" (e.g. library, context): the module must accept --workers
-and --out and skip the jobs already in its output file.
+and --out and skip the jobs already in its output file. --cmd picks another command of the module than "run"
+(e.g. --module fastweights --cmd inner).
 """
 import argparse
 import json
@@ -30,7 +31,7 @@ def git(*args):
     return subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True).stdout.strip()
 
 
-def submit(share, name, bench_args, workers, allow_dirty, sieve=False, module=None):
+def submit(share, name, bench_args, workers, allow_dirty, sieve=False, module=None, cmd="run"):
     if any(a in ("--out", "--workers") for a in bench_args):
         raise SystemExit("--out / --workers are set by the worker (use 'submit --workers N' for a fixed count)")
     commit = git("rev-parse", "HEAD")
@@ -42,7 +43,7 @@ def submit(share, name, bench_args, workers, allow_dirty, sieve=False, module=No
         raise SystemExit(f"commit {commit[:7]} is not pushed to origin yet: git push first.")
     jid = datetime.now().strftime("%Y%m%d-%H%M%S") + "-" + re.sub(r"[^A-Za-z0-9_-]", "_", name)
     if sieve or module:
-        bench_args = ["run", *bench_args]
+        bench_args = [cmd, *bench_args]
     job = {"id": jid, "name": name, "commit": commit, "args": bench_args, "workers": workers,
            "module": f"netresearch.{module}" if module else "netresearch.sieve" if sieve else "netresearch.bench",
            "created": datetime.now().isoformat(timespec="seconds")}
@@ -148,6 +149,7 @@ def main():
     s.add_argument("--sieve", action="store_true", help="run the benchmark sieve (args: --models ... --seeds ...)")
     s.add_argument("--module", default=None,
                    help="run another experiment module with a 'run' command, --workers and --out, e.g. library")
+    s.add_argument("--cmd", default="run", help="with --module: the module's command (default run)")
     s.add_argument("bench_args", nargs=argparse.REMAINDER)
     sub.add_parser("status")
     f = sub.add_parser("fetch")
@@ -164,7 +166,7 @@ def main():
         (share / d).mkdir(parents=True, exist_ok=True)
     if a.cmd == "submit":
         args = a.bench_args[1:] if a.bench_args[:1] == ["--"] else a.bench_args
-        submit(share, a.name, args, a.workers, a.allow_dirty, a.sieve, a.module)
+        submit(share, a.name, args, a.workers, a.allow_dirty, a.sieve, a.module, a.cmd)
     elif a.cmd == "status":
         status(share)
     elif a.cmd == "fetch":
