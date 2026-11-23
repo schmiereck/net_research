@@ -1575,6 +1575,13 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
     prev3 (grad 0,90–0,96, Kopf ≤ 0,24), niemand löst plus / minus / diff bei k = 64. Meta-Train xm0F, xmA5, xm33,
     prev2, prev3 (Seeds 0–2); Meta-Test prev, xmFF (k = 64) und diff (k = 512) auf Seeds 5–6. Der Teacher muss
     also je Episode entscheiden, ob er innen schreibt. D.1 erledigt: `netresearch/teacher.py`, bitgleich zu dfa.
+  - **D.2 / D.3 / D.5 erledigt (2026-11-23, LOGBUCH):** Die gelernte Regel D.3 löst das ausgelassene `prev`
+    auf eigenen Startnetzen ohne Backprop schneller als Backprop auf dieselben schnellen Gewichte (nach 20 /
+    200 Updates 0,85 / 0,99; grad 0,79 / 0,95, dfa 0,16 / 0,75): Erfolgskriterium erfüllt, keine
+    Kurzhorizont-Falle. Die Kontrolle D.2 (nur Schrittweiten: Kopf × 34, innen fast aus) ist auf den
+    Kopf-Aufgaben besser (Validierung 0,44 gegen 0,17; xmFF ausgelassen 0,68, rls_rf 0,57), hat aber keine
+    innere Regel. Keine Regel kann beides; die Auswahl je Episode ist offen. Keine ferne Übertragung: `diff`
+    lernt nur Backprop. Laufend: Positions-Ablation (`--pos map / blind / split`, σ 0,1, lr 0,05).
 
 **Phase E – Teacher liest Gewichte (Stufe 2)**
 - Zusätzlich eine Zusammenfassung des Moduls selbst (Weight-Space-Encoder, permutationsinvariant) und ein

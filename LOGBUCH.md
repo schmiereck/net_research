@@ -4104,21 +4104,82 @@ Phase D: Meta-Train xm0F, xmA5, xm33 (Kopf) und prev2, prev3 (innen), Startnetze
 **Belege.** `results/phase_d_ladder.jsonl` (360 Zeilen), Zusammenfassung `python -m netresearch.fastweights summary
 --file results/phase_d_ladder.jsonl`.
 
-## Laufend / offen
+## 2026-11-23 — Phase D, D.2 / D.3 / D.5: die gelernte Regel löst das ausgelassene `prev` ohne Backprop schneller als Backprop, aber keine Regel kann Kopf- und Innen-Aufgaben zugleich
 
-- Phase D, Stufen D.2 und D.3 (Konzept PLAN_TRAINER, freigegeben 2026-11-23): `netresearch/teacher.py`
-  (Commit nach D.0; bei θ = 0 bitgleich zu dfa@task geprüft). Meta-Train wie im D.0-Eintrag (prev2, prev3, xm0F,
-  xmA5, xm33; Seeds 0–2; k = 64), Fitness = Testwertung nach 1, 5, 10, 20 Updates gemittelt, 8 Episoden je
-  Generation, Population 48. D.2 (Kontrolle, nur die drei Schrittweiten je Abbildung): 100 Generationen,
-  σ 0,1, lr 0,05. D.3 (Teacher-MLP, 469 Parameter): 300 Generationen, σ 0,05, lr 0,02. Worker ->
-  `results/teacher.jsonl`. Bezug Fitness auf den Meta-Train-Aufgaben: dfa 0,019, delta_head 0,12, grad 0,165,
-  je Aufgabe das Bessere aus delta_head und grad 0,27, rls_rf (Kopf, zweite Ordnung) 0,42. Danach D.5 auf
-  dem Meta-Test (Seeds 5–6): `prev` und `xmFF` mit k = 64, `diff` mit k = 512, bis 200 Updates.
-  **Vorhersage vor dem Lauf (2026-11-23):** (1) D.2: Validierungs-Fitness am Ende ≤ 0,13 (eine Schrittweite
-  kann nur zwischen „innen lernen“ für prev und „innen aus“ für die Kopf-Aufgaben wählen). (2) D.3:
-  Validierungs-Fitness ≥ 0,15, also über dfa, delta_head und D.2, aber unter 0,27. (3) D.5 `prev` mit der
-  D.3-Regel nach 20 Updates ≥ 0,40 (Erfolgskriterium des Konzepts). (4) Über den Trainings-Horizont hinaus
-  verliert die D.3-Regel: `prev` nach 200 Updates unter dfa@task (0,70).
+**Frage.** Findet ES eine lokale Regel für die inneren schnellen Gewichte, die mehr ist als eine bessere
+Schrittweite? Hält sie auf dem Meta-Test (ausgelassene Aufgaben, eigene Startnetze) und über ihren
+Trainings-Horizont von 20 Updates hinaus?
+
+**Gemacht.** Jobs `20261123-185537-d2_eta` und `20261123-185538-d3_full` (Commit 1cb6dd9), Worker, je 4
+Prozesse, D.2 54 Min, D.3 2,7 h. Meta-Test lokal (Commit ac1392b, gleicher Code für `teacher.py eval`): die
+besten validierten θ beider Läufe und als Bezug `fastweights inner` (dfa@task, grad@task, delta_head@task,
+rls_rf@task) auf lib_prev, lib_xmFF, lib_diff, k = 64 und 512, Seeds 5–6, je 2 Ziehungen, bis 200 Updates.
+Vorhersage vor dem Lauf (wörtlich aus „Laufend / offen“):
+
+> - Phase D, Stufen D.2 und D.3 (Konzept PLAN_TRAINER, freigegeben 2026-11-23): `netresearch/teacher.py`
+>   (Commit nach D.0; bei θ = 0 bitgleich zu dfa@task geprüft). Meta-Train wie im D.0-Eintrag (prev2, prev3, xm0F,
+>   xmA5, xm33; Seeds 0–2; k = 64), Fitness = Testwertung nach 1, 5, 10, 20 Updates gemittelt, 8 Episoden je
+>   Generation, Population 48. D.2 (Kontrolle, nur die drei Schrittweiten je Abbildung): 100 Generationen,
+>   σ 0,1, lr 0,05. D.3 (Teacher-MLP, 469 Parameter): 300 Generationen, σ 0,05, lr 0,02. Worker ->
+>   `results/teacher.jsonl`. Bezug Fitness auf den Meta-Train-Aufgaben: dfa 0,019, delta_head 0,12, grad 0,165,
+>   je Aufgabe das Bessere aus delta_head und grad 0,27, rls_rf (Kopf, zweite Ordnung) 0,42. Danach D.5 auf
+>   dem Meta-Test (Seeds 5–6): `prev` und `xmFF` mit k = 64, `diff` mit k = 512, bis 200 Updates.
+>   **Vorhersage vor dem Lauf (2026-11-23):** (1) D.2: Validierungs-Fitness am Ende ≤ 0,13 (eine Schrittweite
+>   kann nur zwischen „innen lernen“ für prev und „innen aus“ für die Kopf-Aufgaben wählen). (2) D.3:
+>   Validierungs-Fitness ≥ 0,15, also über dfa, delta_head und D.2, aber unter 0,27. (3) D.5 `prev` mit der
+>   D.3-Regel nach 20 Updates ≥ 0,40 (Erfolgskriterium des Konzepts). (4) Über den Trainings-Horizont hinaus
+>   verliert die D.3-Regel: `prev` nach 200 Updates unter dfa@task (0,70).
+
+**Ergebnis.**
+- Validierung (Meta-Train-Aufgaben, Seeds 0–2, feste Episoden; Fitness = Mittel nach 1, 5, 10, 20 Updates):
+
+| | gesamt | xm0F / xmA5 / xm33 | prev2 / prev3 | Schrittweite fc1 / fc2 / Kopf (× dfa) |
+|---|---|---|---|---|
+| Start (= dfa@task) | 0,019 | 0,006 | 0,05 / 0,03 | 1 / 1 / 1 |
+| D.2 (nur Schrittweiten), Gen. 100 | **0,44** | 0,72 / 0,68 / 0,69 | 0,08 / 0,03 | 0,16 / 0,014 / 34 |
+| D.3 (Teacher-MLP), Gen. 300 | 0,17 | 0,04 / 0,03 / 0,04 | **0,39 / 0,34** | 0,34 / 0,15 / 3,0 |
+
+  D.2 stieg bis Gen. 90 und blieb dann bei 0,44; D.3 stieg bis zum Ende (Gen. 250: 0,156, Gen. 300: 0,169).
+- Meta-Test, Seeds 5–6, Testwertung nach 1 / 5 / 10 / 20 / 200 Updates (Mittel über 4 Episoden):
+
+| Fall | dfa@task | grad@task | delta_head@task | rls_rf@task | D.2 | D.3 |
+|---|---|---|---|---|---|---|
+| prev, k = 64 | 0,00 / 0,02 / 0,08 / 0,16 / 0,75 | 0,01 / 0,37 / 0,60 / 0,79 / 0,95 | 0,00 / 0,00 / 0,02 / 0,05 / 0,16 | 0,23 / 0,23 / 0,23 / 0,24 / 0,24 | 0,01 / 0,07 / 0,13 / 0,14 / 0,16 | 0,01 / 0,17 / 0,60 / **0,85 / 0,99** |
+| xmFF, k = 64 | 0,00 / 0,00 / 0,01 / 0,01 / 0,01 | 0,00 / 0,00 / 0,01 / 0,01 / 0,02 | 0,00 / 0,00 / 0,12 / 0,45 / 0,71 | 0,60 / 0,57 / 0,57 / 0,57 / 0,56 | **0,60 / 0,68 / 0,68 / 0,68 / 0,68** | 0,01 / 0,02 / 0,01 / 0,00 / 0,01 |
+| diff, k = 512 | 0,00 / 0,00 / 0,01 / 0,02 / 0,11 | 0,01 / 0,10 / 0,20 / 0,35 / 0,86 | 0,01 / 0,01 / 0,01 / 0,04 / 0,13 | 0,21 / 0,21 / 0,19 / 0,18 / 0,16 | 0,01 / 0,03 / 0,03 / 0,05 / 0,12 | 0,01 / 0,02 / 0,01 / 0,01 / 0,01 |
+| diff, k = 64 | 0,00 / 0,01 / 0,01 / 0,02 / 0,03 | 0,01 / 0,06 / 0,12 / 0,15 / 0,19 | 0,01 / 0,01 / 0,01 / 0,02 / 0,03 | 0,04 / 0,03 / 0,03 / 0,03 / 0,03 | 0,00 / 0,02 / 0,01 / 0,02 / 0,03 | 0,01 / 0,01 / 0,02 / 0,01 / 0,00 |
+
+  D.3 auf `prev` je Episode nach 20 Updates 0,80 / 0,87 / 0,90 / 0,83, nach 200 Updates 0,98–1,00 (grad
+  0,93–0,96, dfa 0,60–0,88).
+
+**Vergleich mit der Vorhersage.** (1) Verfehlt: D.2 0,44 statt ≤ 0,13. Eine Schrittweite je Abbildung wählt
+nicht nur zwischen „innen lernen“ und „innen aus“: Kopf schnell und innen fast aus löst die Kopf-Aufgaben und
+übertrifft sogar rls_rf (0,42). (2) Formal getroffen (0,17, unter 0,27), aber nicht über D.2; der Teil „über
+D.2“ ist verfehlt. (3) Getroffen: `prev` nach 20 Updates 0,85 (≥ 0,40; grad 0,79, dfa 0,16). (4) Verfehlt:
+nach 200 Updates 0,99, über dfa (0,75) und grad (0,95); keine Kurzhorizont-Falle. Bilanz: 1 getroffen, 1 halb,
+2 verfehlt.
+
+**Schluss.** (a) Erstmals findet ES eine lokale Regel, die mehr ist als eine Schrittweite: Auf dem
+ausgelassenen `prev`, eigenen Startnetzen und ungesehenen Folgen lernt sie innen ohne Backprop schneller als
+Backprop auf dieselben schnellen Gewichte (0,85 gegen 0,79 nach 20 Updates, 0,99 gegen 0,95 nach 200), mit
+fester Zufalls-Rückprojektion wie dfa (dfa 0,16). Das Erfolgskriterium des Konzepts ist erfüllt, für die nahe
+Übertragung (Verwandte prev2 / prev3 im Training). (b) Die Kontrolle D.2 ist auf den Kopf-Aufgaben unschlagbar
+einfach: Kopf × 34, innen aus; sie überträgt sich auf das ausgelassene xmFF (0,68 nach 5 Updates, rls_rf 0,57).
+(c) Keine der beiden Regeln kann beides. D.3 hat die Kopf-Schrittweite nicht gefunden (σ 0,05 und lr 0,02 zu
+klein für die Größenordnung, ×3 statt ×34), D.2 hat keine innere Regel. Die Auswahl je Episode „innen
+schreiben ja / nein“ ist offen; Idealwert beider zusammen etwa 0,57. (d) Fern gibt es keine Übertragung: `diff`
+(Rechnen mit Differenz) lernt keine Regel außer Backprop (grad 0,86 nach 200 bei k = 512; D.3 0,01). Die
+D.3-Regel ist also auf „frühere Zahl kopieren“ spezialisiert, nicht allgemein. (e) Nächster Schritt: die
+Positions-Ablation (map / blind / split mit σ 0,1, lr 0,05) läuft; `map` dort zeigt auch, ob größere ES-Schritte
+beides zugleich finden. D.4 (gelernte Rückprojektion) erst, wenn `diff` das Ziel wird. Nur 2 Meta-Test-Seeds
+und 2 Ziehungen; ein ES-Lauf je Variante.
+
+**Belege.** `results/teacher.jsonl` (D.2 101 Zeilen, D.3 301; letzte Zeile mit θ), Checkpoints
+`results/checkpoints/teacher/d2_eta.pt`, `d3_full.pt` (nicht im Repo), Meta-Test `results/phase_d_test.jsonl`
+(80 Zeilen; Bezug mit `python -m netresearch.fastweights summary --file results/phase_d_test.jsonl`, Regeln
+`teach:*` mit eigenem Skript, da ohne Gedächtnis-Spalte).
+
+## Laufend / offen
 
 - Phase D, Position im Netz (Frage des Nutzers 2026-11-23: braucht der Teacher die Position, oder je Schicht
   einen eigenen?): `teacher.py --pos` (Commit ac1392b; alle drei Varianten bei Start bitgleich zu dfa@task).

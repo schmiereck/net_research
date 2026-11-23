@@ -409,4 +409,8 @@ Erfahrungen, die in die Pipeline gehören:
   für innere Schichten.
 - Danach: Servo mit Verzögerung und Regelkreis, Wahrnehmung als eigene Stufe, Lehrplan ohne Freeze,
   einheitliches Port-Interface, dann der gelernte Teacher (Phasen D–F).
-- Noch nicht begonnen: gelernter Teacher, Weltmodell, Reinforcement Learning.
+- Gelernter Teacher (Phase D) begonnen 2026-11-23: Eine per ES gefundene lokale Regel für die inneren schnellen
+  Gewichte von layer_s@25k lernt die ausgelassene Aufgabe `prev` (64 Beispiele) ohne Backprop schneller als
+  Backprop (0,85 nach 20 Updates, grad 0,79, dfa 0,16). Sie überträgt sich nicht auf eine fernere Aufgabe
+  (`diff`), und Kopf- und Innen-Aufgaben kann noch keine Regel zugleich.
+- Noch nicht begonnen: Weltmodell, Reinforcement Learning.
