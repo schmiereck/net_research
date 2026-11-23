@@ -1504,6 +1504,11 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
     keinen eigenen Vorteil).
 
 **Phase D – Gelernter Teacher (Stufe 1)**
+- **Messlatte (2026-11-23, LOGBUCH):** `prev` (numseq, Ausgabe = die letzte sichtbare Zahl) mit k = 64
+  Beispielen auf layer_s@25k: Kopf-Regeln 0,21 (passen an, verallgemeinern nicht), `dfa` 0,07 / 0,56 nach
+  20 / 200 Updates, Backprop auf schnelle Gewichte innen 0,78 / 0,94; Episode von 20 Updates etwa 1 s. Mit
+  k = 512 reicht der Kopf (`rls_rf` 0,77), die Trennung gilt nur bei wenigen Beispielen. „Anderes Ziel“ auf
+  den Roboter-Bildern (grün / blau) taugt nicht: auch volles Feintuning lernt es aus 512 Bildern nicht.
 - Ein kleiner Teacher, geteilt an allen Positionen, liest die Telemetrie und schreibt die Modulation.
 - Meta-Training per ES über viele Aufgaben-Episoden aus dem Meta-Train-Teil, mit dem Meta-Gradient als
   Vergleich. Messen auf dem Meta-Test-Teil.

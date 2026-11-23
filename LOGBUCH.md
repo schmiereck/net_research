@@ -3788,6 +3788,73 @@ Aufgabe hat der Verbund keinen eigenen Vorteil, er verliert die alte Aufgabe sog
 **Belege.** `results/route_loop.jsonl` (jetzt 42 Läufe; die 14 neuen mit `robot_loop_two_f32` im Plan), Rohdaten
 mit den 2 Fehlzeilen im Ergebnisordner des Jobs auf dem Share; „von null an“: `results/loop_refcurve.jsonl`.
 
+## 2026-11-23 — Vorarbeit Phase D: `prev` mit 64 Beispielen ist die Aufgabe „Kopf reicht nicht“, grün / blau scheidet aus
+
+**Frage.** Welche schnelle Aufgabe trennt für layer_s@25k die Regeln so, wie Phase D es braucht: Schreiben am
+Kopf scheitert (`rls_rf`), `dfa` im Inneren ist schwach, Backprop auf schnelle Gewichte im Inneren (`grad`)
+löst sie? (Review Gemini 2026-11-23, Vorarbeit 2; schon in der AGENDA aus dem Review agy 2026-11-21.)
+
+**Gemacht.** Probe grün / blau (`adapt.py` Fälle `robot_green` / `robot_blue`, Commit a592bbe), dann
+`fastweights inner` lokal auf `prev` und `plus1` (numseq, Eingaben wie die Basis, nur die Ausgabe neu; k = 64
+/ 512 Trainingsbeispiele, 200 Updates, 2 Varianten je Lauf, 144 Läufe, 20 Minuten mit 4 Prozessen), Regeln ohne
+Gate. Vorhersage vor dem Lauf (wörtlich aus „Laufend / offen“):
+
+> - Vorarbeit für Phase D (Auftrag Nutzer 2026-11-23, nach Review Gemini): eine Aufgabe, bei der Schreiben am
+>   Kopf scheitert (`rls_rf`), `dfa` im Inneren schwach ist und Backprop auf schnelle Gewichte im Inneren (`grad`)
+>   sie löst, für layer_s@25k (ES auf der CPU). Erster Kandidat grün / blau auf den Roboter-Bildern
+>   (`adapt.py` Fälle `robot_green` / `robot_blue`, Basis = die gepinnten Bit-Netze `robot_gaze`) als Probe ohne
+>   Vorhersage gemessen (layer_s, Seed 0, bis 2000 Updates, `results/` nicht, Probe im Scratch): mit 64 / 512
+>   Beispielen lernt KEINE Regel, auch volles Feintuning nicht (exakt 0,01–0,03); scheidet aus. Jetzt die
+>   vorhandenen Fälle mit innerer Änderung `prev` und `plus1` (numseq, k = 64 / 512, 200 Updates), Regeln
+>   `delta_head`, `rls_head`, `rls_rf`, `dfa`, `grad`, `adam`, Netze layer_s und layer_s@25k, Seeds 0–2, lokal
+>   -> `results/phase_d_pre.jsonl`. Bisher (results/fastinner.jsonl, layer_s, mit Orakel-Gate, s20 / s200):
+>   `prev` k = 64 Kopf 0,02 / 0,12, `dfa` 0,25 / 0,78, `grad` 0,87 / 0,96; `plus1` k = 64 Kopf 0,32 / 0,39,
+>   `dfa` 0,01 / 0,01, `grad` 0,16 / 0,18.
+>   **Vorhersage vor dem Lauf (2026-11-23):** (1) `prev`, k = 64, layer_s: `rls_rf` nach 200 Updates < 0,5,
+>   `grad` ≥ 0,9, `dfa` bei s20 mindestens 0,4 unter `grad` (Mittel über Seeds). (2) layer_s@25k zeigt dasselbe
+>   Muster (`rls_rf` < 0,5, `grad` ≥ 0,8, `dfa` bei s20 klar unter `grad`); dann ist `prev` k = 64 der
+>   Kandidat. (3) `plus1` taugt nicht: `grad` < 0,5 bei k = 64, oder der Kopf (`rls_rf`) erreicht ≥ `grad`.
+
+**Ergebnis.** Testwertung (exakt, ungesehene Folgen) nach 20 / 200 Updates, Mittel über Seeds 0–2 × 2 Varianten
+(Spanne der 6 Läufe bei s200):
+
+| Fall, k | Netz | `delta_head` | `rls_head` | `rls_rf` | `dfa` | `grad` innen | `adam` (ganzes Netz) |
+|---|---|---|---|---|---|---|---|
+| `prev`, 64 | layer_s | 0,02 / 0,12 | 0,21 / 0,21 | 0,21 / 0,21 (0,14–0,26) | 0,11 / 0,56 (0,38–0,68) | 0,84 / 0,95 (0,92–0,98) | 0,81 / 0,95 |
+| `prev`, 64 | layer_s@25k | 0,05 / 0,13 | 0,20 / 0,20 | 0,21 / 0,21 (0,14–0,25) | 0,07 / 0,56 (0,34–0,79) | 0,78 / 0,94 (0,90–0,99) | 0,78 / 0,98 |
+| `prev`, 512 | layer_s | 0,08 / 0,72 | 0,91 / 0,82 | 0,93 / 0,92 | 0,20 / 0,88 | 1,00 / 1,00 | 1,00 / 1,00 |
+| `prev`, 512 | layer_s@25k | 0,18 / 0,66 | 0,85 / 0,84 | 0,80 / 0,77 | 0,16 / 0,85 | 0,99 / 1,00 | 0,99 / 1,00 |
+| `plus1`, 64 | layer_s | 0,33 / 0,45 | 0,42 / 0,42 | 0,44 / 0,44 | 0,03 / 0,02 | 0,17 / 0,17 | 0,28 / 0,32 |
+| `plus1`, 64 | layer_s@25k | 0,34 / 0,32 | 0,18 / 0,17 | 0,25 / 0,25 | 0,01 / 0,01 | 0,19 / 0,20 | 0,29 / 0,28 |
+| `plus1`, 512 | layer_s | 0,39 / 0,66 | 0,55 / 0,43 | 0,68 / 0,66 | 0,09 / 0,07 | 0,60 / 0,72 | 0,66 / 0,81 |
+| `plus1`, 512 | layer_s@25k | 0,41 / 0,48 | 0,43 / 0,40 | 0,49 / 0,45 | 0,01 / 0,03 | 0,48 / 0,62 | 0,53 / 0,65 |
+
+- Grün / blau (Probe, layer_s, Seed 0, k = 64 / 512, bis 2000 Updates): keine Regel lernt es, auch volles
+  Feintuning nicht (exakt 0,01–0,03). Das Basisnetz trägt die Lage des roten Würfels; die der anderen neu zu
+  lernen braucht viel mehr Daten (von null an mit Ziel-Eingang 6000 Updates zu 64 Bildern für grün 0,40).
+  Gemessen in Bits (gepinnte Basisnetze `robot_gaze`, alter Code).
+- `prev`, k = 64: Die Kopf-Regeln passen die 64 Beispiele an, verallgemeinern aber nicht (0,21); mit k = 512
+  reicht der Kopf (`rls_rf` 0,77–0,92). Die Trennung gilt also nur bei wenigen Beispielen.
+- Zeit (layer_s@25k, `prev`, k = 64, je Lauf mit 2 Varianten und Auswertungen): `grad` 20 s für 200 Updates,
+  `dfa` 5 s. Eine Episode von 20 Updates (`grad` dort schon 0,78) kostet etwa 1 s.
+- Die Spalte „Vergessen“ ist hier ohne Bedeutung (schnelle Gewichte ohne Gate wirken auch auf die Basis).
+
+**Vergleich mit der Vorhersage.** (1) Getroffen: `rls_rf` 0,21, `grad` 0,95, `dfa` bei s20 0,73 unter `grad`.
+(2) Getroffen: layer_s@25k `rls_rf` 0,21, `grad` 0,94, `dfa` s20 0,07 gegen 0,78. (3) Getroffen: `plus1` `grad`
+0,17–0,20 bei k = 64, der Kopf ist dort so gut oder besser. Bilanz: 3 von 3 getroffen (die Probe grün / blau lief
+ohne Vorhersage).
+
+**Schluss.** (a) Kandidat für Phase D: `prev` mit k = 64 auf layer_s@25k. Kopf 0,21, `dfa` 0,07 nach 20 / 0,56
+nach 200 Updates, `grad` 0,78 / 0,94. Ein gelernter Teacher hat damit eine klare Messlatte: zwischen `dfa` (lokal)
+und `grad` (Backprop), mit Episoden von etwa 1 s. (b) Die Lücke zu `dfa` ist vor allem Tempo (bei 200 Updates
+erreicht `dfa` 0,34–0,79), die Lücke zum Kopf ist Verallgemeinerung bei wenigen Beispielen. (c) Grün / blau ist
+keine Aufgabe für schnelles Anpassen; „anderes Ziel“ gehört in den Ziel-Eingang (wie 2026-11-10 gefunden), nicht
+in schnelle Gewichte. (d) numseq ist keine Schritt-Aufgabe, `prev` liegt also schon im heutigen Code; die
+Umstellung der Anpassungs-Studien auf den Populations-Code (Vorarbeit 1) betrifft servo und robot.
+
+**Belege.** `results/phase_d_pre.jsonl` (144 Läufe), Zusammenfassung `python -m netresearch.fastweights summary
+--file results/phase_d_pre.jsonl`; Vergleich mit Orakel-Gate: `results/fastinner.jsonl`.
+
 ## Laufend / offen
 
 - Phase C, Auswahl nach Aufgabe (`freeze:sel`, Auftrag Nutzer 2026-11-23): Beim Einfrieren legt der Eintrag eine
@@ -3809,22 +3876,6 @@ mit den 2 Fehlzeilen im Ergebnisordner des Jobs auf dem Share; „von null an“
   Ende höchstens 0,03 unter dem `freeze`-Lauf ohne Auswahl desselben Netzes und Seeds, in mindestens 10 von 12.
   (4) Mischen bleibt bei layer_s_sp4 auf `blind → two` in der neuen Aufgabe besser (um ≥ 0,03, 2 von 2 je
   Variante); die Auswahl macht den Verbund also gleich gut im Behalten, nicht besser im Lernen.
-
-- Vorarbeit für Phase D (Auftrag Nutzer 2026-11-23, nach Review Gemini): eine Aufgabe, bei der Schreiben am
-  Kopf scheitert (`rls_rf`), `dfa` im Inneren schwach ist und Backprop auf schnelle Gewichte im Inneren (`grad`)
-  sie löst, für layer_s@25k (ES auf der CPU). Erster Kandidat grün / blau auf den Roboter-Bildern
-  (`adapt.py` Fälle `robot_green` / `robot_blue`, Basis = die gepinnten Bit-Netze `robot_gaze`) als Probe ohne
-  Vorhersage gemessen (layer_s, Seed 0, bis 2000 Updates, `results/` nicht, Probe im Scratch): mit 64 / 512
-  Beispielen lernt KEINE Regel, auch volles Feintuning nicht (exakt 0,01–0,03); scheidet aus. Jetzt die
-  vorhandenen Fälle mit innerer Änderung `prev` und `plus1` (numseq, k = 64 / 512, 200 Updates), Regeln
-  `delta_head`, `rls_head`, `rls_rf`, `dfa`, `grad`, `adam`, Netze layer_s und layer_s@25k, Seeds 0–2, lokal
-  -> `results/phase_d_pre.jsonl`. Bisher (results/fastinner.jsonl, layer_s, mit Orakel-Gate, s20 / s200):
-  `prev` k = 64 Kopf 0,02 / 0,12, `dfa` 0,25 / 0,78, `grad` 0,87 / 0,96; `plus1` k = 64 Kopf 0,32 / 0,39,
-  `dfa` 0,01 / 0,01, `grad` 0,16 / 0,18.
-  **Vorhersage vor dem Lauf (2026-11-23):** (1) `prev`, k = 64, layer_s: `rls_rf` nach 200 Updates < 0,5,
-  `grad` ≥ 0,9, `dfa` bei s20 mindestens 0,4 unter `grad` (Mittel über Seeds). (2) layer_s@25k zeigt dasselbe
-  Muster (`rls_rf` < 0,5, `grad` ≥ 0,8, `dfa` bei s20 klar unter `grad`); dann ist `prev` k = 64 der
-  Kandidat. (3) `plus1` taugt nicht: `grad` < 0,5 bei k = 64, oder der Kopf (`rls_rf`) erreicht ≥ `grad`.
 
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
