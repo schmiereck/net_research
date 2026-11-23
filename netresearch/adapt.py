@@ -49,6 +49,8 @@ from .tasks.patterns import WORD, _split_of, draw_rows, gen_row_cycle, sample_ro
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "results" / "adapt.jsonl"
 STEPS = [0, 1, 2, 5, 10, 20, 50, 100, 200]
+if os.environ.get("NETRESEARCH_ADAPT_LONG"):       # long horizon (robot cases: is an inner change learnable at all?)
+    STEPS += [500, 1000, 2000]
 KS = [8, 64, 512]                 # number of training examples for the rule cases
 N_TEST = 512
 METHODS = {"adam": (1e-3, False), "adam_lo": (1e-4, False), "replay": (1e-3, True), "scratch": (1e-3, False)}
@@ -166,7 +168,31 @@ def case_servo(device, variant, k):
 SERVO_CASES = ["flipx", "swap", "rot90", "strong", "weak", "offx"]
 for _d in SERVO_CASES:
     CASES["servo_" + _d] = ("servo", lambda v, k, _d=_d: case_servo(_d, v, k), KS, 2)
-BASE_UPDATES = {"servo": 6000, "robot_gaze": 6000}                    # the grid nets need 4x the benchmark budget for servo
+
+
+def case_robot(target, variant, k):
+    """Another target on the same robot images (base robot_gaze = step to the red cube): the step to the green /
+    blue cube (images with all three cubes, data/robot/gazemulti_*; library.py suite robot). The base net's head
+    input carries the red cube's place, not the others' (head rules 0.01 there, LOGBUCH / PLAN_TRAINER Phase B):
+    the case for "the head is not enough". Train: k images of the training file, test: N_TEST unseen images."""
+    from .tasks.robot import DATA
+    from .tasks.servo import command_bits
+    from .train import to_t
+    col = {"green": 2, "blue": 4}[target]
+    rng = np.random.default_rng(zlib.crc32(target.encode()) + 7919 * variant)
+
+    def make(n, split):
+        d = np.load(DATA / f"gazemulti_{split}.npz")
+        i = rng.permutation(len(d["obs"]))[:n]
+        c = d["cells"][i].astype(np.int64)
+        return to_t({"obs": (d["obs"][i].astype(np.float32) / 255.0)[None],
+                     "target": command_bits(c[:, col], c[:, col + 1])[None], "mask": np.ones((1, n), np.float32)})
+    return make(k, "train"), make(N_TEST, "test")
+
+
+for _t in ("green", "blue"):
+    CASES["robot_" + _t] = ("robot_gaze_bits", lambda v, k, _t=_t: case_robot(_t, v, k), KS, 2)
+BASE_UPDATES = {"servo": 6000, "robot_gaze": 6000, "robot_gaze_bits": 6000}                    # the grid nets need 4x the benchmark budget for servo
 PHASE_A = ["fixcycle", "double", "trib", "countbig"]          # "--cases all" of the phase A run
 
 
@@ -192,7 +218,7 @@ BASE_NETS = Path(__file__).resolve().parents[1] / "data" / "base_nets"   # pinne
 
 def start_net(model_name, base, seed):
     from .train import load_checkpoint, run
-    pinned = BASE_NETS / base / f"{model_name}_s{seed}.pt"
+    pinned = BASE_NETS / base.removesuffix("_bits") / f"{model_name}_s{seed}.pt"   # pinned step-task nets: old code
     if pinned.exists():                           # base nets trained on the main PC (workers train slightly
         return load_checkpoint(model_name, base, seed, pinned)   # different weights: CPU rounding)
     m = load_checkpoint(model_name, base, seed)

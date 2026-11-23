@@ -3810,5 +3810,21 @@ mit den 2 Fehlzeilen im Ergebnisordner des Jobs auf dem Share; „von null an“
   (4) Mischen bleibt bei layer_s_sp4 auf `blind → two` in der neuen Aufgabe besser (um ≥ 0,03, 2 von 2 je
   Variante); die Auswahl macht den Verbund also gleich gut im Behalten, nicht besser im Lernen.
 
+- Vorarbeit für Phase D (Auftrag Nutzer 2026-11-23, nach Review Gemini): eine Aufgabe, bei der Schreiben am
+  Kopf scheitert (`rls_rf`), `dfa` im Inneren schwach ist und Backprop auf schnelle Gewichte im Inneren (`grad`)
+  sie löst, für layer_s@25k (ES auf der CPU). Erster Kandidat grün / blau auf den Roboter-Bildern
+  (`adapt.py` Fälle `robot_green` / `robot_blue`, Basis = die gepinnten Bit-Netze `robot_gaze`) als Probe ohne
+  Vorhersage gemessen (layer_s, Seed 0, bis 2000 Updates, `results/` nicht, Probe im Scratch): mit 64 / 512
+  Beispielen lernt KEINE Regel, auch volles Feintuning nicht (exakt 0,01–0,03); scheidet aus. Jetzt die
+  vorhandenen Fälle mit innerer Änderung `prev` und `plus1` (numseq, k = 64 / 512, 200 Updates), Regeln
+  `delta_head`, `rls_head`, `rls_rf`, `dfa`, `grad`, `adam`, Netze layer_s und layer_s@25k, Seeds 0–2, lokal
+  -> `results/phase_d_pre.jsonl`. Bisher (results/fastinner.jsonl, layer_s, mit Orakel-Gate, s20 / s200):
+  `prev` k = 64 Kopf 0,02 / 0,12, `dfa` 0,25 / 0,78, `grad` 0,87 / 0,96; `plus1` k = 64 Kopf 0,32 / 0,39,
+  `dfa` 0,01 / 0,01, `grad` 0,16 / 0,18.
+  **Vorhersage vor dem Lauf (2026-11-23):** (1) `prev`, k = 64, layer_s: `rls_rf` nach 200 Updates < 0,5,
+  `grad` ≥ 0,9, `dfa` bei s20 mindestens 0,4 unter `grad` (Mittel über Seeds). (2) layer_s@25k zeigt dasselbe
+  Muster (`rls_rf` < 0,5, `grad` ≥ 0,8, `dfa` bei s20 klar unter `grad`); dann ist `prev` k = 64 der
+  Kandidat. (3) `plus1` taugt nicht: `grad` < 0,5 bei k = 64, oder der Kopf (`rls_rf`) erreicht ≥ `grad`.
+
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
