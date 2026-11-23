@@ -10,6 +10,9 @@
 7. Gaze ladder (own fronts, sum in the port): each net has its own retina and address encoder, the frozen part
    computes what the frozen net alone computes, the new port gets lateral + its own encoder's command, the new
    front learns and the frozen one does not; tiny curriculum runs cue -> freeze -> blind.
+8. Selection by task ("freeze:sel"): the statistic of the old task, output = the frozen net alone on familiar
+   episodes and the compound's elsewhere, the step count resets with the episode, the frozen net stays unchanged;
+   tiny curriculum runs blind -> freeze:sel -> two.
 """
 import json
 import sys
@@ -189,4 +192,51 @@ for plan in ("robot_loop_cue_f32:40 freeze robot_loop_blind_f32:40",
     check("error" not in r, f"layer_s_sp4: '{plan}' runs " + str(r.get("final", r.get("error", "")[-500:])))
 r = job(("robot_loop_cue_f32:40 freeze robot_loop_blind_f32:40", "vitmem+refl+rez3", 0, None, None))
 check("error" not in r, "vitmem: cue freeze blind runs " + str(r.get("final", r.get("error", "")[-500:])))
+
+# 8. selection by task ("freeze:sel"): statistic of the old task, the frozen output alone on familiar episodes,
+# the compound's output on the others, extra state reset with the episode, curriculum runs
+from netresearch.models.route import fit_familiar, selection_share  # noqa: E402
+old_t, new_t = make_task("robot_loop_blind_f32"), make_task("robot_loop_two_f32")
+for name, opt in (("layer_s_sp4+cell+refl+rez3", "sel"), ("layer_s_sp4+cell+refl+rez3", "pcell+sel"),
+                  ("vitmem+refl+rez3", "sel")):
+    tag = f"{name}:{opt}"
+    m = freeze_and_route(build_model(name, seed=3), name, seed=3, opt=opt)
+    check(m.wants_select and not m.select and m.per_cell == ("pcell" in opt), f"{tag}: builds, selection after the fit")
+    fit_familiar(m, [old_t], episodes=512)
+    check(m.select and len(m.fam_thr) == old_t.T, f"{tag}: statistic fitted, one threshold per step of the old task")
+    check(len(m.init_state(4)) == m.n_old + m.n_new + 2, f"{tag}: two more state values")
+    for t in (old_t, new_t):
+        bb = {k: torch.tensor(v) for k, v in t.sample(32, np.random.default_rng(5)).items()}
+        args = dict(cmd=bb.get("cmd"), ref=bb["ref"], ref_mask=bb["ref_mask"])
+        m.eval()
+        with torch.no_grad():
+            m.select = False
+            mixed, _ = run_sequence(m, bb["obs"], **args)
+            fro, _ = run_sequence(m.frozen, bb["obs"], **args)
+            m.select, m.record = True, []
+            out, st = run_sequence(m, bb["obs"], **args)
+            s = torch.stack(m.record)[..., None]
+            m.record = None
+        want = s * fro + (1 - s) * mixed
+        check(torch.allclose(out, want, atol=1e-5), f"{t.spec.name}: output = frozen alone where familiar "
+              f"(share {s.mean().item():.2f}), compound elsewhere")
+        check(torch.equal(st[-1][:, 0], torch.full((32,), float(t.T))), f"{t.spec.name}: step count per episode")
+        rs = torch.zeros(bb["obs"].shape[:2]); rs[3] = 1.0
+        with torch.no_grad():
+            _, st2 = run_sequence(m, bb["obs"], resets=rs, **args)
+        check(torch.equal(st2[-1][:, 0], torch.full((32,), float(t.T - 3))), f"{t.spec.name}: reset starts the count anew")
+    m.train()
+    snap = {k: v.clone() for k, v in m.frozen.state_dict().items()}
+    train_loop(m, [make_learner(m, new_t, 5, 8, 0)], 5, 2e-3, 10 ** 9)
+    check(all(torch.equal(v, m.frozen.state_dict()[k]) for k, v in snap.items()), f"{tag}: frozen net unchanged")
+    sh = selection_share(m, old_t, n_batches=1)
+    check(0.0 <= sh <= 1.0, f"{tag}: selection share on the old task {sh:.2f}")
+for plan, name in (("robot_loop_blind_f32:40 freeze:sel robot_loop_two_f32:40", "layer_s_sp4+cell+refl+rez3"),
+                   ("robot_loop_blind_f32:40 freeze:pcell+sel robot_loop_two_f32:40", "layer_s_sp4+cell+refl+rez3"),
+                   ("robot_loop_blind_f32:40 freeze:sel robot_loop_two_f32:40", "vitmem+refl+rez3")):
+    r = job((plan, name, 0, ["robot_loop_blind_f32", "robot_loop_two_f32"], None))
+    check("error" not in r and set(r.get("selected", {})) == {"robot_loop_blind_f32", "robot_loop_two_f32"},
+          f"{name}: '{plan}' runs, selected {r.get('selected', r.get('error', '')[-500:])}")
+r = job(("robot_loop_blind_f32:40 freeze:pcell+sel robot_loop_two_f32:40", "vitmem+refl+rez3", 0, None, None))
+check("error" in r and "pcell for grids only" in r["error"], "vitmem: 'freeze:pcell+sel' stops before stage 1")
 print("ALL OK" if ok else "SOME CHECKS FAILED")

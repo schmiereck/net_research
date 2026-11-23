@@ -9,7 +9,9 @@ cosine), as a single run has. The word "freeze" between phases (PLAN_TRAINER Pha
 the net trained so far and adds a new module of the same kind that reads the frozen net's top representation
 through its command port; only the new module, that read-out and an output gate learn from then on. "freeze" as
 the first word freezes the untrained net (control: same structure, no skill in the frozen part); "freeze:<opt>"
-runs one of the probes in models/route.py. --watch: tasks whose test score is recorded every 250 updates over the whole
+runs one of the probes in models/route.py; "freeze:sel" (also "freeze:pcell+sel") adds the selection by task: the
+statistic of the phase just learned is taken at the freeze, and the row gets "selected" (share of scored steps
+per watched task handed to the frozen net alone). --watch: tasks whose test score is recorded every 250 updates over the whole
 plan (default: the tasks of the last phase).
 -> results/curriculum.jsonl: plan (also as "task"), model, seed, final scores, curve [[update, {task: score}],
 ...]. Runs already in the output file are skipped.
@@ -76,6 +78,11 @@ def job(args):
             if names == "freeze":
                 from .models.route import freeze_and_route
                 model = freeze_and_route(model, model_name, params, seed, opt=updates)
+                if model.wants_select:                   # "sel": the statistic of the task(s) just learned
+                    from .models.route import fit_familiar
+                    old = [p for p, _ in phases[:k] if p != "freeze"]
+                    assert old, "freeze:sel needs a learned phase before it"
+                    fit_familiar(model, [make_task(t) for t in old[-1]])
                 continue
             specs = [make_task(t).spec for t in names]
             # tasks of one phase that share the symbol area must use the same code there: several step tasks in
@@ -101,6 +108,10 @@ def job(args):
         frozen_final = None
         if hasattr(model, "frozen"):                     # Freeze & Route: the frozen net alone on the watched tasks
             frozen_final = {t: round(final_metrics(model.frozen, task)["score"], 4) for t, task in wt.items()}
+        selected = None
+        if getattr(model, "select", False):              # "sel": share of scored steps handed to the frozen net
+            from .models.route import selection_share
+            selected = {t: round(selection_share(model, task), 4) for t, task in wt.items()}
         watch_ref(done)
         if name:
             save_checkpoint(model, model_name, name, seed, list(final.values())[-1])
@@ -108,6 +119,7 @@ def job(args):
                 "near": near,          # step tasks: [share at most one cell off, mean error in cells]
                 "time": round(time.time() - t0, 1), "curve": curve,
                 **({"frozen_final": frozen_final} if frozen_final else {}),
+                **({"selected": selected} if selected else {}),
                 # picture encoder ("+ref") at every evaluation: [update, spread of the output over pictures,
                 # share of output values beyond +-0.95, mean |value before the tanh|, its spread over pictures]
                 **({"ref_curve": ref_curve} if ref_curve else {})}

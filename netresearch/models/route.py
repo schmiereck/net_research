@@ -33,6 +33,18 @@ Probes (curriculum word "freeze:<opt>", LOGBUCH 2026-11-21), each changes one th
             ORP output (the part of a module's output the grid keeps in its state). Grids only.
 Probes combine with '+' (e.g. "freeze:pcell+fc2"); only pcell+fc2 is allowed so far (the others change the port or
 the gate and do not combine with pcell).
+
+Selection by task ("freeze:sel", combines with every probe above; PLAN_TRAINER Phase C, user 2026-11-23): the
+compound recognises from its input whether an episode belongs to the frozen entry's own task and then hands on the
+frozen net's output alone. Without it the gate mixes both outputs on the old task too, and the compound forgets
+it. No old data are kept: when the net is frozen, the entry publishes a STATISTIC of its own task, the mean and
+covariance of its top representation over episodes of the task it has learned (fit_familiar, called by the
+curriculum with the tasks of the phase before the freeze), and per step count n the 99% quantile of an episode's
+mean Mahalanobis distance after n steps. In use the compound keeps that running mean per episode (two more state
+values, reset with the episode): while it stays at or below the quantile, the episode counts as familiar and the
+output is the frozen net's alone (s = 1); above it, it is the compound's (s = 0). The decision is hard, has no
+gradient and is fixed after the freeze (familiarity, as the `novel` gate of 2026-11-09). A library of several
+entries would route to the entry that finds the input familiar, else to the newest.
 """
 import torch
 import torch.nn as nn
@@ -81,16 +93,21 @@ class FrozenRoute(nn.Module):
         self.width_used = getattr(new, "width_used", None)
         self.cmd = None
         self.step_in = None                            # (cmd, ref, ref_mask) of this step, each [1, B, ...] or None
+        self.select = False                            # "sel": selection by task (fit_familiar sets the statistic)
+        self.wants_select = False
+        self.record = None                             # a list: forward appends s [B] of every step (diagnostics)
 
     def init_state(self, batch, device="cpu"):
         so = self.frozen.init_state(batch, device) if self.frozen.stateful else ()
         sn = self.new.init_state(batch, device) if self.new.stateful else ()
-        self.n_old = len(so)
-        return tuple(so) + tuple(sn)
+        self.n_old, self.n_new = len(so), len(sn)
+        sel = (torch.zeros(batch, 1, device=device),) * 2 if self.select else ()   # sum of distances, step count
+        return tuple(so) + tuple(sn) + sel
 
     def forward(self, x, state):
         from ..train import front                      # here, not at the top: train imports the models package
-        so, sn = state[:self.n_old], state[self.n_old:]
+        so, sn = state[:self.n_old], state[self.n_old:self.n_old + self.n_new]
+        sel = state[self.n_old + self.n_new:]
         cmd, ref, mask = self.step_in or (None, None, None)
         self.frozen.eval()                             # no dropout / no running statistics in the frozen net
         with torch.no_grad():
@@ -112,10 +129,83 @@ class FrozenRoute(nn.Module):
             out_new, sn = self.new(xn[0], sn)
         finally:
             self.new.cmd = None
-        if not self.use_gate:
-            return out_new, tuple(so) + tuple(sn)
-        g = torch.sigmoid(self.gate(self.tap_new.value))
-        return g * out_old.detach() + (1 - g) * out_new, tuple(so) + tuple(sn)
+        if self.use_gate:
+            g = torch.sigmoid(self.gate(self.tap_new.value))
+            out = g * out_old.detach() + (1 - g) * out_new
+        else:
+            out = out_new
+        if not self.select:
+            return out, tuple(so) + tuple(sn)
+        zsum, n = sel[0] + self.distance(self.tap_old.value.detach()), sel[1] + 1
+        idx = n[:, 0].long().clamp(max=len(self.fam_thr)) - 1            # beyond the old task's length: the last
+        s = ((zsum / n) <= self.fam_thr[idx]).float()                     # [B, 1], 1 = familiar -> frozen alone
+        if self.record is not None:
+            self.record.append(s[:, 0])
+        return s * out_old.detach() + (1 - s) * out, tuple(so) + tuple(sn) + (zsum, n)
+
+    def distance(self, h):
+        """Squared Mahalanobis distance of top representations h [B, ...] to the frozen task's statistic, / D."""
+        d = h.flatten(1) - self.fam_mean
+        return ((d @ self.fam_prec) * d).sum(-1, keepdim=True) / d.shape[-1]
+
+
+@torch.no_grad()
+def fit_familiar(route, tasks, episodes=4096, quantile=0.99, shrink=0.1, seed=4243):
+    """Selection by task ("freeze:sel"): the statistic of the frozen net's own task from `episodes` training
+    episodes of `tasks` (the phase before the freeze) -> route.fam_mean, fam_prec, fam_thr; switches selection on.
+    The covariance is shrunk towards its mean variance (share `shrink`). fam_thr[n - 1]: the quantile of an
+    episode's mean distance after n steps (steps without a scored answer count too)."""
+    import numpy as np
+    from ..train import run_sequence, to_t
+    was = route.training
+    route.eval()
+    route.select = False
+    rng, runs, lats = np.random.default_rng(seed), [], []
+    hook = route.frozen.head.register_forward_hook(lambda m, a, o: lats.append(a[0].flatten(1).double()))
+    try:
+        for t in tasks:
+            for _ in range(max(1, episodes // len(tasks) // 256)):
+                b = to_t(t.sample(256, rng))
+                lats.clear()
+                run_sequence(route, b["obs"].float(), cmd=b.get("cmd"), ref=b.get("ref"), ref_mask=b.get("ref_mask"))
+                runs.append(torch.stack(lats))                              # [T, B, D] of this batch
+    finally:
+        hook.remove()
+    x = torch.cat([r.reshape(-1, r.shape[-1]) for r in runs])
+    mean = x.mean(0)
+    cov = torch.cov((x - mean).T)
+    cov = (1 - shrink) * cov + shrink * cov.diagonal().mean() * torch.eye(len(mean), dtype=cov.dtype)
+    route.fam_mean, route.fam_prec = mean.float(), torch.linalg.inv(cov).float()
+    zbar = [[] for _ in range(max(r.shape[0] for r in runs))]
+    for r in runs:
+        z = torch.stack([route.distance(r[t].float())[:, 0] for t in range(r.shape[0])])     # [T, B]
+        zb = z.cumsum(0) / torch.arange(1, len(z) + 1)[:, None]
+        for t in range(len(z)):
+            zbar[t].append(zb[t])
+    route.fam_thr = torch.stack([torch.quantile(torch.cat(v), quantile) for v in zbar])[:, None]
+    route.select = True
+    route.train(was)
+    return route
+
+
+@torch.no_grad()
+def selection_share(route, task, n_batches=None):
+    """Share of the scored steps of `task` (its test set) on which the compound hands on the frozen net alone."""
+    from ..train import eval_set, run_sequence
+    was = route.training
+    route.eval()
+    tot = frz = 0.0
+    try:
+        for b in eval_set(task)[:n_batches]:
+            route.record = []
+            run_sequence(route, b["obs"].float(), cmd=b.get("cmd"), ref=b.get("ref"), ref_mask=b.get("ref_mask"))
+            s, m = torch.stack(route.record), b["mask"].float()
+            frz += (s * m).sum().item()
+            tot += m.sum().item()
+    finally:
+        route.record = None
+        route.train(was)
+    return frz / max(tot, 1.0)
 
 
 def cell_view(grid, state):
@@ -138,8 +228,17 @@ def freeze_and_route(frozen, name, target_params=100_000, seed=0, opt=""):
     """Wrap a trained (or, as a control, untrained) net: frozen + a new module of the same kind with a port.
     opt: "" or one of the probes in the module docstring."""
     opts = set(opt.split("+")) - {""}
+    sel = "sel" in opts                                # selection by task: combines with every probe
+    opts -= {"sel"}
+    opt = "+".join(sorted(opts))
     assert len(opts) <= 1 or opts == {"pcell", "fc2"}, f"unknown freeze option combination {opt}"
     assert opts <= {"p64", "pfull", "fc2", "nogate", "pcell"}, f"unknown freeze option {opt}"
+    m = _build_route(frozen, name, target_params, seed, opt, opts)
+    m.wants_select = sel                               # the curriculum then calls fit_familiar (it has the tasks)
+    return m
+
+
+def _build_route(frozen, name, target_params, seed, opt, opts):
     n_port = {"p64": 64, "pfull": _top_dim(frozen)}.get(opt, N_CMD)
     if n_port == N_CMD:
         new = build_model(port_name(name), target_params, seed=seed + 7919)

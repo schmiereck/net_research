@@ -3790,5 +3790,25 @@ mit den 2 Fehlzeilen im Ergebnisordner des Jobs auf dem Share; „von null an“
 
 ## Laufend / offen
 
+- Phase C, Auswahl nach Aufgabe (`freeze:sel`, Auftrag Nutzer 2026-11-23): Beim Einfrieren legt der Eintrag eine
+  Statistik seiner eigenen Aufgabe ab (Mittelwert und Kovarianz der obersten Darstellung über 4096 Episoden der
+  Phase davor; keine alten Daten danach). Der Verbund führt je Episode den mittleren Mahalanobis-Abstand dazu mit;
+  bleibt er unter dem 99-%-Quantil der alten Aufgabe (je Schrittzahl), gibt er die Ausgabe des eingefrorenen Netzes
+  allein weiter, sonst die des Verbunds. Hart, ohne Gradient, nach dem Einfrieren fest. Pläne `cue → freeze:sel →
+  blind`, `cue → freeze:pcell+sel → blind`, `blind → freeze:sel → two`, `blind → freeze:pcell+sel → two` (je
+  12000 + 12000), `layer_s_sp4+cell+refl+rez3` und `vitmem+refl+rez3` (vitmem ohne `pcell`), Seeds 0–1, 12 Läufe,
+  Worker mit 6 Prozessen -> `results/route_loop.jsonl`. Neu in der Zeile: `selected` = Anteil der gewerteten
+  Schritte je Aufgabe, die das eingefrorene Netz allein beantwortet. Ohne `sel` bitgleich zum alten Code (geprüft).
+  Kurztest (300 + 200 Updates): alte Aufgabe 0,99 beim eingefrorenen Netz, neue 0,00. Obergrenze aus den
+  vorhandenen `freeze`-Läufen (alte Aufgabe = eingefrorenes Netz allein): layer_s_sp4 `cue → blind` 0,77–0,80 /
+  0,78–0,81, `blind → two` 0,80 / 0,69–0,70; Mischen 0,82 / 0,81–0,82 und 0,82–0,83 / 0,74.
+  **Vorhersage vor dem Lauf (2026-11-23):** (1) Die Auswahl trifft: Anteil beim eingefrorenen Netz ≥ 0,95 auf der
+  alten und ≤ 0,05 auf der neuen Aufgabe, in allen 12 Läufen. (2) Die alte Aufgabe bleibt: Folgen-Wertung des
+  Verbunds auf ihr höchstens 0,02 unter der des eingefrorenen Netzes allein, in allen 12 Läufen (ohne Auswahl
+  layer_s_sp4 0,61–0,73 auf `cue`, 0,39–0,55 auf `blind`). (3) Die neue Aufgabe leidet nicht: Folgen-Wertung am
+  Ende höchstens 0,03 unter dem `freeze`-Lauf ohne Auswahl desselben Netzes und Seeds, in mindestens 10 von 12.
+  (4) Mischen bleibt bei layer_s_sp4 auf `blind → two` in der neuen Aufgabe besser (um ≥ 0,03, 2 von 2 je
+  Variante); die Auswahl macht den Verbund also gleich gut im Behalten, nicht besser im Lernen.
+
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
