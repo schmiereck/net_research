@@ -149,7 +149,7 @@ def main():
     s.add_argument("--sieve", action="store_true", help="run the benchmark sieve (args: --models ... --seeds ...)")
     s.add_argument("--module", default=None,
                    help="run another experiment module with a 'run' command, --workers and --out, e.g. library")
-    s.add_argument("--cmd", default="run", help="with --module: the module's command (default run)")
+    s.add_argument("--cmd", dest="module_cmd", default="run", help="with --module: the module's command (default run)")
     s.add_argument("bench_args", nargs=argparse.REMAINDER)
     sub.add_parser("status")
     f = sub.add_parser("fetch")
@@ -166,7 +166,7 @@ def main():
         (share / d).mkdir(parents=True, exist_ok=True)
     if a.cmd == "submit":
         args = a.bench_args[1:] if a.bench_args[:1] == ["--"] else a.bench_args
-        submit(share, a.name, args, a.workers, a.allow_dirty, a.sieve, a.module, a.cmd)
+        submit(share, a.name, args, a.workers, a.allow_dirty, a.sieve, a.module, a.module_cmd)
     elif a.cmd == "status":
         status(share)
     elif a.cmd == "fetch":
