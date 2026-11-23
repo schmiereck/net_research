@@ -3855,27 +3855,98 @@ Umstellung der Anpassungs-Studien auf den Populations-Code (Vorarbeit 1) betriff
 **Belege.** `results/phase_d_pre.jsonl` (144 Läufe), Zusammenfassung `python -m netresearch.fastweights summary
 --file results/phase_d_pre.jsonl`; Vergleich mit Orakel-Gate: `results/fastinner.jsonl`.
 
-## Laufend / offen
+## 2026-11-23 — Phase C, Auswahl nach Aufgabe (`freeze:sel`): die alte Aufgabe bleibt ganz, aber nur wo sich die Eingaben unterscheiden
 
-- Phase C, Auswahl nach Aufgabe (`freeze:sel`, Auftrag Nutzer 2026-11-23): Beim Einfrieren legt der Eintrag eine
-  Statistik seiner eigenen Aufgabe ab (Mittelwert und Kovarianz der obersten Darstellung über 4096 Episoden der
-  Phase davor; keine alten Daten danach). Der Verbund führt je Episode den mittleren Mahalanobis-Abstand dazu mit;
-  bleibt er unter dem 99-%-Quantil der alten Aufgabe (je Schrittzahl), gibt er die Ausgabe des eingefrorenen Netzes
-  allein weiter, sonst die des Verbunds. Hart, ohne Gradient, nach dem Einfrieren fest. Pläne `cue → freeze:sel →
-  blind`, `cue → freeze:pcell+sel → blind`, `blind → freeze:sel → two`, `blind → freeze:pcell+sel → two` (je
-  12000 + 12000), `layer_s_sp4+cell+refl+rez3` und `vitmem+refl+rez3` (vitmem ohne `pcell`), Seeds 0–1, 12 Läufe,
-  Worker mit 6 Prozessen -> `results/route_loop.jsonl`. Neu in der Zeile: `selected` = Anteil der gewerteten
-  Schritte je Aufgabe, die das eingefrorene Netz allein beantwortet. Ohne `sel` bitgleich zum alten Code (geprüft).
-  Kurztest (300 + 200 Updates): alte Aufgabe 0,99 beim eingefrorenen Netz, neue 0,00. Obergrenze aus den
-  vorhandenen `freeze`-Läufen (alte Aufgabe = eingefrorenes Netz allein): layer_s_sp4 `cue → blind` 0,77–0,80 /
-  0,78–0,81, `blind → two` 0,80 / 0,69–0,70; Mischen 0,82 / 0,81–0,82 und 0,82–0,83 / 0,74.
-  **Vorhersage vor dem Lauf (2026-11-23):** (1) Die Auswahl trifft: Anteil beim eingefrorenen Netz ≥ 0,95 auf der
-  alten und ≤ 0,05 auf der neuen Aufgabe, in allen 12 Läufen. (2) Die alte Aufgabe bleibt: Folgen-Wertung des
-  Verbunds auf ihr höchstens 0,02 unter der des eingefrorenen Netzes allein, in allen 12 Läufen (ohne Auswahl
-  layer_s_sp4 0,61–0,73 auf `cue`, 0,39–0,55 auf `blind`). (3) Die neue Aufgabe leidet nicht: Folgen-Wertung am
-  Ende höchstens 0,03 unter dem `freeze`-Lauf ohne Auswahl desselben Netzes und Seeds, in mindestens 10 von 12.
-  (4) Mischen bleibt bei layer_s_sp4 auf `blind → two` in der neuen Aufgabe besser (um ≥ 0,03, 2 von 2 je
-  Variante); die Auswahl macht den Verbund also gleich gut im Behalten, nicht besser im Lernen.
+**Frage.** Kann der Verbund aus eingefrorenem Netz und neuem Modul die alte Aufgabe behalten, wenn er selbst
+erkennt, welche Aufgabe gerade läuft (Statistik der eigenen Aufgabe im Eintrag, keine alten Daten danach), ohne
+die neue Aufgabe schlechter zu lernen?
+
+**Gemacht.** Job `20261123-073442-loop_select` (Commit 66a9638), Worker, 12 Läufe. Danach lokal die
+Aufschlüsselung je Schritt für layer_s_sp4 Seed 0 (das `blind`-Netz neu trainiert, Wertung 0,7971 wie im Job;
+Skript im Scratchpad, nur das eingefrorene Netz und die Statistik entscheiden die Auswahl). Der zweite lokale
+Versuch mit beiden Netzen zugleich wurde wegen Speichermangel abgebrochen; vitmem ist nicht aufgeschlüsselt.
+Vorhersage vor dem Lauf (wörtlich aus „Laufend / offen“):
+
+> - Phase C, Auswahl nach Aufgabe (`freeze:sel`, Auftrag Nutzer 2026-11-23): Beim Einfrieren legt der Eintrag eine
+>   Statistik seiner eigenen Aufgabe ab (Mittelwert und Kovarianz der obersten Darstellung über 4096 Episoden der
+>   Phase davor; keine alten Daten danach). Der Verbund führt je Episode den mittleren Mahalanobis-Abstand dazu mit;
+>   bleibt er unter dem 99-%-Quantil der alten Aufgabe (je Schrittzahl), gibt er die Ausgabe des eingefrorenen Netzes
+>   allein weiter, sonst die des Verbunds. Hart, ohne Gradient, nach dem Einfrieren fest. Pläne `cue → freeze:sel →
+>   blind`, `cue → freeze:pcell+sel → blind`, `blind → freeze:sel → two`, `blind → freeze:pcell+sel → two` (je
+>   12000 + 12000), `layer_s_sp4+cell+refl+rez3` und `vitmem+refl+rez3` (vitmem ohne `pcell`), Seeds 0–1, 12 Läufe,
+>   Worker mit 6 Prozessen -> `results/route_loop.jsonl`. Neu in der Zeile: `selected` = Anteil der gewerteten
+>   Schritte je Aufgabe, die das eingefrorene Netz allein beantwortet. Ohne `sel` bitgleich zum alten Code (geprüft).
+>   Kurztest (300 + 200 Updates): alte Aufgabe 0,99 beim eingefrorenen Netz, neue 0,00. Obergrenze aus den
+>   vorhandenen `freeze`-Läufen (alte Aufgabe = eingefrorenes Netz allein): layer_s_sp4 `cue → blind` 0,77–0,80 /
+>   0,78–0,81, `blind → two` 0,80 / 0,69–0,70; Mischen 0,82 / 0,81–0,82 und 0,82–0,83 / 0,74.
+>   **Vorhersage vor dem Lauf (2026-11-23):** (1) Die Auswahl trifft: Anteil beim eingefrorenen Netz ≥ 0,95 auf der
+>   alten und ≤ 0,05 auf der neuen Aufgabe, in allen 12 Läufen. (2) Die alte Aufgabe bleibt: Folgen-Wertung des
+>   Verbunds auf ihr höchstens 0,02 unter der des eingefrorenen Netzes allein, in allen 12 Läufen (ohne Auswahl
+>   layer_s_sp4 0,61–0,73 auf `cue`, 0,39–0,55 auf `blind`). (3) Die neue Aufgabe leidet nicht: Folgen-Wertung am
+>   Ende höchstens 0,03 unter dem `freeze`-Lauf ohne Auswahl desselben Netzes und Seeds, in mindestens 10 von 12.
+>   (4) Mischen bleibt bei layer_s_sp4 auf `blind → two` in der neuen Aufgabe besser (um ≥ 0,03, 2 von 2 je
+>   Variante); die Auswahl macht den Verbund also gleich gut im Behalten, nicht besser im Lernen.
+
+**Ergebnis.** Seeds 0 / 1, Folgen-Wertung am Ende. „Anteil alt“ = `selected`, Anteil der gewerteten Schritte,
+die das eingefrorene Netz allein beantwortet. Vergleich = derselbe Plan ohne `sel` (`freeze` bzw. `freeze:pcell`).
+
+| Plan, Netz, Variante | Anteil alt auf alter / neuer Aufgabe | alte Aufgabe: Verbund (eingefroren allein) | alte Aufgabe ohne `sel` | neue Aufgabe mit `sel` | neue Aufgabe ohne `sel` |
+|---|---|---|---|---|---|
+| `cue → blind`, layer_s_sp4 `sel` | 0,98 / 0,98 — 0,23 / 0,15 | 0,779 / 0,781 (0,781 / 0,783) | 0,63 / 0,68 | 0,775 / 0,778 | 0,779 / 0,781 |
+| `cue → blind`, layer_s_sp4 `pcell+sel` | 0,98 / 0,98 — 0,23 / 0,15 | 0,780 / 0,781 | 0,61 / 0,65 | 0,785 / 0,784 | 0,785 / 0,799 |
+| `cue → blind`, vitmem `sel` | 0,99 / 0,99 — 0,92 / 0,26 | 0,707 / 0,649 (0,707 / 0,650) | 0,69 / 0,65 | 0,678 / 0,665 | 0,698 / 0,666 |
+| `blind → two`, layer_s_sp4 `sel` | 0,99 / 0,98 — 0,28 / 0,17 | 0,794 / 0,793 (0,797 / 0,795) | 0,39 / 0,44 | 0,550 / 0,607 | 0,693 / 0,689 |
+| `blind → two`, layer_s_sp4 `pcell+sel` | 0,99 / 0,98 — 0,28 / 0,17 | 0,794 / 0,792 | 0,55 / 0,51 | 0,562 / 0,616 | 0,696 / 0,699 |
+| `blind → two`, vitmem `sel` | 0,99 / 0,99 — 0,97 / 0,99 | 0,690 / 0,670 (0,693 / 0,671) | 0,39 / 0,34 | 0,275 / 0,338 | 0,588 / 0,588 |
+| Mischen layer_s_sp4 (`cue+blind` / `blind+two`) | – | `cue` 0,82 / 0,82, `blind` 0,82 / 0,83 | – | `blind` 0,81 / 0,82, `two` 0,74 / 0,74 | – |
+
+- Die alte Aufgabe bleibt in allen 12 Läufen so gut wie beim eingefrorenen Netz allein (höchstens 0,004
+  darunter). Ohne Auswahl verlor der Verbund dort 0,1–0,4.
+- `cue` als dritte, nie trainierte Aufgabe (Eingabe schon in Schritt 0 anders) erkennt die `blind`-Statistik
+  bei layer_s_sp4 als fremd (Anteil alt 0,02 / 0,02), bei vitmem nicht (0,26 / 0,12).
+- Auf `blind → two` kostet die Auswahl die neue Aufgabe viel: layer_s_sp4 0,55–0,62 statt 0,69–0,70, vitmem
+  0,27–0,34 statt 0,59. Bei vitmem hält die Statistik `two` fast immer für `blind` (0,97–0,99); bei `cue → blind`
+  in einem der zwei Seeds `blind` für `cue` (0,92), ohne großen Schaden, weil das eingefrorene `cue`-Netz `blind`
+  dort schon fast kann (0,67).
+- Aufschlüsselung je Schritt, layer_s_sp4 Seed 0, `blind`-Statistik (eine `blind`-Episode hat 5 Schritte, eine
+  `two`-Episode 8; gewertet ab Schritt 1 bzw. 2). Anteil alt je Schritt:
+
+  | Schritt | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
+  |---|---|---|---|---|---|---|---|---|
+  | `blind` (alt) | 0,99 | 0,98 | 0,99 | 0,99 | 0,99 | – | – | – |
+  | `two` (neu) | 0,99 | 0,06 | 0,03 | 0,09 | 0,29 | 0,47 | 0,36 | 0,25 |
+  | `cue` (nie trainiert) | 0,00 | 0,00 | 0,00 | 0,01 | 0,05 | – | – | – |
+
+  Schritt 0 ist bei `blind` und `two` gleich (gleiche Eingabe), danach trennt die Statistik gut. Ab Schritt 4
+  hält sie `two` wieder für vertraut: Der laufende Mittelwert sinkt, die oberste Darstellung des eingefrorenen
+  Netzes kommt in den späten `two`-Schritten also wieder in die Nähe der `blind`-Zustände. Ab Schritt 5 gilt
+  außerdem die Schwelle von Schritt 5 weiter (die alte Aufgabe hat keine längeren Episoden). Über alle
+  gewerteten Schritte 0,25 (im Job für dasselbe Netz 0,28; das neu trainierte Netz hat dieselbe Wertung, die
+  Abweichung ist nicht geklärt).
+
+**Vergleich mit der Vorhersage.** (1) Verfehlt: Auf der alten Aufgabe ≥ 0,95 in 12 von 12 (0,98–0,99), auf der
+neuen ≤ 0,05 in 0 von 12 (0,15–0,99). (2) Getroffen: 12 von 12, höchstens 0,004 unter dem eingefrorenen Netz.
+(3) Verfehlt: 6 von 12 (alle 6 bei `cue → blind`, keiner bei `blind → two`, dort 0,08–0,31 darunter).
+(4) Getroffen: Mischen `two` 0,74 gegen 0,55 / 0,61 (`sel`) und 0,56 / 0,62 (`pcell+sel`). Bilanz: 2
+getroffen, 2 verfehlt.
+
+**Schluss.** (a) Erstmals behält ein Verbund die alte Aufgabe ganz, ohne alte Daten: Die Statistik der eigenen
+Aufgabe im Eintrag reicht dafür. Das Behalten war die Lücke der vorigen Einträge. (b) Die Auswahl über
+Vertrautheit der Eingabe trennt aber nur Aufgaben, deren Darstellung sich unterscheidet. Bei `cue → blind`
+(Eingabe ab Schritt 0 anders) geht das mit kleinem Schaden; bei `blind → two` (gleicher Anfang, späte Zustände
+ähnlich) schickt sie gerade die späten `two`-Schritte zum alten Netz, und die neue Aufgabe leidet stark. Das
+bestätigt den Hinweis aus dem Review Gemini 2026-11-23 (späte Schritte). Aufgaben mit gleicher Eingabe brauchen
+eine Auswahl nach Fehler (welcher Eintrag sagt gerade richtig voraus, wie in `slots.py`), nicht nach Eingabe.
+(c) Bei vitmem trennt die Statistik schlechter (auch `cue` nur teilweise fremd); die oberste Darstellung von
+vitmem trägt weniger Aufgabenwissen. (d) Mischen bleibt die beste Variante, wenn alte Daten da sind. (e) Wie mit
+dem Nutzer nach dem Review Gemini vereinbart, schließt dieser Lauf Phase C: keine weiteren Varianten von
+`route.py`, kein `two → three`. Weiter mit Phase D. Nur zwei Seeds; Aufschlüsselung je Schritt nur für ein Netz.
+
+**Belege.** `results/route_loop.jsonl` (jetzt 54 Läufe; die 12 neuen mit `freeze:sel` bzw. `freeze:pcell+sel`
+im Plan, Feld `selected`). Aufschlüsselung je Schritt: lokales `blind`-Netz (Checkpoint `selprobe_blind`, nicht
+im Repo), Auswertung wie `route.selection_share`, aber je Schritt.
+
+## Laufend / offen
 
 - Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

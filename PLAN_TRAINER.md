@@ -1502,6 +1502,15 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
     Variante beide Aufgaben ganz (layer_s_sp4). Die Erwartung „mehr Neues gibt dem Andocken mehr Raum“ ist hier
     nicht bestätigt. Offen: `three`; Auswahl nach Aufgabe als nächster Engpass (ohne sie hat der Verbund
     keinen eigenen Vorteil).
+  - **Auswahl nach Aufgabe `freeze:sel` (2026-11-23, LOGBUCH, Seeds 0–1):** Statistik der eigenen Aufgabe im
+    Eintrag (Mittelwert, Kovarianz der obersten Darstellung), Auswahl über den laufenden Mahalanobis-Abstand.
+    Die alte Aufgabe bleibt in 12 von 12 Läufen ganz. Die neue leidet, wo sich die Aufgaben in der Eingabe kaum
+    unterscheiden (`blind → two`: späte `two`-Schritte gelten als vertraut, `two` 0,55–0,62 statt 0,69–0,70).
+    Gleiche Eingaben brauchen eine Auswahl nach Fehler (wie `slots.py`), nicht nach Eingabe.
+  - **Phase C abgeschlossen (Beschluss Nutzer 2026-11-23, nach Review Gemini):** keine weiteren Varianten von
+    `route.py`, kein `two → three`. Ergebnis: Andocken nutzt eingefrorenes Können, ist aber nicht schneller als
+    Feintuning; Behalten gelingt mit der Auswahl nach Aufgabe, wenn sich die Aufgaben in der Darstellung
+    unterscheiden; mit alten Daten ist Mischen besser.
 
 **Phase D – Gelernter Teacher (Stufe 1)**
 - **Messlatte (2026-11-23, LOGBUCH):** `prev` (numseq, Ausgabe = die letzte sichtbare Zahl) mit k = 64

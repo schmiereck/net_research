@@ -136,6 +136,14 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
   (layer_s_sp4 `freeze` so schnell wie von null an, `pcell` etwas schneller; vitmem `near` 0,78–0,80), und der
   Verbund verliert `blind` stärker als das Feintuning. Mischen gibt layer_s_sp4 wieder beide Aufgaben ganz
   (`two` 0,74, `blind` 0,82–0,83); vitmem lernt `two` beim Mischen langsamer.
+- **Auswahl nach Aufgabe (`freeze:sel`, 2026-11-23, Seeds 0–1), Phase C damit abgeschlossen:** Der Eintrag legt
+  beim Einfrieren eine Statistik seiner Aufgabe ab; der Verbund gibt die Ausgabe des eingefrorenen Netzes allein
+  weiter, solange die Episode vertraut aussieht. Die alte Aufgabe bleibt so in allen 12 Läufen ganz (höchstens
+  0,004 unter dem eingefrorenen Netz, ohne Auswahl 0,1–0,4 Verlust). Die Auswahl über Vertrautheit trennt aber
+  nur Aufgaben mit verschiedener Darstellung: `cue → blind` fast ohne Schaden an der neuen Aufgabe, bei
+  `blind → two` (gleicher Anfang, späte Zustände ähnlich) gehen gerade die späten `two`-Schritte ans alte Netz
+  (Schritt 5: 47 %), `two` fällt auf 0,55–0,62 (vitmem 0,27–0,34). Gleiche Eingaben brauchen eine Auswahl nach
+  Fehler (wie `slots.py`). Mischen bleibt am besten, wenn alte Daten da sind.
 - **Lesart:** Die langen Plateaus sind fehlende Zwischenziele. Verlangt eine Hilfsaufgabe die Zwischengröße als
   Ausgabe, verschwinden sie bei allen Architekturen. Das ist die Rolle, die ein Teacher übernehmen soll.
 - Auf den Roboter-Aufgaben trägt das Prinzip bisher nur teilweise: Bei „Hand zum Würfel“ hebt die Hilfsaufgabe
