@@ -1527,6 +1527,49 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
 - Ein kleiner Teacher, geteilt an allen Positionen, liest die Telemetrie und schreibt die Modulation.
 - Meta-Training per ES über viele Aufgaben-Episoden aus dem Meta-Train-Teil, mit dem Meta-Gradient als
   Vergleich. Messen auf dem Meta-Test-Teil.
+- **Konzept (Entwurf 2026-11-23, zur Entscheidung durch den Nutzer):**
+  - **Ziel:** eine gelernte lokale Lernregel für die schnellen Gewichte im *Inneren*, ohne Backprop in der
+    inneren Schleife. Bei k = 64 Beispielen soll sie nach 20 Updates deutlich über der festen Regel `dfa`
+    liegen (0,07) und an Backprop auf dieselben schnellen Gewichte heranrücken (`grad` 0,78). Der Abstand
+    zwischen beiden ist die Kreditzuweisung im Inneren und das Tempo; genau das soll der Teacher liefern.
+  - **Fest aus Phase B:** Basisnetz layer_s@25k auf numseq (24,7k Parameter, geteiltes Modul fc1 130→52,
+    fc2 52→26, Kopf 208→64), eingefroren. Schnelle Gewichte F auf fc1, fc2 und Kopf wie in `fastweights.py`
+    (W_eff = W + F). **Orakel-Gate `@task`:** Das *Wann* ist in der Bibliothek gelöst und wird hier gegeben;
+    Phase D lernt nur das *Wie*. Die Basis-Aufgabe kann dadurch nicht vergessen werden, das Ziel misst nur die
+    Anpassung, und die Falle „nichts tun lohnt sich“ (Abschnitt 8) entfällt. Fehler am Ausgang
+    e = sigmoid(Logits) − Ziel, ins Innere über die feste Zufalls-Rückprojektion B wie bei `dfa`.
+  - **Teacher:** ein kleines MLP, für jede Ausgabe-Einheit j jeder Abbildung (fc1, fc2, Kopf) und jede Zelle
+    dasselbe (lokale Regel, geteilt wie das Modul). Eingänge (Telemetrie): rückprojizierter Fehler
+    d_j = (e B)_j (am Kopf e_j), Ausgang y_j, gelu'(z_j) (fc1), Rundfunk-Skalare Verlust S der Episode,
+    Lernfortschritt ΔS (4b) und Update-Nummer t / T, Kennung der Abbildung. Ausgaben: Faktor a_j auf das
+    Fehlersignal und h_j auf einen Hebb-Term; ΔF = −η · xᵀ (a ⊙ d + h ⊙ y) / mittleres |x|², η je Abbildung
+    gelernt. Mit a = gelu'(z) bzw. 1 und h = 0 ist das genau `dfa`: Startpunkt der Suche und Prüfung (bitgleich).
+    Größe etwa 500 Parameter (2 Schichten à 16) plus 3 η.
+  - **Äußere Schleife:** ES (antithetisch, Rang-Formung, Adam auf dem Mittelwert), Population 48, etwa 300
+    Generationen. Fitness eines Kandidaten: Testwertung auf ungesehenen Folgen nach 1, 5, 10 und 20 Updates
+    (Fläche unter der Kurve), gemittelt über 8 Episoden (Aufgabe × Startnetz × Ziehung der k Beispiele); beide
+    Hälften eines Paars sehen dieselben Episoden. Aufwand: Episode etwa 1 s, Generation etwa 6,5 CPU-Minuten,
+    auf dem Worker mit 14 Prozessen etwa 30 s, 300 Generationen etwa 2,5 h. Meta-Gradient (Backprop durch die
+    20 inneren Updates) nur als Bezug, ob ES das Erreichbare findet.
+  - **Aufgaben:** die numseq-Familie aus `library.TASKS` (gleiche Eingaben, nur die Ausgabe neu), k = 64.
+    D.0 misst zuerst je Aufgabe die Leiter (Kopf `rls_rf`, `dfa`, `grad`, Adam; s20 / s200) und teilt ein in
+    „Kopf reicht“, „Kopf reicht nicht, `grad` löst“ und „niemand löst“. Meta-Train: Aufgaben der ersten beiden
+    Gruppen ohne `prev` (der Teacher soll innen schreiben, wo es nötig ist, und am Kopf nicht schaden).
+    Meta-Test: `prev` (nah, Verwandte wie `prev2` im Training), dazu eine ausgelassene fernere Aufgabe, je auf
+    eigenen Startnetzen (Meta-Train Seeds 0–2, Meta-Test Seeds 5–6, festgelegt in `data/base_nets/numseq`) und
+    ungesehenen Folgen.
+  - **Messlatte und Ziel:** `prev`, k = 64, s20 auf dem Meta-Test: `dfa` 0,07, `grad` 0,78. Erfolg: Teacher
+    ≥ 0,40 nach 20 Updates und bei 200 Updates nicht unter `dfa` (0,56). Zusätzlich geprüft: Hält die Regel
+    über ihren Trainings-Horizont hinaus (Kurzhorizont-Falle von ES)? Überträgt sie sich auf k = 8 / 512 und
+    auf ein anderes Basisnetz (hier_s@25k)?
+  - **Stufen (je Vorhersage vor dem Lauf):** D.0 Leiter auf der Familie und Startnetze festlegen (lokal,
+    etwa 30 Min). D.1 Gerüst `teacher.py`: Regel `teach` in `Fast`, ES-Schleife, Prüfung bitgleich zu `dfa`.
+    D.2 Kontrolle: ES stimmt nur Skalare (η je Abbildung, Skala von B; 4 Parameter). Trennt „gelernte Regel“
+    von „bessere Schrittweite“. D.3 Teacher mit Telemetrie. D.4 (optional) gelernte Rückprojektion B
+    (niedrigrangig per ES): greift die Kreditzuweisung direkt an. D.5 Meta-Test, Horizont, k, anderes Netz.
+  - **Risiken:** Rauschen der Fitness bei 8 Episoden (gemeinsamer Zufall, notfalls mehr Episoden);
+    Kurzhorizont-Verzerrung; Überanpassung an die Familie (Meta-Test getrennt); explodierende schnelle
+    Gewichte (Norm von F begrenzen). Lernt der Teacher nur eine Schrittweite, zeigt das D.2.
 
 **Phase E – Teacher liest Gewichte (Stufe 2)**
 - Zusätzlich eine Zusammenfassung des Moduls selbst (Weight-Space-Encoder, permutationsinvariant) und ein
