@@ -3946,32 +3946,103 @@ dem Nutzer nach dem Review Gemini vereinbart, schließt dieser Lauf Phase C: kei
 im Plan, Feld `selected`). Aufschlüsselung je Schritt: lokales `blind`-Netz (Checkpoint `selprobe_blind`, nicht
 im Repo), Auswertung wie `route.selection_share`, aber je Schritt.
 
+## 2026-11-23 — Vorarbeit 1 Phase D: Anpassungs-Studien im Populations-Code; die Kopf-Regel rls_rf löst jede servo-Kalibrierung mit einem Update, grün / blau bleibt unlernbar
+
+**Frage.** Wie schneiden die schnellen Regeln und die Bibliothek ab, wenn die servo- und robot-Fälle den Schritt
+wie ihre Basis-Aufgaben im Populations-Code ausgeben statt in 8 Bits? Liegt die Grenze „Rechnen auf dem
+Ausgabe-Code“ (Phase B) am Bit-Code?
+
+**Gemacht.** Umbau Commit 2debc26 (bitgleich für die Bit-Fälle, geprüft), Startnetze Job
+`20261123-164358-pop_base_nets` festgelegt in Commit 068a1f5, dann Job `20261123-165540-pop_fastinner` (320
+Läufe, `fastweights inner`) und Job `20261123-165541-pop_library` (108 Läufe, Bibliothek), Worker, Commit
+f58517e. Vorhersage vor dem Lauf (wörtlich aus „Laufend / offen“; Job 1 war beim Schreiben schon gestartet, ohne
+gesehenes Ergebnis):
+
+> - Vorarbeit 1 für Phase D: Anpassungs-Studien auf den Populations-Code (Auftrag Nutzer 2026-11-23, Review
+>   Gemini / agy). Die Schritt-Aufgaben rechnen seit 2026-11-14 im Populations-Code, die Anpassungs-Studien
+>   (`fastinner_servo`, Bibliothek Suiten servo / robot) noch in Bits auf Bit-Startnetzen. Umbau (bitgleich für
+>   die Bit-Fälle, geprüft an einer alten `fastinner_servo`-Zeile): Fälle `servo_<Gerät>`, `robot_green / blue`
+>   und Suiten `servo`, `robot` geben den Schritt jetzt im Populations-Code (Breite 0,5, 32 Ausgänge), Wertung
+>   stärkste Einheit je Achse; die alten heißen `<Fall>_bits`, Suiten `servo_bits`, `robot_bits`; Bit-Startnetze
+>   nach `data/base_nets/servo_bits`, `robot_gaze_bits`. Job 1 (`20261123-164358-pop_base_nets`, schon gestartet,
+>   noch kein Ergebnis gesehen): neue Startnetze `servo`, `robot_gaze`, layer_s / hier_s / layer_s_sp4, Seeds 0–2,
+>   5, 6, je 6000 Updates, werden danach in `data/base_nets` festgelegt. Job 2: `fastweights inner` auf den sechs
+>   servo-Geräten und `robot_green / blue` (layer_s, hier_s, Seeds 5–6, k = 64 / 512, Regeln adam, grad@task,
+>   dfa@task, delta_head@task, rls_rf@task) -> `results/fastinner_servo_pop.jsonl`; Bibliothek Suiten servo und
+>   robot (layer_s, hier_s, layer_s_sp4, Seeds 0–2, Regeln delta_head, rls_head, rls_rf, Modi k6cfne und oracle)
+>   -> `results/library_pop.jsonl`. Bezug in Bits: PLAN_TRAINER Phase B (servo k = 512 nach 200 Updates: delta_head
+>   0,50–0,61 bei flipx, offx, rot90, strong, 0,93–0,94 bei swap, weak; dfa ≤ 0,10; Adam 0,12–0,67; Bibliothek
+>   servo delta_head 0,63 / Orakel 0,65, rls_rf 0,91 / 0,94; robot Kalibrierungen rls_rf 0,91 / 0,96, grün / blau
+>   0,00–0,01).
+>   **Vorhersage vor dem Lauf (2026-11-23):** (1) Startnetze: `servo` ≥ 0,97 und `robot_gaze` ≥ 0,93 bei
+>   mindestens 28 der 30 Netze. (2) Im Populations-Code sind alle sechs Geräte eine lineare Umordnung der Ausgänge
+>   (Spiegeln, Verschieben, Tauschen, Stauchen); deshalb erreicht delta_head@task bei k = 512 nach 200 Updates auf
+>   jedem Gerät ≥ 0,85 (Mittel über Netze und Seeds) und rls_rf@task ≥ 0,90. (3) dfa@task bleibt auf jedem Gerät
+>   unter delta_head@task. (4) Adam (alles) bei k = 512 erreicht auf jedem Gerät ≥ 0,70. (5) grün / blau bleibt
+>   unlernbar: alle Regeln einschließlich Adam ≤ 0,10 bei k = 512. (6) Bibliothek servo: delta_head ≥ 0,85 und
+>   rls_rf ≥ 0,93 im zweiten Besuch, Abstand zum Orakel ≤ 0,03; robot Kalibrierungen rls_rf ≥ 0,91, grün / blau
+>   ≤ 0,02.
+
+**Ergebnis.**
+- Startnetze (30): `servo` 1,00 (hier_s 0,9995), `robot_gaze` layer_s / layer_s_sp4 0,98–0,99, hier_s 0,95–0,97.
+- `fastweights inner`, k = 512, 200 Updates, ungesehene Situationen, Mittel über layer_s / hier_s, Seeds 5–6
+  und je 2 Varianten (in Klammern: Bits, `results/fastinner_servo.jsonl`, gleiche Netze und Seeds, aber
+  Bit-Startnetze):
+
+| Gerät | Adam (alles) | grad@task | dfa@task | delta_head@task | rls_rf@task nach 200 / 1 Update (neu, ohne Bits) |
+|---|---|---|---|---|---|
+| flipx | 0,90 (0,56) | 0,90 (0,63) | 0,02 (0,01) | 0,92 (0,51) | 0,90 / 0,90 |
+| swap | 0,20 (0,12) | 0,31 (0,16) | 0,02 (0,01) | 0,79 (0,93) | 0,91 / 0,89 |
+| rot90 | 0,23 (0,12) | 0,34 (0,17) | 0,02 (0,01) | 0,79 (0,50) | 0,91 / 0,89 |
+| strong | 0,76 (0,62) | 0,78 (0,65) | 0,08 (0,03) | 0,98 (0,60) | 1,00 / 1,00 |
+| weak | 0,89 (0,67) | 0,94 (0,73) | 0,12 (0,11) | 0,91 (0,93) | 0,91 / 0,91 |
+| offx | 0,93 (0,46) | 0,95 (0,50) | 0,02 (0,00) | 0,91 (0,56) | 0,91 / 0,89 |
+| robot grün / blau | 0,06 / 0,05 | 0,04 / 0,03 | 0,02 / 0,02 | 0,01 / 0,01 | 0,01 / 0,01 |
+
+  layer_s liegt bei den Kopf-Regeln unter hier_s (delta_head swap 0,69 / 0,89, rls_rf 0,82–0,84 / 0,97–0,98
+  außer strong). Adam vergisst die Basis fast ganz (0,74–0,99), die schnellen Gewichte mit Orakel-Gate nicht
+  (0,00). Bei k = 64 erreicht keine Regel auf einem Gerät mehr als 0,68 (rls_rf strong); rls_rf 0,31–0,68,
+  delta_head 0,26–0,54.
+- Bibliothek, Test-Seeds 0–2, layer_s / hier_s / layer_s_sp4, zweiter Besuch, Bibliothek (k6cfne) / Orakel (in
+  Klammern Bits aus PLAN_TRAINER Phase B):
+
+| Suite | delta_head | rls_head | rls_rf |
+|---|---|---|---|
+| servo | 0,64 / 0,79 (0,63 / 0,65) | 0,93 / 0,96 (0,86 / 0,88) | 0,96 / 0,99 (0,91 / 0,94) |
+| robot, Kalibrierungen | 0,93 / 0,96 (0,88 / 0,93) | 0,94 / 0,98 (0,91 / 0,95) | 0,94 / 0,98 (0,91 / 0,96) |
+| robot, grün / blau | 0,00 / 0,01 (0,00 / 0,01) | 0,01 / 0,01 (0,01 / 0,01) | 0,01 / 0,01 (0,01 / 0,01) |
+
+  servo je Gerät mit rls_rf 0,96–0,97 (Bits 0,87–0,95). Mit delta_head verwaltet die Bibliothek schlecht:
+  13,3 Allokationen für 6 Geräte, Auswahl 0,79, flipx 0,57, offx 0,30 gegen 0,72–0,83 beim Orakel. Mit den
+  rls-Regeln 6,0 Allokationen, Auswahl 0,98. Auf robot liegt die Auswahl im zweiten Besuch bei allen Regeln
+  bei 0,65, weil grün und blau nicht gelernt werden.
+
+**Vergleich mit der Vorhersage.** (1) Getroffen: 30 von 30. (2) Verfehlt: rls_rf@task ≥ 0,90 auf allen sechs
+Geräten (0,90–1,00), delta_head@task aber nur auf vier (swap und rot90 0,79). (3) Getroffen: dfa@task auf jedem
+Gerät weit unter delta_head@task (≤ 0,12). (4) Verfehlt: Adam auf swap 0,20 und rot90 0,23. (5) Getroffen:
+höchstens 0,06. (6) Verfehlt: rls_rf 0,96 / Orakel 0,99 und robot wie vorhergesagt, delta_head aber 0,64 statt
+≥ 0,85 (Orakel 0,79). Bilanz: 3 getroffen, 3 verfehlt.
+
+**Schluss.** (a) Im Populations-Code sind die servo-Kalibrierungen für den Kopf leicht: rls_rf löst jedes Gerät
+mit einem einzigen Update (0,89–1,00), die Bibliothek mit rls_rf liegt bei 0,96 (Bits 0,91). Die Phase-B-Grenze
+„Überträge zwischen Bits brauchen einen nichtlinearen Kopf“ war zum großen Teil eine Grenze des Bit-Codes:
+delta_head steigt auf flipx, offx, strong von 0,51–0,60 auf 0,91–0,98, Adam von 0,46–0,62 auf 0,76–0,93.
+(b) Was bleibt: Achsen tauschen (swap, rot90) lernen Adam und Gradient in 200 Updates kaum (0,20–0,34), die
+Delta-Regel langsamer als in Bits (0,79 statt 0,93); nur rls_rf ist schnell. (c) Ein anderes Ziel (grün / blau)
+bleibt in jedem Code unlernbar, auch für Adam; das liegt also nicht am Ausgabe-Code (wie 2026-11-23 Vorarbeit 2).
+(d) Für Phase D heißt das: servo und robot sind im heutigen Code keine Aufgaben „Kopf reicht nicht“; die
+Messlatte bleibt `prev` mit 64 Beispielen. Die Bezugswerte der Anpassungs-Studien liegen jetzt im heutigen
+Code vor. (e) delta_head braucht in der Bibliothek viele Allokationen (13 für 6 Geräte); ungeklärt, ob das am
+Populations-Code liegt (Fehlermaß über 32 Ausgänge) oder an der langsamen Regel. Nur 2 Seeds (inner) bzw. 3
+(Bibliothek).
+
+**Belege.** `results/fastinner_servo_pop.jsonl` (320 Zeilen, Zusammenfassung `python -m netresearch.fastweights
+summary --file results/fastinner_servo_pop.jsonl`), `results/library_pop.jsonl` (108 Zeilen, `python -m
+netresearch.library summary --file results/library_pop.jsonl --suites servo robot`); Startnetze
+`data/base_nets/servo`, `data/base_nets/robot_gaze`; Bit-Bezug `results/fastinner_servo.jsonl`,
+`results/library.jsonl`.
+
 ## Laufend / offen
 
-- Vorarbeit 1 für Phase D: Anpassungs-Studien auf den Populations-Code (Auftrag Nutzer 2026-11-23, Review
-  Gemini / agy). Die Schritt-Aufgaben rechnen seit 2026-11-14 im Populations-Code, die Anpassungs-Studien
-  (`fastinner_servo`, Bibliothek Suiten servo / robot) noch in Bits auf Bit-Startnetzen. Umbau (bitgleich für
-  die Bit-Fälle, geprüft an einer alten `fastinner_servo`-Zeile): Fälle `servo_<Gerät>`, `robot_green / blue`
-  und Suiten `servo`, `robot` geben den Schritt jetzt im Populations-Code (Breite 0,5, 32 Ausgänge), Wertung
-  stärkste Einheit je Achse; die alten heißen `<Fall>_bits`, Suiten `servo_bits`, `robot_bits`; Bit-Startnetze
-  nach `data/base_nets/servo_bits`, `robot_gaze_bits`. Job 1 (`20261123-164358-pop_base_nets`, schon gestartet,
-  noch kein Ergebnis gesehen): neue Startnetze `servo`, `robot_gaze`, layer_s / hier_s / layer_s_sp4, Seeds 0–2,
-  5, 6, je 6000 Updates, werden danach in `data/base_nets` festgelegt. Job 2: `fastweights inner` auf den sechs
-  servo-Geräten und `robot_green / blue` (layer_s, hier_s, Seeds 5–6, k = 64 / 512, Regeln adam, grad@task,
-  dfa@task, delta_head@task, rls_rf@task) -> `results/fastinner_servo_pop.jsonl`; Bibliothek Suiten servo und
-  robot (layer_s, hier_s, layer_s_sp4, Seeds 0–2, Regeln delta_head, rls_head, rls_rf, Modi k6cfne und oracle)
-  -> `results/library_pop.jsonl`. Bezug in Bits: PLAN_TRAINER Phase B (servo k = 512 nach 200 Updates: delta_head
-  0,50–0,61 bei flipx, offx, rot90, strong, 0,93–0,94 bei swap, weak; dfa ≤ 0,10; Adam 0,12–0,67; Bibliothek
-  servo delta_head 0,63 / Orakel 0,65, rls_rf 0,91 / 0,94; robot Kalibrierungen rls_rf 0,91 / 0,96, grün / blau
-  0,00–0,01).
-  **Vorhersage vor dem Lauf (2026-11-23):** (1) Startnetze: `servo` ≥ 0,97 und `robot_gaze` ≥ 0,93 bei
-  mindestens 28 der 30 Netze. (2) Im Populations-Code sind alle sechs Geräte eine lineare Umordnung der Ausgänge
-  (Spiegeln, Verschieben, Tauschen, Stauchen); deshalb erreicht delta_head@task bei k = 512 nach 200 Updates auf
-  jedem Gerät ≥ 0,85 (Mittel über Netze und Seeds) und rls_rf@task ≥ 0,90. (3) dfa@task bleibt auf jedem Gerät
-  unter delta_head@task. (4) Adam (alles) bei k = 512 erreicht auf jedem Gerät ≥ 0,70. (5) grün / blau bleibt
-  unlernbar: alle Regeln einschließlich Adam ≤ 0,10 bei k = 512. (6) Bibliothek servo: delta_head ≥ 0,85 und
-  rls_rf ≥ 0,93 im zweiten Besuch, Abstand zum Orakel ≤ 0,03; robot Kalibrierungen rls_rf ≥ 0,91, grün / blau
-  ≤ 0,02.
-
-- Noch in Bits: `*_parts` und die Anpassungs-Studien; nicht neu gerechnet:
+- Noch in Bits: `*_parts` (die Anpassungs-Studien servo / robot sind seit 2026-11-23 umgestellt); nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

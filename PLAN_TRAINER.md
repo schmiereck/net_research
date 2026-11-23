@@ -1518,6 +1518,12 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
   20 / 200 Updates, Backprop auf schnelle Gewichte innen 0,78 / 0,94; Episode von 20 Updates etwa 1 s. Mit
   k = 512 reicht der Kopf (`rls_rf` 0,77), die Trennung gilt nur bei wenigen Beispielen. „Anderes Ziel“ auf
   den Roboter-Bildern (grün / blau) taugt nicht: auch volles Feintuning lernt es aus 512 Bildern nicht.
+- **Anpassungs-Studien im Populations-Code (Vorarbeit 1, 2026-11-23, LOGBUCH):** Fälle `servo_<Gerät>`,
+  `robot_green / blue` und Suiten servo / robot rechnen jetzt im Code ihrer Basis-Aufgaben (alte Form `_bits`;
+  Startnetze `data/base_nets/servo`, `robot_gaze`). Dort sind die servo-Kalibrierungen für den Kopf leicht
+  (`rls_rf` nach einem Update 0,89–1,00, Bibliothek 0,96 / Orakel 0,99); servo und robot sind also keine
+  Aufgaben „Kopf reicht nicht“, die Messlatte bleibt `prev`. Ergebnisse `results/fastinner_servo_pop.jsonl`,
+  `results/library_pop.jsonl`.
 - Ein kleiner Teacher, geteilt an allen Positionen, liest die Telemetrie und schreibt die Modulation.
 - Meta-Training per ES über viele Aufgaben-Episoden aus dem Meta-Train-Teil, mit dem Meta-Gradient als
   Vergleich. Messen auf dem Meta-Test-Teil.

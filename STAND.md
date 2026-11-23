@@ -47,6 +47,11 @@ Backprop und ohne das Alte zu vergessen. Alle Aufgaben laufen über dieselbe Sch
 - **Offene Grenze:** Das *Verwalten* der Fähigkeiten ist fast gelöst, das *Lernen* nur am Kopf.
   - Die lokale Regel am Ausgabe-Kopf lernt nur, was linear aus dem Kopf-Eingang ablesbar ist (Umordnungen
     0.9; Vorzeichen, Versatz, Verstärkung 0.5; lineare Obergrenze 0.74, mit nichtlinearer Erweiterung 0.93).
+    **Im Populations-Code (2026-11-23) zum großen Teil aufgehoben:** Die Kalibrierungen sind dort Umordnungen
+    der Ausgänge; `rls_rf` löst jedes servo-Gerät mit einem Update (0,89–1,00), Delta-Regel 0,79–0,98, Adam
+    auf flipx, offx, weak 0,89–0,93. Bibliothek servo mit `rls_rf` 0,96 / Orakel 0,99 (Bits 0,91 / 0,94),
+    robot-Kalibrierungen 0,94 / 0,98. Achsen tauschen (swap, rot90) lernen Adam und Gradient in 200 Updates
+    kaum (0,20–0,34). Ein anderes Ziel (grün / blau) bleibt in jedem Code unlernbar.
   - Neue Rechenregeln lernt bisher keine Methode in 200 Updates, auch Adam nicht.
   - Die Regel für innere Schichten (DFA) hilft bei Kopier-Aufgaben, versagt aber auf der Servo-Aufgabe ganz.
 
