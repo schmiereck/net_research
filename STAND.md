@@ -414,5 +414,7 @@ Erfahrungen, die in die Pipeline gehören:
   Backprop (0,85 nach 20 Updates, grad 0,79, dfa 0,16). Sie überträgt sich nicht auf eine fernere Aufgabe
   (`diff`). Ein geteilter Teacher mit Schicht-Kennung kann Kopf- und Innen-Aufgaben zugleich (prev 0,66,
   xmFF 0,58 nach 20 Updates); ohne Kennung scheitert er. Der Innen-Gewinn kommt aus einem Hebb-Term mit
-  globalem Modulator, nicht aus dem rückprojizierten Fehler.
+  globalem Modulator, nicht aus dem rückprojizierten Fehler. Unverändert überträgt sich die Regel auf ein
+  viermal größeres Netz derselben Architektur (prev 0,81, Backprop 0,82), auf die Hierarchie hier_s nur am
+  Kopf. Ausführlich: `PHASE_D.md`.
 - Noch nicht begonnen: Weltmodell, Reinforcement Learning.

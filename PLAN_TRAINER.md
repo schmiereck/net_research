@@ -1586,8 +1586,12 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
     σ 0,1, lr 0,05) kann Kopf- und Innen-Aufgaben zugleich (Validierung 0,54; Meta-Test prev 0,66 / 0,80, xmFF
     0,58 / 0,60 nach 20 / 200). Ohne Kennung (`blind`) 0,07; ein Teacher je Schicht (`split`) gleich gut, aber
     jenseits des Horizonts instabil. Der Innen-Gewinn kommt aus einem Hebb-Term auf fc1 mit globalem
-    Modulator, nicht aus dem rückprojizierten Fehler. Offen: Auswahl je Episode für prev auf D.3-Niveau,
-    ferne Aufgaben (`diff`), anderes Netz (hier_s@25k), k = 8 / 512.
+    Modulator, nicht aus dem rückprojizierten Fehler.
+  - **Übertragung erledigt (2026-11-24, LOGBUCH; ausführlich `PHASE_D.md`):** unverändert auf layer_s (gleiche
+    Architektur, 4 × Parameter, anders trainiert) lernt `map` prev so schnell wie Backprop (0,81 gegen 0,82,
+    dfa 0,24); auf hier_s (Hierarchie) überträgt sich nur der Kopf-Teil, der Hebb-Term hilft dort in keiner
+    Stärke. Nächste Kandidaten (`PHASE_D.md` Abschnitt 8): Meta-Training auf mehreren Architekturen mit
+    Rollen-Kennung, längerer Horizont, Mechanismus des anti-hebbischen Schubs, zweite ES-Saat, ferne Aufgaben.
 
 **Phase E – Teacher liest Gewichte (Stufe 2)**
 - Zusätzlich eine Zusammenfassung des Moduls selbst (Weight-Space-Encoder, permutationsinvariant) und ein

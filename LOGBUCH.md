@@ -4268,21 +4268,82 @@ Eingang, Ausgang, Episoden-Signal). (d) `diff` lernt weiter keine Regel. (e) Ein
 Checkpoints `results/checkpoints/teacher/pos_*.pt` (nicht im Repo), Meta-Test `results/phase_d_test.jsonl`
 (jetzt 116 Zeilen, Regeln `teach:pos_*:best`).
 
-## Laufend / offen
+## 2026-11-24 — Phase D, Übertragung auf andere Netze: die gefundene Regel überträgt sich auf ein viermal größeres Netz derselben Architektur fast verlustfrei, auf die Hierarchie nur am Kopf
 
-- Phase D, Übertragung auf andere Netze (Auftrag Nutzer 2026-11-24, D.5 „anderes Netz“): die gefundenen Regeln
-  unverändert (θ aus `results/teacher.jsonl`, nur Auswertung, kein neues ES) auf zwei Startnetze, die der
-  Teacher nie gesehen hat: hier_s (andere Architektur, 4 × Parameter, fc1 236→118, fc2 118→236, Kopf 472) und
-  layer_s (gleiche Architektur wie layer_s@25k, anders trainiert), beide aus `data/base_nets/numseq`. Regeln
-  `teach:pos_map`, `d3_full`, `d2_eta`, `pos_split`; Bezug dfa@task, grad@task, delta_head@task, rls_rf@task
-  auf demselben Netz. Fälle lib_prev, lib_prev2, lib_xmFF, lib_xm0F, k = 64, Seeds 0–2, 5, 6, je 2 Ziehungen,
-  bis 200 Updates, Worker -> `results/phase_d_transfer.jsonl`. Stichprobe vorab (hier_s, Seed 0, prev, eine
-  Ziehung): pos_map 0,06, d3_full 0,13, dfa 0,16 nach 20 Updates.
-  **Vorhersage vor dem Lauf (2026-11-24):** (1) Der Kopf-Teil überträgt sich: auf xmFF und xm0F liegen
-  `pos_map` und `d2_eta` nach 20 Updates auf beiden Netzen über delta_head@task. (2) Der Innen-Teil überträgt
-  sich nur auf die gleiche Architektur: auf layer_s erreicht `pos_map` auf prev nach 20 Updates mindestens das
-  Doppelte von dfa@task; auf hier_s liegt er höchstens 0,05 über dfa@task. (3) Auf hier_s erreicht keine
-  gefundene Regel auf prev nach 20 Updates grad@task.
+**Frage.** Ist die gefundene lokale Regel an das Netz gebunden, auf dem ES sie gesucht hat (layer_s@25k), oder
+überträgt sie sich unverändert auf Netze, die der Teacher nie gesehen hat?
+
+**Gemacht.** Jobs `20261124-073356-tr_teach_hier_s`, `-073357-tr_base_hier_s`, `-073357-tr_teach_layer_s`,
+`-073358-tr_base_layer_s` (Commit 7973cf9), Worker mit 6 Prozessen, 640 Zeilen, alle ohne Fehler. θ der Regeln
+aus der letzten Zeile von `results/teacher.jsonl` (auf 10⁻⁶ gerundet). Danach lokal Proben auf hier_s und
+layer_s (Seeds 5–6, je 2 Ziehungen, s20): Hebb-Ausgang des Teachers auf fc1 / fc2 mit Faktor 0 bis 1000
+skaliert (Skript im Scratchpad). Vorhersage vor dem Lauf (wörtlich aus „Laufend / offen“):
+
+> - Phase D, Übertragung auf andere Netze (Auftrag Nutzer 2026-11-24, D.5 „anderes Netz“): die gefundenen Regeln
+>   unverändert (θ aus `results/teacher.jsonl`, nur Auswertung, kein neues ES) auf zwei Startnetze, die der
+>   Teacher nie gesehen hat: hier_s (andere Architektur, 4 × Parameter, fc1 236→118, fc2 118→236, Kopf 472) und
+>   layer_s (gleiche Architektur wie layer_s@25k, anders trainiert), beide aus `data/base_nets/numseq`. Regeln
+>   `teach:pos_map`, `d3_full`, `d2_eta`, `pos_split`; Bezug dfa@task, grad@task, delta_head@task, rls_rf@task
+>   auf demselben Netz. Fälle lib_prev, lib_prev2, lib_xmFF, lib_xm0F, k = 64, Seeds 0–2, 5, 6, je 2 Ziehungen,
+>   bis 200 Updates, Worker -> `results/phase_d_transfer.jsonl`. Stichprobe vorab (hier_s, Seed 0, prev, eine
+>   Ziehung): pos_map 0,06, d3_full 0,13, dfa 0,16 nach 20 Updates.
+>   **Vorhersage vor dem Lauf (2026-11-24):** (1) Der Kopf-Teil überträgt sich: auf xmFF und xm0F liegen
+>   `pos_map` und `d2_eta` nach 20 Updates auf beiden Netzen über delta_head@task. (2) Der Innen-Teil überträgt
+>   sich nur auf die gleiche Architektur: auf layer_s erreicht `pos_map` auf prev nach 20 Updates mindestens das
+>   Doppelte von dfa@task; auf hier_s liegt er höchstens 0,05 über dfa@task. (3) Auf hier_s erreicht keine
+>   gefundene Regel auf prev nach 20 Updates grad@task.
+
+Korrektur zur Beschreibung in der Vorhersage: layer_s ist nicht nur anders trainiert, sondern auch breiter
+(fc1 345→138, fc2 138→69, Kopf 552, 101 080 Parameter gegenüber 24 712 bei layer_s@25k; je 8 Zellen). hier_s
+hat 99 656 Parameter (fc1 236→118, fc2 118→236, Kopf 472, 4 Zellen, fc1 / fc2 je Schritt 6-mal statt 4-mal
+aufgerufen).
+
+**Ergebnis.** Testwertung nach 1 / 5 / 20 / 200 Updates, k = 64, Mittel über Seeds 0–2, 5, 6 und je 2
+Ziehungen (10 Episoden); in Klammern Spanne der 10 Episoden nach 20 Updates.
+
+| Netz, Fall | dfa@task | grad@task | delta_head@task | rls_rf@task | D.2 | D.3 | `map` | `split` |
+|---|---|---|---|---|---|---|---|---|
+| layer_s, prev | 0,00 / 0,03 / 0,24 / 0,77 (0,02–0,42) | 0,00 / 0,41 / 0,82 / 0,95 (0,71–0,92) | 0,00 / 0,00 / 0,02 / 0,12 | 0,19 / 0,20 / 0,20 / 0,20 | 0,01 / 0,05 / 0,11 / 0,13 | 0,01 / 0,08 / 0,47 / 0,93 | 0,01 / 0,25 / **0,81** / 0,89 (0,73–0,87) | 0,01 / 0,31 / 0,83 / 0,95 |
+| layer_s, prev2 | 0,00 / 0,04 / 0,25 / 0,81 | 0,01 / 0,51 / 0,89 / 0,98 | 0,00 / 0,00 / 0,02 / 0,09 | 0,15 | 0,01 / 0,04 / 0,09 / 0,10 | 0,00 / 0,06 / 0,46 / 0,93 | 0,01 / 0,15 / 0,73 / 0,82 | 0,01 / 0,31 / 0,85 / 0,75 |
+| layer_s, xm0F | 0,01 | 0,00 / 0,02 / 0,04 / 0,04 | 0,00 / 0,00 / 0,56 / 0,90 | 0,90 | 0,86 / 0,89 / 0,89 / 0,89 | 0,04 / 0,23 / 0,05 / 0,01 | 0,71 / 0,79 / 0,83 / 0,85 | 0,77 / 0,82 / 0,84 / **0,09** |
+| layer_s, xmFF | 0,00 / 0,00 / 0,01 / 0,01 | 0,00 / 0,00 / 0,01 / 0,03 | 0,00 / 0,00 / 0,27 / 0,80 | 0,81 | 0,63 / 0,73 / 0,74 / 0,75 | 0,00 / 0,02 / 0,03 / 0,00 | 0,22 / 0,35 / 0,46 / 0,47 (0,29–0,66) | 0,33 / 0,47 / 0,54 / **0,00** |
+| hier_s, prev | 0,00 / 0,01 / 0,14 / 0,62 (0,01–0,21) | 0,01 / 0,22 / 0,56 / 0,72 (0,49–0,66) | 0,00 / 0,00 / 0,03 / 0,10 | 0,13 | 0,01 / 0,06 / 0,09 / 0,10 | 0,01 / 0,04 / 0,10 / 0,29 | 0,01 / 0,04 / **0,06** / 0,07 (0,04–0,08) | 0,01 / 0,04 / 0,06 / 0,06 |
+| hier_s, prev2 | 0,00 / 0,01 / 0,05 / 0,54 | 0,01 / 0,13 / 0,46 / 0,65 | 0,00 / 0,00 / 0,02 / 0,05 | 0,08 | 0,00 / 0,03 / 0,05 / 0,05 | 0,01 / 0,03 / 0,07 / 0,28 | 0,01 / 0,02 / 0,03 / 0,04 | 0,01 / 0,02 / 0,04 / 0,04 |
+| hier_s, xm0F | 0,00 / 0,01 / 0,04 / 0,01 | 0,00 / 0,02 / 0,04 / 0,04 | 0,00 / 0,00 / 0,48 / 0,74 | 0,64 / 0,63 / 0,63 / 0,63 | 0,62 / 0,69 / 0,72 / 0,72 | 0,07 / 0,30 / 0,26 / 0,00 | 0,61 / 0,69 / **0,70** / 0,71 | 0,61 / 0,69 / 0,71 / 0,68 |
+| hier_s, xmFF | 0,00 / 0,00 / 0,01 / 0,01 | 0,00 / 0,00 / 0,01 / 0,02 | 0,00 / 0,00 / 0,20 / 0,57 | 0,52 | 0,44 / 0,55 / 0,56 / 0,58 | 0,00 / 0,10 / 0,15 / 0,00 | 0,23 / 0,44 / 0,49 / 0,54 | 0,31 / 0,45 / 0,49 / 0,51 |
+
+- Mit k = 512 (nur die Bezugsregeln): grad@task löst prev auf beiden Netzen nach 20 Updates (0,99–1,00),
+  rls_rf@task 0,74 (hier_s) und 0,94 (layer_s).
+- Proben zum Hebb-Term (prev, s20): layer_s ×0 0,08, ×0,1 0,10, ×0,3 0,24, ×1 0,83, ×3 0,00; prev2 ×0 0,06,
+  ×0,3 0,26, ×1 0,75, ×3 0,00. hier_s ×0 bis ×3 durchweg 0,06–0,07 (prev2 0,03–0,04), ×10 bis ×1000
+  0,00–0,01. Auf hier_s ist der Hebb-Term in keiner Stärke nützlich; dort wirkt `map` nur über den Kopf.
+
+**Vergleich mit der Vorhersage.** (1) Getroffen: Auf xm0F und xmFF liegen `map` und D.2 nach 20 Updates auf
+beiden Netzen über delta_head@task (layer_s 0,83 / 0,89 und 0,46 / 0,74 gegen 0,56 und 0,27; hier_s 0,70 / 0,72
+und 0,49 / 0,56 gegen 0,48 und 0,20). (2) Getroffen: layer_s prev `map` 0,81, dfa 0,24 (3,4-fach); hier_s 0,06,
+dfa 0,14 (darunter). (3) Getroffen: auf hier_s höchstens 0,10 (D.3), grad 0,56. Bilanz: 3 getroffen.
+
+**Schluss.** (a) Die gefundene Regel ist nicht an ihr Netz gebunden: Auf layer_s, viermal so viele Parameter,
+breitere Abbildungen, anders trainiert, nie im Meta-Training, lernt `map` prev nach 20 Updates so schnell wie
+Backprop auf dieselben schnellen Gewichte (0,81 gegen 0,82; dfa 0,24) und xm0F fast wie rls_rf. Die
+Normierungen der Telemetrie (d / rms, tanh(y), Fehler je Abbildung) machen sie unabhängig von der Breite. (b) Sie
+ist aber an die Architektur gebunden: Auf der Hierarchie hier_s (gleiche Größe wie layer_s) überträgt sich nur
+der Kopf-Teil (xm0F 0,70 gegen delta_head 0,48); der Innen-Teil hilft in keiner Stärke, und die Regel liegt auf
+prev unter dfa (0,06 gegen 0,14), weil sie die inneren Fehler-Updates fast abschaltet. Der anti-hebbische Schub
+auf fc1 setzt eine bestimmte Rolle von fc1 voraus, die die Hierarchie nicht hat (fc2 weitet dort auf, fc1 / fc2
+werden je Schritt 6-mal statt 4-mal aufgerufen; welcher Unterschied entscheidet, ist ungeprüft). (c) Nach der
+Positions-Ablation passt das Bild zusammen: Der Teacher braucht die Rolle der Schicht, und diese Rolle ist eine
+Eigenschaft der Architektur, nicht der Größe. Eine Regel für mehrere Architekturen braucht Meta-Training auf
+mehreren Architekturen oder eine Kennung, die die Rolle beschreibt statt den Namen. (d) `split` bricht auch
+auf layer_s auf den Kopf-Aufgaben nach mehr als 20 Updates zusammen (xm0F 0,84 → 0,09), `map` nicht: Der
+geteilte Teacher bleibt die robustere Form. (e) D.2 bleibt auf den Kopf-Aufgaben vorn (layer_s xmFF 0,74
+gegen `map` 0,46); D.3 überträgt sich auf layer_s schwächer als `map` (prev 0,47).
+
+**Belege.** `results/phase_d_transfer.jsonl` (640 Zeilen; Bezugsregeln auch k = 512), Zusammenfassung wie im
+Skript der Auswertung (Mittel über `runs` je Netz, Fall, k, Regel). Ausführliche Darstellung der ganzen
+Phase D: `PHASE_D.md`.
+
+## Laufend / offen
 
 - Noch in Bits: `*_parts` (die Anpassungs-Studien servo / robot sind seit 2026-11-23 umgestellt); nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
