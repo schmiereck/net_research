@@ -3,7 +3,7 @@
     python -m netresearch.teacher check                                   # theta = 0 reproduces dfa@task exactly
     python -m netresearch.teacher run --name d3 [--mode full|eta] [--pos map|blind|split] [--cases lib_prev2 ...] [--seeds 0 1 2]
                                       [--gens 300] [--pop 48] [--episodes 8] [--workers 14] [--out ...]
-    python -m netresearch.teacher eval --name d3 --cases lib_prev --seeds 5 6 [--ks 64] [--out ...]
+    python -m netresearch.teacher eval --name d3 --cases lib_prev --seeds 5 6 [--ks 64] [--model hier_s] [--out ...]
 
 The net (layer_s@25k, numseq start nets in data/base_nets) stays frozen. Fast weights F on fc1, fc2 and the
 head as in fastweights.py (W_eff = W + F), oracle gate "@task" (the WHEN is given, only the HOW is learned).
@@ -172,20 +172,20 @@ class Teach(Fast):
 _nets = {}
 
 
-def _net(seed):
+def _net(seed, model=MODEL):
     """A fresh copy of the frozen start net (loaded once per process)."""
     import copy
-    if seed not in _nets:
-        _nets[seed] = start_net(MODEL, "numseq", seed)
-    return copy.deepcopy(_nets[seed])
+    if (model, seed) not in _nets:
+        _nets[model, seed] = start_net(model, "numseq", seed)
+    return copy.deepcopy(_nets[model, seed])
 
 
-def episode(theta, case, seed, draw, k=K, T=T_FIT, points=T_POINTS, pos="map"):
+def episode(theta, case, seed, draw, k=K, T=T_FIT, points=T_POINTS, pos="map", model_name=MODEL):
     """-> curve [[s, test score]] of the teacher rule on one episode (draw: which k examples)."""
     base, maker = CASES[case][0], CASES[case][1]
     spec = spec_of(base)
     b, tb = maker(draw + 10 * seed, k)
-    model = _net(seed)
+    model = _net(seed, model_name)
     fw = Teach(model, theta, seed * 100 + draw, spec, T=max(T, T_FIT), pos=pos)
     fw.task_on = 1.0
     cur = []
@@ -265,20 +265,31 @@ def run(name, mode, cases, seeds, gens, pop, n_ep, sigma, lr, workers, out, seed
                   flush=True)
 
 
-def evaluate(name, cases, seeds, ks, draws, steps, out, workers, which="best"):
+def load_rule(name, which="best"):
+    """theta and pos of a found rule: from its checkpoint, else from the last row of results/teacher.jsonl
+    (on the worker, where the checkpoints of other jobs are not available)."""
+    f = TDIR / f"{name}.pt"
+    if f.exists():
+        ck = torch.load(f, weights_only=False)
+        return ck[which], ck.get("pos", "map")
+    rows = [json.loads(ln) for ln in OUT.read_text().splitlines() if ln.strip()]
+    last = [r for r in rows if r.get("name") == name and which in r][-1]
+    return torch.tensor(last[which], dtype=torch.float32), last.get("pos", "map")
+
+
+def evaluate(name, cases, seeds, ks, draws, steps, out, workers, which="best", model=MODEL):
     """Curves of a found rule (rows like fastweights inner, rule 'teach:<name>'), up to max(steps) updates."""
-    ck = torch.load(TDIR / f"{name}.pt", weights_only=False)
-    theta, pos = ck[which], ck.get("pos", "map")
-    jobs = [(theta, c, s, d, k, steps, pos) for c in cases for s in seeds for k in ks for d in range(draws)]
+    theta, pos = load_rule(name, which)
+    jobs = [(theta, c, s, d, k, steps, pos, model) for c in cases for s in seeds for k in ks for d in range(draws)]
     with mp.get_context("spawn").Pool(workers, initializer=_init_worker) as pool, open(out, "a") as f:
-        for (th, c, s, d, k, st, _), cur in zip(jobs, pool.map(_eval_job, jobs)):
-            f.write(json.dumps({"model": MODEL, "case": c, "k": k, "seed": s, "rule": f"teach:{name}:{which}",
+        for (th, c, s, d, k, st, _, _), cur in zip(jobs, pool.map(_eval_job, jobs)):
+            f.write(json.dumps({"model": model, "case": c, "k": k, "seed": s, "rule": f"teach:{name}:{which}",
                                 "eta": 0, "steps": list(st), "runs": [{"variant": d, "curve": cur}]}) + "\n")
 
 
 def _eval_job(a):
-    theta, c, s, d, k, st, pos = a
-    return episode(theta, c, s, d, k=k, T=T_FIT, points=tuple(st), pos=pos)
+    theta, c, s, d, k, st, pos, model = a
+    return episode(theta, c, s, d, k=k, T=T_FIT, points=tuple(st), pos=pos, model_name=model)
 
 
 def check():
@@ -316,6 +327,8 @@ def main():
     ap.add_argument("--draws", type=int, default=2)
     ap.add_argument("--steps", nargs="+", type=int, default=[0, 1, 2, 5, 10, 20, 50, 100, 200])
     ap.add_argument("--which", choices=["best", "theta"], default="best")
+    ap.add_argument("--model", default=MODEL, help="eval: frozen start net (data/base_nets/numseq)")
+    ap.add_argument("--names", nargs="+", default=None, help="eval: several found rules in one call")
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--out", default=None)
     a = ap.parse_args()
@@ -325,8 +338,9 @@ def main():
         run(a.name, a.mode, a.cases, a.seeds, a.gens, a.pop, a.episodes, a.sigma, a.lr, a.workers,
             a.out or str(OUT), pos=a.pos)
     else:
-        evaluate(a.name, a.cases, a.seeds, a.ks, a.draws, a.steps, a.out or str(ROOT / "results" / "teacher_eval.jsonl"),
-                 a.workers, a.which)
+        for name in a.names or [a.name]:
+            evaluate(name, a.cases, a.seeds, a.ks, a.draws, a.steps,
+                     a.out or str(ROOT / "results" / "teacher_eval.jsonl"), a.workers, a.which, a.model)
 
 
 if __name__ == "__main__":

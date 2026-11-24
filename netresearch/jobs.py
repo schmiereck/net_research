@@ -101,7 +101,7 @@ def fetch(share, jid, into, checkpoints):
 
     def key(r):
         return (r.get("model"), r.get("task"), r.get("seed"), r.get("updates_per_task", r.get("updates")),
-                r.get("rule"), r.get("mode"), r.get("case"), r.get("suite"), r.get("nets"), r.get("name"), r.get("gen"))
+                r.get("rule"), r.get("mode"), r.get("case"), r.get("suite"), r.get("nets"), r.get("name"), r.get("gen"), r.get("k"))
     have = set()
     if into.exists():
         have = {key(json.loads(ln)) for ln in into.read_text().splitlines() if ln.strip()}

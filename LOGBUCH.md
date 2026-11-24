@@ -4270,5 +4270,19 @@ Checkpoints `results/checkpoints/teacher/pos_*.pt` (nicht im Repo), Meta-Test `r
 
 ## Laufend / offen
 
+- Phase D, Übertragung auf andere Netze (Auftrag Nutzer 2026-11-24, D.5 „anderes Netz“): die gefundenen Regeln
+  unverändert (θ aus `results/teacher.jsonl`, nur Auswertung, kein neues ES) auf zwei Startnetze, die der
+  Teacher nie gesehen hat: hier_s (andere Architektur, 4 × Parameter, fc1 236→118, fc2 118→236, Kopf 472) und
+  layer_s (gleiche Architektur wie layer_s@25k, anders trainiert), beide aus `data/base_nets/numseq`. Regeln
+  `teach:pos_map`, `d3_full`, `d2_eta`, `pos_split`; Bezug dfa@task, grad@task, delta_head@task, rls_rf@task
+  auf demselben Netz. Fälle lib_prev, lib_prev2, lib_xmFF, lib_xm0F, k = 64, Seeds 0–2, 5, 6, je 2 Ziehungen,
+  bis 200 Updates, Worker -> `results/phase_d_transfer.jsonl`. Stichprobe vorab (hier_s, Seed 0, prev, eine
+  Ziehung): pos_map 0,06, d3_full 0,13, dfa 0,16 nach 20 Updates.
+  **Vorhersage vor dem Lauf (2026-11-24):** (1) Der Kopf-Teil überträgt sich: auf xmFF und xm0F liegen
+  `pos_map` und `d2_eta` nach 20 Updates auf beiden Netzen über delta_head@task. (2) Der Innen-Teil überträgt
+  sich nur auf die gleiche Architektur: auf layer_s erreicht `pos_map` auf prev nach 20 Updates mindestens das
+  Doppelte von dfa@task; auf hier_s liegt er höchstens 0,05 über dfa@task. (3) Auf hier_s erreicht keine
+  gefundene Regel auf prev nach 20 Updates grad@task.
+
 - Noch in Bits: `*_parts` (die Anpassungs-Studien servo / robot sind seit 2026-11-23 umgestellt); nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
