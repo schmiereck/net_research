@@ -251,6 +251,15 @@ Damit „Lösung teilweise erkennen“ überhaupt möglich ist, muss das Basisne
   reichen für ein ganzes Bild nicht. Es gibt zwei Optionen, die zu entscheiden sind:
   - (a) Vorhersage in den latenten Raum, ohne neue Ausgabe-Slots.
   - (b) Die Ausgabe wird um einen eigenen Bereich (768 Bits) erweitert.
+- **Ergänzung 2026-11-24 (extern/JEPA-ONLINE-2026-11-24.md, kritisch geprüft):** Für den ersten Versuch mit
+  latenter Vorhersage (AGENDA, „Kleines Weltmodell“): Ziel mit Stop-Gradient; gegen Kollaps EMA-Kopie *und*
+  SVReg als getrennte Arme mit demselben Kollaps-Maß; als Zusatzmessung die kontrafaktische Vorhersage über den
+  Rest, ẑ_cf(a') = z_obs + f(z, a') − f(z, a), gegen echte Gegenwerte aus der Fovea-Geometrie, getrennt für
+  additive Störung und Verstärkungs-Störung (dort bricht die Näherung erwartbar). Die Ziel-Kopplung aus OpTTA
+  (Online-Anpassung nicht nur auf Vorhersagefehler) ist in Phase D schon erfüllt (Fitness = Testwertung nach
+  den Updates, Orakel-Gate) und wird erst wichtig, wenn das Weltmodell zum Planen dient.
+- **Später, nach Phase D:** Hard-N-Auswahl (Beispiele mit größtem Fehler) vor dem schnellen Update in der
+  Bibliothek testen (AGENDA, P3).
 
 ## 7. Phasen
 
