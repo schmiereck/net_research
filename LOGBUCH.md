@@ -4179,25 +4179,96 @@ und 2 Ziehungen; ein ES-Lauf je Variante.
 (80 Zeilen; Bezug mit `python -m netresearch.fastweights summary --file results/phase_d_test.jsonl`, Regeln
 `teach:*` mit eigenem Skript, da ohne Gedächtnis-Spalte).
 
-## Laufend / offen
+## 2026-11-24 — Phase D, Position im Netz: der Teacher braucht die Schicht-Kennung, ein eigener je Schicht bringt nichts; mit größeren ES-Schritten kann eine Regel Kopf- und Innen-Aufgaben zugleich
 
-- Phase D, Position im Netz (Frage des Nutzers 2026-11-23: braucht der Teacher die Position, oder je Schicht
-  einen eigenen?): `teacher.py --pos` (Commit ac1392b; alle drei Varianten bei Start bitgleich zu dfa@task).
-  `map` = ein MLP für fc1, fc2 und Kopf mit Schicht-Kennung im Eingang und eigener Schrittweite je Schicht (wie
-  D.3), `blind` = dasselbe MLP ohne Kennung und mit einer gemeinsamen Schrittweite (die Schicht ist nur noch an
-  der Telemetrie erkennbar), `split` = ein eigenes MLP je Schicht (1401 Parameter). Ausgangslage aus D.2 / D.3:
-  D.2 (nur Schrittweiten, σ 0,1, lr 0,05) erreicht Validierung 0,44 mit Kopf × 34 und innen fast aus (fc1 × 0,16,
-  fc2 × 0,014): Kopf-Aufgaben 0,68–0,72, prev2 / prev3 0,08 / 0,03. D.3 (σ 0,05, lr 0,02) nur 0,17, steigt
-  aber noch: prev2 / prev3 0,39 / 0,34, Kopf-Aufgaben 0,03–0,04, Kopf × 3. Die kleinen Schritte von D.3 fanden
-  die Kopf-Schrittweite in 300 Generationen nicht. Damit die drei Varianten vergleichbar sind und nicht alle an
-  der ES-Einstellung scheitern, laufen alle drei mit σ 0,1, lr 0,05, 300 Generationen, sonst wie D.3 (`map`
-  also als D.3b neu). Worker -> `results/teacher.jsonl`. Idealwert bei Auswahl je Episode (Kopf-Aufgaben wie
-  D.2, prev2 / prev3 wie D.3): etwa 0,57.
-  **Vorhersage vor dem Lauf (2026-11-23):** (1) `map` (D.3b) übertrifft D.2: Validierung am Ende ≥ 0,46, mit
-  prev2 ≥ 0,15 bei Kopf-Aufgaben ≥ 0,60; die Episoden-Telemetrie (S, ΔS) reicht für eine teilweise Auswahl
-  „innen schreiben ja / nein“. (2) `blind` bleibt um ≥ 0,05 unter `map`: ohne Kennung und mit einer
-  Schrittweite lässt sich „Kopf schnell, innen vorsichtig“ nur über die Telemetrie ausdrücken. (3) `split`
-  liegt höchstens 0,02 über `map` (dreifache Parameterzahl, mehr ES-Rauschen; die Schicht-Kennung reicht).
+**Frage.** (Nutzer 2026-11-23) Braucht der Teacher eine Information über die Position im Netz, kann er alle
+Neuronen gleich behandeln, oder braucht jede Schicht einen eigenen Teacher? Nebenbei: Findet ES mit größeren
+Schritten eine Regel, die die Kopf-Aufgaben (wie D.2) und die Innen-Aufgaben (wie D.3) zugleich kann?
+
+**Gemacht.** Jobs `20261123-223727-pos_map`, `-223728-pos_blind`, `-223729-pos_split` (Commit ebe5129), Worker,
+je 4 Prozesse, je etwa 2,4 h. Danach lokal Meta-Test wie im D.5-Eintrag (lib_prev, lib_xmFF mit k = 64,
+lib_diff mit k = 512; Seeds 5–6, je 2 Ziehungen, bis 200 Updates) und für `map` Ausschalt-Proben der Regelteile
+(Skripte im Scratchpad: Teacher-Ausgang je Teil auf null bzw. Mittelwert, s20, Seeds 0–2 bzw. 5–6, je 2
+weitere Ziehungen). Vorhersage vor dem Lauf (wörtlich aus „Laufend / offen“):
+
+> - Phase D, Position im Netz (Frage des Nutzers 2026-11-23: braucht der Teacher die Position, oder je Schicht
+>   einen eigenen?): `teacher.py --pos` (Commit ac1392b; alle drei Varianten bei Start bitgleich zu dfa@task).
+>   `map` = ein MLP für fc1, fc2 und Kopf mit Schicht-Kennung im Eingang und eigener Schrittweite je Schicht (wie
+>   D.3), `blind` = dasselbe MLP ohne Kennung und mit einer gemeinsamen Schrittweite (die Schicht ist nur noch an
+>   der Telemetrie erkennbar), `split` = ein eigenes MLP je Schicht (1401 Parameter). Ausgangslage aus D.2 / D.3:
+>   D.2 (nur Schrittweiten, σ 0,1, lr 0,05) erreicht Validierung 0,44 mit Kopf × 34 und innen fast aus (fc1 × 0,16,
+>   fc2 × 0,014): Kopf-Aufgaben 0,68–0,72, prev2 / prev3 0,08 / 0,03. D.3 (σ 0,05, lr 0,02) nur 0,17, steigt
+>   aber noch: prev2 / prev3 0,39 / 0,34, Kopf-Aufgaben 0,03–0,04, Kopf × 3. Die kleinen Schritte von D.3 fanden
+>   die Kopf-Schrittweite in 300 Generationen nicht. Damit die drei Varianten vergleichbar sind und nicht alle an
+>   der ES-Einstellung scheitern, laufen alle drei mit σ 0,1, lr 0,05, 300 Generationen, sonst wie D.3 (`map`
+>   also als D.3b neu). Worker -> `results/teacher.jsonl`. Idealwert bei Auswahl je Episode (Kopf-Aufgaben wie
+>   D.2, prev2 / prev3 wie D.3): etwa 0,57.
+>   **Vorhersage vor dem Lauf (2026-11-23):** (1) `map` (D.3b) übertrifft D.2: Validierung am Ende ≥ 0,46, mit
+>   prev2 ≥ 0,15 bei Kopf-Aufgaben ≥ 0,60; die Episoden-Telemetrie (S, ΔS) reicht für eine teilweise Auswahl
+>   „innen schreiben ja / nein“. (2) `blind` bleibt um ≥ 0,05 unter `map`: ohne Kennung und mit einer
+>   Schrittweite lässt sich „Kopf schnell, innen vorsichtig“ nur über die Telemetrie ausdrücken. (3) `split`
+>   liegt höchstens 0,02 über `map` (dreifache Parameterzahl, mehr ES-Rauschen; die Schicht-Kennung reicht).
+
+**Ergebnis.**
+- Validierung (Meta-Train, Fitness = Mittel nach 1, 5, 10, 20 Updates), Gen. 300 (bestes θ in Klammern):
+
+| Variante | gesamt | xm0F / xmA5 / xm33 | prev2 / prev3 | Schrittweite fc1 / fc2 / Kopf (× dfa, bestes θ) |
+|---|---|---|---|---|
+| `map` (D.3b) | 0,54 (0,54) | 0,67 / 0,62 / 0,63 | 0,46 / 0,33 | 0,056 / 0,002 / 2,6 |
+| `blind` | 0,07 (0,08) | 0,002 | 0,20 / 0,14 | 0,30 gemeinsam |
+| `split` | 0,55 (0,55) | 0,67 / 0,60 / 0,61 | 0,49 / 0,36 | 0,055 / 0,008 / 2,4 |
+| zum Vergleich D.2 / D.3 | 0,44 / 0,17 | 0,68–0,72 / 0,03–0,04 | 0,08 / 0,03 bzw. 0,39 / 0,34 | |
+
+  `map` und `split` sprangen zwischen Gen. 60 und 120 (map) bzw. 180 und 210 (split) von der Innen-Lösung
+  (prev2 / prev3 0,45–0,57, Kopf-Aufgaben 0,01) auf beides; `blind` blieb bis zum Ende bei der Innen-Lösung
+  und erreichte sie nur halb.
+- Meta-Test, Seeds 5–6, nach 1 / 5 / 10 / 20 / 200 Updates (Mittel über 4 Episoden):
+
+| Fall | `map` | `split` | `blind` | D.3 | D.2 | grad@task | rls_rf@task |
+|---|---|---|---|---|---|---|---|
+| prev, k = 64 | 0,01 / 0,33 / 0,45 / 0,66 / 0,80 | 0,01 / 0,40 / 0,56 / 0,77 / 0,91 | 0,00 / 0,07 / 0,27 / 0,42 / 0,06 | 0,01 / 0,17 / 0,60 / 0,85 / 0,99 | 0,01 / 0,07 / 0,13 / 0,14 / 0,16 | 0,01 / 0,37 / 0,60 / 0,79 / 0,95 | 0,23 / 0,23 / 0,23 / 0,24 / 0,24 |
+| xmFF, k = 64 | 0,40 / 0,54 / 0,54 / 0,58 / 0,60 | 0,48 / 0,54 / 0,54 / 0,57 / **0,01** | 0,00 | 0,01 | 0,60 / 0,68 / 0,68 / 0,68 / 0,68 | 0,00 / 0,00 / 0,01 / 0,01 / 0,02 | 0,60 / 0,57 / 0,57 / 0,57 / 0,56 |
+| diff, k = 512 | 0,02 / 0,01 / 0,01 / 0,00 / 0,01 | 0,02 / 0,02 / 0,02 / 0,12 / 0,00 | 0,01 / 0,03 / 0,04 / 0,06 / 0,00 | 0,01 / 0,02 / 0,01 / 0,01 / 0,01 | 0,01 / 0,03 / 0,03 / 0,05 / 0,12 | 0,01 / 0,10 / 0,20 / 0,35 / 0,86 | 0,21 / 0,21 / 0,19 / 0,18 / 0,16 |
+
+  Über den Trainings-Horizont hinaus: `split` bricht auf xmFF zwischen 50 und 100 Updates in allen 4 Episoden
+  zusammen (0,50–0,59 → 0,00–0,02), `blind` auf prev (0,32–0,49 nach 20 → 0,01–0,13 nach 200). `map` bleibt
+  stabil (prev 0,70–0,96, xmFF 0,50–0,65 nach 200).
+- Was die Regel von `map` tut (Ausschalt-Proben, s20): prev2 voll 0,71, ohne Hebb-Term 0,14, Teacher auf fc1
+  aus (reines dfa bei gefundener Schrittweite) 0,11, alle inneren Updates aus 0,11, Faktor a ohne Modulation je
+  Einheit (Mittel der Abbildung) 0,73; prev genauso (0,75 / 0,15 / 0,10 / 0,10 / 0,72). xm0F 0,71 voll und
+  0,72 mit inneren Updates aus; xmFF 0,56 voll, 0,63 mit inneren Updates aus. Die Stärke der inneren
+  Fehler-Updates ist bei prev- und xm-Episoden gleich (fc1 etwa 0,24 × dfa, fc2 etwa 0,005 × dfa, Kopf etwa
+  16 × dfa). Der Hebb-Faktor h auf fc1 hängt dagegen vom Episoden-Zustand ab: bei prev2 nach 5 Updates im
+  Mittel −9 (fast alle Einheiten gleich, anti-hebbisch), bei xm0F +2,5 (hebbisch, schwach); innerhalb eines
+  Updates korreliert h mit −d (−0,4 bis −0,8).
+
+**Vergleich mit der Vorhersage.** (1) Getroffen: `map` 0,54 (≥ 0,46), prev2 0,46 (≥ 0,15), Kopf-Aufgaben
+0,62–0,67 (≥ 0,60). (2) Getroffen: `blind` 0,07, also 0,47 unter `map`. (3) Getroffen: `split` 0,007 über
+`map`. Bilanz: 3 getroffen.
+
+**Schluss.** (a) Zur Frage des Nutzers: Der Teacher braucht die Position, zumindest die Unterscheidung der
+Schichten. Ohne Kennung und mit gemeinsamer Schrittweite (`blind`) findet ES nur eine halbe Innen-Lösung und
+kann den Kopf nicht schnell machen; die Telemetrie allein (echter Fehler am Kopf, rückprojizierter innen,
+gelu' nur bei fc1) verrät die Schicht nicht genug. Eine Kennung im Eingang reicht aber: ein eigener Teacher je
+Schicht (`split`, dreifache Parameterzahl) ist in der Validierung gleich gut und auf prev etwas besser (0,77
+gegen 0,66 nach 20), bricht aber über den Trainings-Horizont hinaus auf der Kopf-Aufgabe zusammen. Die
+geteilte Regel mit Kennung ist robuster. (b) Mit größeren ES-Schritten (σ 0,1, lr 0,05) findet ES eine Regel
+für beide Aufgabenarten: Validierung 0,54 (Idealwert etwa 0,57), auf dem Meta-Test prev 0,66 / 0,80 und xmFF
+0,58 / 0,60 nach 20 / 200 Updates, also beide ausgelassenen Aufgaben mit einer Regel; einzeln sind D.3 auf prev
+(0,85) und D.2 auf xmFF (0,68) besser. (c) Die Regel entscheidet nicht über die Stärke der Fehler-Updates je
+Episode, sondern über einen Hebb-Term auf fc1, dessen Vorzeichen und Stärke vom Episoden-Zustand (Verlust,
+Verlaufsänderung, Update-Nummer) abhängen: bei prev stark anti-hebbisch, bei xm schwach hebbisch. Dieser Term
+trägt den ganzen Innen-Gewinn (ohne ihn 0,14 statt 0,71); das Fehlersignal über B nutzt innen nichts mehr. Die
+gefundene Regel ist also keine verbesserte Rückprojektion, sondern Hebb mit globalem Modulator (drei Faktoren:
+Eingang, Ausgang, Episoden-Signal). (d) `diff` lernt weiter keine Regel. (e) Ein ES-Lauf je Variante; ob
+`split` gegenüber `map` auf prev wirklich besser ist, ist mit 4 Meta-Test-Episoden offen. Der Zusammenbruch von
+`split` liegt vermutlich an t / T > 1 jenseits des Trainings (ungeprüft).
+
+**Belege.** `results/teacher.jsonl` (je 301 Zeilen `pos_map`, `pos_blind`, `pos_split`; letzte Zeile mit θ),
+Checkpoints `results/checkpoints/teacher/pos_*.pt` (nicht im Repo), Meta-Test `results/phase_d_test.jsonl`
+(jetzt 116 Zeilen, Regeln `teach:pos_*:best`).
+
+## Laufend / offen
 
 - Noch in Bits: `*_parts` (die Anpassungs-Studien servo / robot sind seit 2026-11-23 umgestellt); nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

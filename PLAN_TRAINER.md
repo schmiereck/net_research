@@ -1581,7 +1581,13 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
     Kurzhorizont-Falle. Die Kontrolle D.2 (nur Schrittweiten: Kopf × 34, innen fast aus) ist auf den
     Kopf-Aufgaben besser (Validierung 0,44 gegen 0,17; xmFF ausgelassen 0,68, rls_rf 0,57), hat aber keine
     innere Regel. Keine Regel kann beides; die Auswahl je Episode ist offen. Keine ferne Übertragung: `diff`
-    lernt nur Backprop. Laufend: Positions-Ablation (`--pos map / blind / split`, σ 0,1, lr 0,05).
+    lernt nur Backprop.
+  - **Position im Netz erledigt (2026-11-24, LOGBUCH):** Ein geteilter Teacher mit Schicht-Kennung (`map`,
+    σ 0,1, lr 0,05) kann Kopf- und Innen-Aufgaben zugleich (Validierung 0,54; Meta-Test prev 0,66 / 0,80, xmFF
+    0,58 / 0,60 nach 20 / 200). Ohne Kennung (`blind`) 0,07; ein Teacher je Schicht (`split`) gleich gut, aber
+    jenseits des Horizonts instabil. Der Innen-Gewinn kommt aus einem Hebb-Term auf fc1 mit globalem
+    Modulator, nicht aus dem rückprojizierten Fehler. Offen: Auswahl je Episode für prev auf D.3-Niveau,
+    ferne Aufgaben (`diff`), anderes Netz (hier_s@25k), k = 8 / 512.
 
 **Phase E – Teacher liest Gewichte (Stufe 2)**
 - Zusätzlich eine Zusammenfassung des Moduls selbst (Weight-Space-Encoder, permutationsinvariant) und ein

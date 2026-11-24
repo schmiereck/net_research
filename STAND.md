@@ -412,5 +412,7 @@ Erfahrungen, die in die Pipeline gehören:
 - Gelernter Teacher (Phase D) begonnen 2026-11-23: Eine per ES gefundene lokale Regel für die inneren schnellen
   Gewichte von layer_s@25k lernt die ausgelassene Aufgabe `prev` (64 Beispiele) ohne Backprop schneller als
   Backprop (0,85 nach 20 Updates, grad 0,79, dfa 0,16). Sie überträgt sich nicht auf eine fernere Aufgabe
-  (`diff`), und Kopf- und Innen-Aufgaben kann noch keine Regel zugleich.
+  (`diff`). Ein geteilter Teacher mit Schicht-Kennung kann Kopf- und Innen-Aufgaben zugleich (prev 0,66,
+  xmFF 0,58 nach 20 Updates); ohne Kennung scheitert er. Der Innen-Gewinn kommt aus einem Hebb-Term mit
+  globalem Modulator, nicht aus dem rückprojizierten Fehler.
 - Noch nicht begonnen: Weltmodell, Reinforcement Learning.
