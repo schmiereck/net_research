@@ -21,7 +21,9 @@ Mode "eta" (stage D.2, control): ES tunes only the three p_map; the MLP stays ze
 rule" from "a better step size".
 Position in the net (--pos, ablation after D.3): "map" (default, D.3) one MLP for all maps, map one-hot in the
 input and one p per map; "blind" the same MLP without the one-hot (zeros) and one p shared by all maps, so the
-map is only visible through the telemetry itself; "split" one MLP of its own per map (three times the parameters).
+map is only visible through the telemetry itself; "split" one MLP of its own per map (three times the parameters);
+"role" the map is described by what it does instead of its name: [is head, log2(n_out / n_in), log2(calls of
+the map per update) / 2] in place of the one-hot (for several architectures, --models); p stays per map name.
 
 ES (outer loop): antithetic pairs, centred ranks, Adam on the mean. Fitness of a candidate: mean over the
 generation's episodes (case x start net x draw of the k examples; both halves of a pair see the same ones) of
@@ -52,7 +54,7 @@ MAPS = ["fc1", "fc2", "head"]
 N_IN, HID = 9, 16
 MLP_SHAPES = [("W1", (N_IN, HID)), ("b1", (HID,)), ("W2", (HID, HID)), ("b2", (HID,)), ("W3", (HID, 2)),
               ("b3", (2,))]
-POS = ["map", "blind", "split"]
+POS = ["map", "blind", "split", "role"]
 
 
 def shapes(pos="map"):
@@ -146,8 +148,12 @@ class Teach(Fast):
                     s = torch.sigmoid(1.702 * out)
                     base = s * (1 + 1.702 * out * (1 - s))
             rms = d.pow(2).mean().sqrt() + 1e-8
+            n_calls = sum(r[0] == n for r in rec)
             onehot = torch.zeros(3)
-            if self.pos != "blind":
+            if self.pos == "role":
+                onehot = torch.tensor([float(n == "head"), math.log2(out.shape[-1] / x.shape[-1]),
+                                       math.log2(n_calls) / 2])
+            elif self.pos != "blind":
                 onehot[MAPS.index(n)] = 1.0
             ty = torch.tanh(out)
             f = torch.stack([d / rms, ty, base if base is not None else torch.ones_like(d)], -1)
@@ -161,7 +167,7 @@ class Teach(Fast):
             if n == "head":
                 self._apply_eta(n, x, dd, eta_n, 1)
             else:
-                self._apply_eta(n, x, dd, eta_n, sum(r[0] == n for r in rec))
+                self._apply_eta(n, x, dd, eta_n, n_calls)
 
     def _apply_eta(self, n, x, d, eta, n_calls):
         x2, d2 = x.reshape(-1, x.shape[-1]), d.reshape(-1, d.shape[-1])
@@ -201,8 +207,8 @@ def episode(theta, case, seed, draw, k=K, T=T_FIT, points=T_POINTS, pos="map", m
 
 
 def _fit_job(a):
-    theta, case, seed, draw, pos = a
-    c = episode(theta, case, seed, draw, pos=pos)
+    theta, case, model, seed, draw, pos = a
+    c = episode(theta, case, seed, draw, pos=pos, model_name=model)
     return float(np.mean([v for _, v in c]))
 
 
@@ -216,28 +222,32 @@ def ranks(f):
     return r / (len(f) - 1) - 0.5
 
 
-def run(name, mode, cases, seeds, gens, pop, n_ep, sigma, lr, workers, out, seed=0, pos="map"):
+def run(name, mode, cases, seeds, gens, pop, n_ep, sigma, lr, workers, out, seed=0, pos="map", models=(MODEL,)):
+    models = list(models)
     TDIR.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(seed)
     theta = init_theta(seed, pos)
     nt = n_theta(pos)
     mask = es_mask(mode, pos)
     m, v = torch.zeros(nt), torch.zeros(nt)
-    val = [(c, s, 10_000 + i) for c in cases for s in seeds for i in range(2)]   # fixed validation episodes
+    val = [(c, md, s, 10_000 + i) for c in cases for md in models for s in seeds for i in range(2)]   # fixed
     best = (-1.0, theta.clone())
     t0 = time.time()
     with mp.get_context("spawn").Pool(workers, initializer=_init_worker) as pool, open(out, "a") as f:
         for g in range(gens + 1):
-            row = {"name": name, "mode": mode, "pos": pos, "gen": g}
+            row = {"name": name, "mode": mode, "pos": pos, "gen": g, "seed": seed, "models": models}
             if g % VAL_EVERY == 0 or g == gens:
-                vf = pool.map(_fit_job, [(theta, c, s, d, pos) for c, s, d in val])
+                vf = pool.map(_fit_job, [(theta, *e, pos) for e in val])
                 row["val"] = round(float(np.mean(vf)), 4)
-                row["val_cases"] = {c: round(float(np.mean([x for (cc, _, _), x in zip(val, vf) if cc == c])), 4)
+                row["val_cases"] = {c: round(float(np.mean([x for e, x in zip(val, vf) if e[0] == c])), 4)
                                     for c in cases}
+                if len(models) > 1:
+                    row["val_models"] = {md: round(float(np.mean([x for e, x in zip(val, vf) if e[1] == md])), 4)
+                                         for md in models}
                 if row["val"] > best[0]:
                     best = (row["val"], theta.clone())
                 torch.save({"theta": theta, "best": best[1], "best_val": best[0], "mode": mode, "pos": pos, "gen": g,
-                            "cases": cases, "seeds": seeds}, TDIR / f"{name}.pt")
+                            "cases": cases, "seeds": seeds, "models": models}, TDIR / f"{name}.pt")
             if g == gens:
                 row.update({"theta": [round(float(x), 6) for x in theta],
                             "best": [round(float(x), 6) for x in best[1]], "best_val": best[0]})
@@ -245,6 +255,8 @@ def run(name, mode, cases, seeds, gens, pop, n_ep, sigma, lr, workers, out, seed
                 break
             eps = [(cases[rng.integers(len(cases))], seeds[rng.integers(len(seeds))], int(rng.integers(10_000)))
                    for _ in range(n_ep)]
+            # one model: the same random stream as before (unchanged runs); several: drawn per episode
+            eps = [(c, models[rng.integers(len(models))] if len(models) > 1 else models[0], s, d) for c, s, d in eps]
             noise = torch.randn(pop // 2, nt, generator=torch.Generator().manual_seed(seed * 100_000 + g)) * mask
             cands = [theta + sigma * z for z in noise] + [theta - sigma * z for z in noise]
             fit = pool.map(_fit_job, [(c, *e, pos) for c in cands for e in eps])
@@ -328,6 +340,8 @@ def main():
     ap.add_argument("--steps", nargs="+", type=int, default=[0, 1, 2, 5, 10, 20, 50, 100, 200])
     ap.add_argument("--which", choices=["best", "theta"], default="best")
     ap.add_argument("--model", default=MODEL, help="eval: frozen start net (data/base_nets/numseq)")
+    ap.add_argument("--models", nargs="+", default=[MODEL], help="run: start nets the episodes are drawn from")
+    ap.add_argument("--seed", type=int, default=0, help="run: seed of the search (init of theta, episodes, noise)")
     ap.add_argument("--names", nargs="+", default=None, help="eval: several found rules in one call")
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--out", default=None)
@@ -336,7 +350,7 @@ def main():
         check()
     elif a.cmd == "run":
         run(a.name, a.mode, a.cases, a.seeds, a.gens, a.pop, a.episodes, a.sigma, a.lr, a.workers,
-            a.out or str(OUT), pos=a.pos)
+            a.out or str(OUT), seed=a.seed, pos=a.pos, models=a.models)
     else:
         for name in a.names or [a.name]:
             evaluate(name, a.cases, a.seeds, a.ks, a.draws, a.steps,

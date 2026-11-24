@@ -4345,5 +4345,26 @@ Phase D: `PHASE_D.md`.
 
 ## Laufend / offen
 
+- Phase D, zweite ES-Saat und Meta-Training auf zwei Architekturen (Auftrag Nutzer 2026-11-24, `PHASE_D.md`
+  Abschnitt 8): `teacher.py run --seed`, `--models`, `--pos role` (Commit nach diesem Eintrag; Lauf mit einem
+  Netz bitgleich zum alten Code geprüft, alle Varianten bei Start = dfa@task). `role` ersetzt die
+  Schicht-Kennung durch eine Beschreibung der Rolle: [Kopf ja / nein, log2(n_out / n_in), log2(Aufrufe der
+  Abbildung je Update) / 2]; layer_s@25k fc1 / fc2 / Kopf [0, −1,32, 1] / [0, −1, 1] / [1, −1,70, 0], hier_s
+  [0, −1, 1,29] / [0, +1, 1,29] / [1, −2,88, 0]; die drei Schrittweiten bleiben je Name. Drei Läufe, je 300
+  Generationen, σ 0,1, lr 0,05, Meta-Train-Aufgaben und Seeds 0–2 wie bisher: (A) `pos_map_s1` = `pos_map` mit
+  ES-Saat 1, nur layer_s@25k; (B) `arch_map` Kennung wie `map`, Episoden aus layer_s@25k und hier_s; (C)
+  `arch_role` dasselbe mit Rollen-Kennung. Worker (6 Prozesse, nacheinander, je etwa 2 h) ->
+  `results/teacher.jsonl`; danach Meta-Test auf Seeds 5–6 (prev, xmFF, k = 64) auf layer_s@25k, hier_s und
+  layer_s (nie im Training). Bezug: `pos_map` Validierung 0,54; Meta-Test layer_s@25k prev / xmFF 0,66 / 0,58
+  nach 20 Updates; hier_s prev dfa 0,14, grad 0,56, `pos_map` 0,06.
+  Einschränkung vorab: Eine dritte Architektur mit anderer Rollen-Verteilung gibt es unter den festgelegten
+  numseq-Startnetzen nicht; ob `role` auf ungesehene Architekturen besser überträgt als `map`, lässt sich hier
+  nicht prüfen, nur ob die Rollen-Kennung ebenso gut lernbar ist.
+  **Vorhersage vor dem Lauf (2026-11-24):** (1) Die zweite Saat bestätigt „beides zugleich“: `pos_map_s1`
+  Validierung ≥ 0,45 und Meta-Test layer_s@25k prev ≥ 0,50 und xmFF ≥ 0,45 nach 20 Updates. (2) Mit hier_s im
+  Training lernt die Regel auch dort innen: `arch_map` Meta-Test hier_s prev ≥ 0,25 nach 20 Updates (über dfa
+  0,14) bei layer_s@25k prev ≥ 0,50. (3) Die Rollen-Kennung ist ebenso gut lernbar: `arch_role` und `arch_map`
+  liegen in der Validierung höchstens 0,03 auseinander.
+
 - Noch in Bits: `*_parts` (die Anpassungs-Studien servo / robot sind seit 2026-11-23 umgestellt); nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
