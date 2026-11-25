@@ -1,8 +1,8 @@
 # Phase D: eine per Evolution gefundene lokale Lernregel für die inneren schnellen Gewichte
 
-Stand 2026-11-24. Ausführliche Darstellung als Grundlage für das Ergebnis-Papier. Die knappen, datierten
+Stand 2026-11-25. Ausführliche Darstellung als Grundlage für das Ergebnis-Papier. Die knappen, datierten
 Einträge mit den Vorhersagen vor jedem Lauf stehen im `LOGBUCH.md` (2026-11-23 Vorarbeit 2, D.0, D.2 / D.3 /
-D.5; 2026-11-24 Position im Netz, Übertragung). Das Konzept steht in `PLAN_TRAINER.md`, Phase D.
+D.5; 2026-11-24 Position im Netz, Übertragung; 2026-11-25 zweite Saat und zwei Architekturen). Das Konzept steht in `PLAN_TRAINER.md`, Phase D.
 
 ## 1. Kurzfassung
 
@@ -31,8 +31,12 @@ Ergebnisse:
    eigenen Teacher je Schicht (gleich gut, jenseits des Trainings-Horizonts instabil).
 5. **Übertragung:** Unverändert auf ein viermal größeres Netz derselben Architektur übertragen, lernt die Regel
    so schnell wie Backprop (0,81 gegen 0,82; dfa 0,24). Auf eine andere Architektur (Hierarchie) überträgt sich
-   nur der Teil am Ausgang; der Innen-Teil hilft dort in keiner Stärke.
-6. **Grenze:** Eine fernere Aufgabe (Differenz zweier Zahlen) lernt keine gefundene Regel; nur Backprop.
+   nur der Teil am Ausgang; der Innen-Teil hilft dort in keiner Stärke. Auch Meta-Training auf beiden
+   Architekturen, mit Schicht-Name oder mit einer Kennung der Rolle, findet für die Hierarchie keine Innen-Regel
+   (0,07, dfa 0,10) und kostet auf dem ersten Netz einen Teil des Innen-Gewinns (0,66 → 0,41).
+6. **Wiederholbarkeit:** Eine zweite ES-Suche mit anderer Saat findet wieder eine Regel für beide
+   Aufgabenarten (Validierung 0,53 gegen 0,54); die Gewichtung zwischen Kopf und Innen hängt von der Saat ab.
+7. **Grenze:** Eine fernere Aufgabe (Differenz zweier Zahlen) lernt keine gefundene Regel; nur Backprop.
 
 ## 2. Fragestellung und Einordnung
 
@@ -259,6 +263,52 @@ Testwertung nach 20 (200) Updates, k = 64, 10 Episoden je Feld:
 - Auch auf layer_s bricht `split` auf den Kopf-Aufgaben nach mehr als 20 Updates zusammen (xm0F 0,84 → 0,09),
   `map` nicht.
 
+### 5.6 Zweite Saat und zwei Architekturen im Meta-Training
+
+Drei weitere ES-Läufe mit denselben Einstellungen wie `map` (300 Generationen, σ 0,1, lr 0,05): `pos_map_s1`
+(andere Saat der Suche), `arch_map` (Episoden je zur Hälfte aus layer_s@25k und hier_s gezogen, Kennung wie
+`map`) und `arch_role` (dasselbe, aber die Schicht wird durch ihre Rolle beschrieben: Kopf ja / nein,
+log2(Ausgänge / Eingänge), log2(Aufrufe je Update) / 2; layer_s@25k fc1 / fc2 / Kopf [0, −1,32, 1] /
+[0, −1, 1] / [1, −1,70, 0], hier_s [0, −1, 1,29] / [0, +1, 1,29] / [1, −2,88, 0]).
+
+| Lauf | Netze im Training | Kennung | Validierung (Gen 300) | layer_s@25k | hier_s | prev2 | xm0F |
+|---|---|---|---|---|---|---|---|
+| `pos_map` | layer_s@25k | Name | 0,54 | – | – | 0,46 | 0,67 |
+| `pos_map_s1` | layer_s@25k | Name | 0,53 | – | – | 0,36 | 0,71 |
+| `arch_map` | layer_s@25k, hier_s | Name | 0,46 | 0,53 | 0,38 | 0,17 | 0,70 |
+| `arch_role` | layer_s@25k, hier_s | Rolle | 0,46 | 0,54 | 0,39 | 0,18 | 0,70 |
+
+Meta-Test, Testwertung nach 20 (200) Updates, 4 Episoden je Feld:
+
+| Netz, Fall | dfa@task | grad@task | delta_head@task | rls_rf@task | `pos_map` | `pos_map_s1` | `arch_map` | `arch_role` |
+|---|---|---|---|---|---|---|---|---|
+| layer_s@25k, prev | 0,16 (0,75) | 0,79 (0,95) | 0,05 (0,16) | 0,24 | **0,66** (0,80) | **0,60** (0,63) | 0,41 (0,43) | 0,45 (0,52) |
+| layer_s@25k, prev2 | 0,20 (0,76) | 0,79 (0,97) | 0,04 (0,10) | 0,14 | 0,73 (0,90) | 0,65 (0,67) | 0,48 (0,50) | 0,53 (0,59) |
+| layer_s@25k, xmFF | 0,01 | 0,01 | 0,45 (0,71) | 0,57 | 0,58 (0,60) | **0,68** (0,69) | 0,60 (0,62) | **0,01 (0,00)** |
+| layer_s@25k, xm0F | 0,01 | 0,05 | 0,67 (0,83) | 0,62 | 0,77 (0,75) | 0,79 (0,78) | 0,79 (0,78) | 0,80 (**0,53**) |
+| hier_s, prev | 0,10 (0,60) | 0,59 (0,75) | 0,03 (0,10) | 0,13 | 0,06 (0,07) | 0,07 (0,07) | **0,07 (0,07)** | 0,07 (0,08) |
+| hier_s, prev2 | 0,06 (0,53) | 0,46 (0,66) | 0,02 (0,05) | 0,07 | 0,03 (0,04) | 0,04 (0,04) | 0,03 (0,04) | 0,03 (0,04) |
+| hier_s, xmFF | 0,01 | 0,01 | 0,24 (0,63) | 0,57 | 0,55 (0,61) | 0,62 (0,64) | 0,61 (0,63) | 0,64 (0,65), nach 1 Update 0,00 |
+| hier_s, xm0F | 0,07 | 0,04 | 0,51 (0,79) | 0,70 | 0,74 (0,76) | 0,76 (0,77) | 0,77 (0,77) | 0,77 (0,76) |
+| layer_s, prev | 0,30 (0,78) | 0,81 (0,95) | 0,02 (0,10) | 0,18 | 0,83 (0,90) | 0,67 (0,72) | 0,54 (0,58) | 0,68 (0,72) |
+| layer_s, prev2 | 0,25 (0,78) | 0,90 (0,99) | 0,01 (0,07) | 0,13 | 0,75 (0,83) | 0,72 (0,73) | 0,42 (0,44) | 0,76 (0,80) |
+| layer_s, xmFF | 0,01 | 0,01 | 0,32 (0,82) | 0,79 | 0,52 (0,54) | 0,80 (0,83) | 0,67 (0,69) | 0,34 (**0,00**) |
+| layer_s, xm0F | 0,01 | 0,04 | 0,60 (0,92) | 0,90 | 0,84 (0,87) | 0,91 (0,92) | 0,90 (0,90) | 0,90 (0,90) |
+
+- **Wiederholbar:** Die zweite Saat erreicht dieselbe Validierung und löst wieder beide ausgelassenen Aufgaben.
+  Sie gewichtet den Kopf stärker (layer_s xmFF 0,80, so gut wie rls_rf 0,79) und das Innere schwächer; auf prev
+  bleibt sie nach 20 Updates stehen (0,60 → 0,63), `pos_map` nicht (0,66 → 0,80).
+- **hier_s im Training hilft hier_s im Inneren nicht.** prev bleibt bei 0,07 (dfa 0,10, Backprop 0,59). Die
+  Validierung auf hier_s steigt bis Generation 50 auf das Kopf-Niveau und dann nicht weiter; im Inneren von
+  layer_s@25k verliert die Regel einen Teil (prev 0,41 statt 0,60–0,66). Die Kopf-Gewinne auf hier_s hat auch
+  `pos_map_s1`, das hier_s nie gesehen hat.
+- **Rollen-Kennung:** gleich gut lernbar (0,464 gegen 0,457), auf layer_s im Inneren etwas besser als
+  `arch_map`, aber auf der ausgelassenen Aufgabe xmFF instabil: auf layer_s@25k 0,00 ab dem ersten Update, auf
+  hier_s 0,00 nach dem ersten und dann Erholung auf 0,64. Ausschalt-Probe (Seeds 5–6): Mit dem inneren
+  Hebb-Term auf null erreicht `arch_role` auf layer_s@25k 0,67 statt 0,00; die Ausschaltungen am Kopf retten
+  nicht. Bei `arch_map` ändert keine Ausschaltung viel. Vermutung (ungeprüft): Die stetige Kennung lässt das
+  MLP zwischen Rollen interpolieren, und dieser Zwischenbereich kippt auf einer neuen Telemetrie-Lage.
+
 ## 6. Diskussion
 
 1. **Meta-Lernen findet eine lokale Regel, die Backprop im kurzen Lernen erreicht.** Mit 64 Beispielen und 20
@@ -274,17 +324,22 @@ Testwertung nach 20 (200) Updates, k = 64, 10 Episoden je Feld:
    Suche. Mit Kennung reicht ein geteilter Teacher und überträgt sich über die Größe des Netzes, aber nicht auf
    eine Architektur, in der dieselbe Abbildung eine andere Rolle spielt. Eine Regel für viele Architekturen
    braucht Meta-Training auf mehreren Architekturen oder eine Kennung, die die *Rolle* beschreibt (zum Beispiel
-   Verdichten oder Aufweiten, Tiefe, Aufrufe je Schritt) statt des Namens.
+   Verdichten oder Aufweiten, Tiefe, Aufrufe je Schritt) statt des Namens. Beides haben wir geprüft (5.6):
+   Keines von beiden erschließt das Innere der Hierarchie. Für diese Regel-Familie ist die Innen-Regel an die
+   Architektur gebunden; offen ist, ob es für die Hierarchie allein eine gibt.
 4. **Die Schrittweite ist eine starke Kontrolle.** Auf Aufgaben, die nur eine neue Auslese verlangen, ist
    „Kopf schnell, innen aus“ (D.2) schwer zu schlagen. Eine gelernte Regel muss sich deshalb immer gegen diese
    Kontrolle messen, sonst schreibt man einer Regel zu, was eine Schrittweite leistet.
 5. **ES-Einstellung entscheidet mit.** Mit kleinen Schritten fand ES nur eine Teillösung (D.3), mit größeren
-   beides zugleich (`map`). Je Variante gab es nur einen ES-Lauf; die Abhängigkeit von der Saat der Suche ist
-   nicht gemessen.
+   beides zugleich (`map`). Eine zweite Saat für `map` bestätigt das Ergebnis, verschiebt aber das Gewicht
+   zwischen Kopf und Innen (5.6). Für die übrigen Varianten gibt es je nur einen ES-Lauf.
+6. **Die Validierung auf den Meta-Train-Aufgaben reicht nicht.** `arch_role` und `arch_map` sind dort gleich,
+   auf einer ausgelassenen Aufgabe kippt `arch_role` aber vollständig. Ohne Meta-Test auf ausgelassenen
+   Aufgaben hätten wir die Rollen-Kennung für gleichwertig gehalten.
 
 ## 7. Grenzen
 
-- Ein ES-Lauf je Variante; Meta-Test mit 2 Startnetzen × 2 Ziehungen (4 Episoden), Übertragung mit 10.
+- Ein ES-Lauf je Variante außer `map` (zwei Saaten); Meta-Test mit 2 Startnetzen × 2 Ziehungen (4 Episoden), Übertragung mit 10.
 - Nur eine Aufgaben-Familie (numseq) mit gleichen Eingaben; nur k = 64 im Meta-Training.
 - Orakel-Gate: Wann gelernt wird, ist vorgegeben. Das Zusammenspiel mit der Bibliothek (Erkennen, Auswählen,
   Vergessen) ist nicht geprüft.
@@ -294,25 +349,29 @@ Testwertung nach 20 (200) Updates, k = 64, 10 Episoden je Feld:
 
 ## 8. Offene Fragen und nächste Schritte
 
-1. **Mehrere Architekturen im Meta-Training** (layer_s@25k und hier_s), dazu eine Rollen-Kennung statt des
-   Schichtnamens. Prüft, ob es eine Regel über Architekturen hinweg gibt.
+1. ~~Mehrere Architekturen im Meta-Training, Rollen-Kennung~~ erledigt (5.6): erschließt das Innere von hier_s
+   nicht. **Neu: ES auf hier_s allein.** Gibt es für die Hierarchie überhaupt eine Innen-Regel in dieser
+   Familie? Wenn nein, fehlt dem Teacher eine Eingabe (zum Beispiel welcher der 6 Aufrufe gerade läuft), nicht
+   Meta-Training.
 2. **Längerer Trainings-Horizont** (Fitness bis 50 Updates), damit `map` auf prev das Niveau von D.3 erreicht.
 3. **Mechanismus:** Ausschalt-Proben je Eingang des Teachers (S, ΔS, t), Darstellung in fc1 vor und nach dem
    anti-hebbischen Schub (Dekorrelation? lineare Auslesbarkeit der früheren Zahl?).
-4. **Wiederholbarkeit:** zweiter ES-Lauf mit anderer Saat für `map`.
-5. **Ferne Aufgaben (diff):** erst hier wäre die gelernte Rückprojektion (D.4) oder ein Meta-Gradient als
+4. ~~Wiederholbarkeit~~ erledigt (5.6). Offen: warum die zweite Saat auf prev nach 20 Updates stehen bleibt.
+5. **Rollen-Kennung auf xmFF:** warum der innere Hebb-Term dort kippt; Kennung diskret statt stetig.
+6. **Ferne Aufgaben (diff):** erst hier wäre die gelernte Rückprojektion (D.4) oder ein Meta-Gradient als
    Bezug sinnvoll.
-6. **Zusammenspiel mit der Bibliothek:** Gate nicht mehr als Orakel, sondern aus der Bibliothek.
+7. **Zusammenspiel mit der Bibliothek:** Gate nicht mehr als Orakel, sondern aus der Bibliothek.
 
 ## 9. Belege und Reproduktion
 
 | Was | Datei / Commit |
 |---|---|
-| Code | `netresearch/teacher.py` (D.1 df4998b; `--pos` ac1392b; `--model`, `--names` 7973cf9), `netresearch/fastweights.py`, `netresearch/adapt.py` (Fälle `lib_<name>`) |
+| Code | `netresearch/teacher.py` (D.1 df4998b; `--pos` ac1392b; `--model`, `--names` 7973cf9; `--seed`, `--models`, `--pos role` 6b2161b), `netresearch/fastweights.py`, `netresearch/adapt.py` (Fälle `lib_<name>`) |
 | D.0 Leiter | `results/phase_d_ladder.jsonl` (360 Zeilen), Job `20261123-184213-d0_ladder` |
-| ES-Läufe | `results/teacher.jsonl` (eine Zeile je Generation; letzte Zeile mit θ und bestem θ): `d2_eta`, `d3_full`, `pos_map`, `pos_blind`, `pos_split` |
+| ES-Läufe | `results/teacher.jsonl` (eine Zeile je Generation; letzte Zeile mit θ und bestem θ): `d2_eta`, `d3_full`, `pos_map`, `pos_blind`, `pos_split`, `pos_map_s1`, `arch_map`, `arch_role` |
 | Meta-Test | `results/phase_d_test.jsonl` (116 Zeilen) |
 | Übertragung | `results/phase_d_transfer.jsonl` (640 Zeilen) |
+| Zweite Saat, zwei Architekturen | `results/phase_d_arch.jsonl` (184 Zeilen) |
 | Startnetze | `data/base_nets/numseq/{layer_s@25k,layer_s,hier_s}_s{0,1,2,5,6}.pt` |
 
 Befehle:

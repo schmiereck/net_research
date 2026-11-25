@@ -1599,8 +1599,13 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
   - **Übertragung erledigt (2026-11-24, LOGBUCH; ausführlich `PHASE_D.md`):** unverändert auf layer_s (gleiche
     Architektur, 4 × Parameter, anders trainiert) lernt `map` prev so schnell wie Backprop (0,81 gegen 0,82,
     dfa 0,24); auf hier_s (Hierarchie) überträgt sich nur der Kopf-Teil, der Hebb-Term hilft dort in keiner
-    Stärke. Nächste Kandidaten (`PHASE_D.md` Abschnitt 8): Meta-Training auf mehreren Architekturen mit
-    Rollen-Kennung, längerer Horizont, Mechanismus des anti-hebbischen Schubs, zweite ES-Saat, ferne Aufgaben.
+    Stärke.
+  - **Zweite Saat und zwei Architekturen erledigt (2026-11-25, LOGBUCH; `PHASE_D.md` 5.6):** `map` ist
+    wiederholbar (Validierung 0,53 / 0,54); Meta-Training auf layer_s@25k + hier_s, mit Name oder
+    Rollen-Kennung, findet für hier_s keine Innen-Regel (prev 0,07, dfa 0,10) und kostet auf layer_s@25k
+    Innen-Leistung (0,66 → 0,41); die Rollen-Kennung kippt auf der ausgelassenen Aufgabe xmFF (innerer
+    Hebb-Term). Nächste Kandidaten (`PHASE_D.md` Abschnitt 8): ES auf hier_s allein, längerer Horizont,
+    Mechanismus des anti-hebbischen Schubs, ferne Aufgaben.
 
 **Phase E – Teacher liest Gewichte (Stufe 2)**
 - Zusätzlich eine Zusammenfassung des Moduls selbst (Weight-Space-Encoder, permutationsinvariant) und ein

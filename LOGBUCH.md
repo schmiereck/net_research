@@ -4343,28 +4343,111 @@ gegen `map` 0,46); D.3 überträgt sich auf layer_s schwächer als `map` (prev 0
 Skript der Auswertung (Mittel über `runs` je Netz, Fall, k, Regel). Ausführliche Darstellung der ganzen
 Phase D: `PHASE_D.md`.
 
-## Laufend / offen
+## 2026-11-25 — Phase D, zweite ES-Saat und Meta-Training auf zwei Architekturen: „beides zugleich“ ist wiederholbar; mit hier_s im Training findet ES dort trotzdem keine Innen-Regel und verliert sie teilweise auf layer_s@25k; die Rollen-Kennung ist gleich gut lernbar, aber auf einer ausgelassenen Aufgabe instabil
 
-- Phase D, zweite ES-Saat und Meta-Training auf zwei Architekturen (Auftrag Nutzer 2026-11-24, `PHASE_D.md`
-  Abschnitt 8): `teacher.py run --seed`, `--models`, `--pos role` (Commit nach diesem Eintrag; Lauf mit einem
-  Netz bitgleich zum alten Code geprüft, alle Varianten bei Start = dfa@task). `role` ersetzt die
-  Schicht-Kennung durch eine Beschreibung der Rolle: [Kopf ja / nein, log2(n_out / n_in), log2(Aufrufe der
-  Abbildung je Update) / 2]; layer_s@25k fc1 / fc2 / Kopf [0, −1,32, 1] / [0, −1, 1] / [1, −1,70, 0], hier_s
-  [0, −1, 1,29] / [0, +1, 1,29] / [1, −2,88, 0]; die drei Schrittweiten bleiben je Name. Drei Läufe, je 300
-  Generationen, σ 0,1, lr 0,05, Meta-Train-Aufgaben und Seeds 0–2 wie bisher: (A) `pos_map_s1` = `pos_map` mit
-  ES-Saat 1, nur layer_s@25k; (B) `arch_map` Kennung wie `map`, Episoden aus layer_s@25k und hier_s; (C)
-  `arch_role` dasselbe mit Rollen-Kennung. Worker (6 Prozesse, nacheinander, je etwa 2 h) ->
-  `results/teacher.jsonl`; danach Meta-Test auf Seeds 5–6 (prev, xmFF, k = 64) auf layer_s@25k, hier_s und
-  layer_s (nie im Training). Bezug: `pos_map` Validierung 0,54; Meta-Test layer_s@25k prev / xmFF 0,66 / 0,58
-  nach 20 Updates; hier_s prev dfa 0,14, grad 0,56, `pos_map` 0,06.
-  Einschränkung vorab: Eine dritte Architektur mit anderer Rollen-Verteilung gibt es unter den festgelegten
-  numseq-Startnetzen nicht; ob `role` auf ungesehene Architekturen besser überträgt als `map`, lässt sich hier
-  nicht prüfen, nur ob die Rollen-Kennung ebenso gut lernbar ist.
-  **Vorhersage vor dem Lauf (2026-11-24):** (1) Die zweite Saat bestätigt „beides zugleich“: `pos_map_s1`
-  Validierung ≥ 0,45 und Meta-Test layer_s@25k prev ≥ 0,50 und xmFF ≥ 0,45 nach 20 Updates. (2) Mit hier_s im
-  Training lernt die Regel auch dort innen: `arch_map` Meta-Test hier_s prev ≥ 0,25 nach 20 Updates (über dfa
-  0,14) bei layer_s@25k prev ≥ 0,50. (3) Die Rollen-Kennung ist ebenso gut lernbar: `arch_role` und `arch_map`
-  liegen in der Validierung höchstens 0,03 auseinander.
+**Frage.** (1) Hängt das Ergebnis „eine Regel für Kopf- und Innen-Aufgaben“ (`pos_map`) an der Saat der Suche?
+(2) Lernt eine Regel, die auf layer_s@25k *und* hier_s meta-trainiert wird, auch auf hier_s im Inneren? (3) Ist
+eine Kennung, die die Rolle der Schicht beschreibt statt ihren Namen, ebenso gut lernbar?
+
+**Gemacht.** ES-Jobs `20261124-091813-pos_map_s1`, `-091814-arch_map`, `-091814-arch_role` (Commit 6b2161b),
+Worker mit 6 Prozessen, nacheinander; Laufzeit 3,8 h (`pos_map_s1`) und je etwa 8 h für die beiden Läufe mit
+hier_s (etwa 100 s je Generation, hier_s ist viermal so groß und ruft fc1 / fc2 6-mal je Update auf). Meta-Test
+auf den Worker-Jobs `20261125-062731-ev_arch_layer_s25k`, `-062732-ev_arch_hier_s`, `-062733-ev_arch_layer_s`
+(Fälle prev, prev2, xmFF, xm0F; Seeds 5–6, je 2 Ziehungen, k = 64), dazu für layer_s@25k die fehlenden
+Bezugswerte auf prev2 / xm0F (`-062741-ev_base_l25k`, `-062742-ev_pm_l25k`). Ein erster Satz Eval-Jobs ist
+an einem Fehler beim Abschicken gescheitert (Befehl `run` statt `eval`, Argumentfehler nach Sekunden) und
+wurde unverändert neu abgeschickt. Danach eine lokale Ausschalt-Probe zu `arch_role` auf xmFF (Skript im
+Scratchpad). Vorhersage vor dem Lauf (wörtlich aus „Laufend / offen“):
+
+> - Phase D, zweite ES-Saat und Meta-Training auf zwei Architekturen (Auftrag Nutzer 2026-11-24, `PHASE_D.md`
+>   Abschnitt 8): `teacher.py run --seed`, `--models`, `--pos role` (Commit nach diesem Eintrag; Lauf mit einem
+>   Netz bitgleich zum alten Code geprüft, alle Varianten bei Start = dfa@task). `role` ersetzt die
+>   Schicht-Kennung durch eine Beschreibung der Rolle: [Kopf ja / nein, log2(n_out / n_in), log2(Aufrufe der
+>   Abbildung je Update) / 2]; layer_s@25k fc1 / fc2 / Kopf [0, −1,32, 1] / [0, −1, 1] / [1, −1,70, 0], hier_s
+>   [0, −1, 1,29] / [0, +1, 1,29] / [1, −2,88, 0]; die drei Schrittweiten bleiben je Name. Drei Läufe, je 300
+>   Generationen, σ 0,1, lr 0,05, Meta-Train-Aufgaben und Seeds 0–2 wie bisher: (A) `pos_map_s1` = `pos_map` mit
+>   ES-Saat 1, nur layer_s@25k; (B) `arch_map` Kennung wie `map`, Episoden aus layer_s@25k und hier_s; (C)
+>   `arch_role` dasselbe mit Rollen-Kennung. Worker (6 Prozesse, nacheinander, je etwa 2 h) ->
+>   `results/teacher.jsonl`; danach Meta-Test auf Seeds 5–6 (prev, xmFF, k = 64) auf layer_s@25k, hier_s und
+>   layer_s (nie im Training). Bezug: `pos_map` Validierung 0,54; Meta-Test layer_s@25k prev / xmFF 0,66 / 0,58
+>   nach 20 Updates; hier_s prev dfa 0,14, grad 0,56, `pos_map` 0,06.
+>   Einschränkung vorab: Eine dritte Architektur mit anderer Rollen-Verteilung gibt es unter den festgelegten
+>   numseq-Startnetzen nicht; ob `role` auf ungesehene Architekturen besser überträgt als `map`, lässt sich hier
+>   nicht prüfen, nur ob die Rollen-Kennung ebenso gut lernbar ist.
+>   **Vorhersage vor dem Lauf (2026-11-24):** (1) Die zweite Saat bestätigt „beides zugleich“: `pos_map_s1`
+>   Validierung ≥ 0,45 und Meta-Test layer_s@25k prev ≥ 0,50 und xmFF ≥ 0,45 nach 20 Updates. (2) Mit hier_s im
+>   Training lernt die Regel auch dort innen: `arch_map` Meta-Test hier_s prev ≥ 0,25 nach 20 Updates (über dfa
+>   0,14) bei layer_s@25k prev ≥ 0,50. (3) Die Rollen-Kennung ist ebenso gut lernbar: `arch_role` und `arch_map`
+>   liegen in der Validierung höchstens 0,03 auseinander.
+
+**Ergebnis.** Validierung auf den Meta-Train-Aufgaben (Seeds 0–2, je 2 feste Ziehungen):
+
+| Lauf | Netze im Training | Kennung | Validierung (Gen 300) | layer_s@25k | hier_s | prev2 | xm0F |
+|---|---|---|---|---|---|---|---|
+| `pos_map` | layer_s@25k | Name | 0,54 | – | – | 0,46 | 0,67 |
+| `pos_map_s1` | layer_s@25k | Name | 0,53 | – | – | 0,36 | 0,71 |
+| `arch_map` | layer_s@25k, hier_s | Name | 0,46 | 0,53 | 0,38 | 0,17 | 0,70 |
+| `arch_role` | layer_s@25k, hier_s | Rolle | 0,46 | 0,54 | 0,39 | 0,18 | 0,70 |
+
+Bei `arch_map` / `arch_role` steigt die Validierung auf hier_s schon bis Generation 50 auf 0,36 und bleibt dann
+bei 0,38; der Anstieg auf layer_s@25k kommt erst ab Generation 70.
+
+Meta-Test: Testwertung nach 20 Updates (in Klammern nach 200), Mittel über 4 Episoden (Seeds 5–6 × 2 Ziehungen):
+
+| Netz, Fall | dfa@task | grad@task | delta_head@task | rls_rf@task | `pos_map` | `pos_map_s1` | `arch_map` | `arch_role` |
+|---|---|---|---|---|---|---|---|---|
+| layer_s@25k, prev | 0,16 (0,75) | 0,79 (0,95) | 0,05 (0,16) | 0,24 | **0,66** (0,80) | **0,60** (0,63) | 0,41 (0,43) | 0,45 (0,52) |
+| layer_s@25k, prev2 | 0,20 (0,76) | 0,79 (0,97) | 0,04 (0,10) | 0,14 | 0,73 (0,90) | 0,65 (0,67) | 0,48 (0,50) | 0,53 (0,59) |
+| layer_s@25k, xmFF | 0,01 | 0,01 | 0,45 (0,71) | 0,57 | 0,58 (0,60) | **0,68** (0,69) | 0,60 (0,62) | **0,01 (0,00)** |
+| layer_s@25k, xm0F | 0,01 | 0,05 | 0,67 (0,83) | 0,62 | 0,77 (0,75) | 0,79 (0,78) | 0,79 (0,78) | 0,80 (**0,53**) |
+| hier_s, prev | 0,10 (0,60) | 0,59 (0,75) | 0,03 (0,10) | 0,13 | 0,06 (0,07) | 0,07 (0,07) | **0,07 (0,07)** | 0,07 (0,08) |
+| hier_s, prev2 | 0,06 (0,53) | 0,46 (0,66) | 0,02 (0,05) | 0,07 | 0,03 (0,04) | 0,04 (0,04) | 0,03 (0,04) | 0,03 (0,04) |
+| hier_s, xmFF | 0,01 | 0,01 | 0,24 (0,63) | 0,57 | 0,55 (0,61) | 0,62 (0,64) | 0,61 (0,63) | 0,64 (0,65), nach 1 Update 0,00 |
+| hier_s, xm0F | 0,07 | 0,04 | 0,51 (0,79) | 0,70 | 0,74 (0,76) | 0,76 (0,77) | 0,77 (0,77) | 0,77 (0,76) |
+| layer_s, prev | 0,30 (0,78) | 0,81 (0,95) | 0,02 (0,10) | 0,18 | 0,83 (0,90) | 0,67 (0,72) | 0,54 (0,58) | 0,68 (0,72) |
+| layer_s, prev2 | 0,25 (0,78) | 0,90 (0,99) | 0,01 (0,07) | 0,13 | 0,75 (0,83) | 0,72 (0,73) | 0,42 (0,44) | 0,76 (0,80) |
+| layer_s, xmFF | 0,01 | 0,01 | 0,32 (0,82) | 0,79 | 0,52 (0,54) | 0,80 (0,83) | 0,67 (0,69) | 0,34 (**0,00**) |
+| layer_s, xm0F | 0,01 | 0,04 | 0,60 (0,92) | 0,90 | 0,84 (0,87) | 0,91 (0,92) | 0,90 (0,90) | 0,90 (0,90) |
+
+Probe zu `arch_role` auf xmFF (lokal, Seeds 5–6, je Ziehung 0, Testwertung nach 1 / 20 Updates): vollständig
+layer_s@25k 0,00 / 0,00; Hebb-Term am Kopf auf null 0,00 / 0,00; Fehler-Faktor am Kopf auf null 0,01 / 0,27;
+**Hebb-Term innen (fc1, fc2) auf null 0,00 / 0,67**. hier_s vollständig 0,00 / 0,64, Hebb innen auf null
+0,00 / 0,65. Bei `arch_map` ändert keine dieser Ausschaltungen viel (layer_s@25k 0,45 / 0,63, Hebb innen auf
+null 0,49 / 0,65). Auf xm0F (im Meta-Training) verhalten sich beide Regeln unauffällig (0,80 / 0,80).
+
+**Vergleich mit der Vorhersage.** (1) Getroffen: `pos_map_s1` Validierung 0,53 (≥ 0,45), Meta-Test layer_s@25k
+prev 0,60 (≥ 0,50), xmFF 0,68 (≥ 0,45). (2) Verfehlt: `arch_map` auf hier_s prev 0,07 (gefordert ≥ 0,25, dfa
+0,10), und auf layer_s@25k prev 0,41 (gefordert ≥ 0,50). (3) Getroffen: Validierung `arch_role` 0,464,
+`arch_map` 0,457 (Abstand 0,007). Bilanz: 2 getroffen, 1 verfehlt.
+
+**Schluss.** (a) Das Ergebnis „beides zugleich“ ist wiederholbar: Eine zweite Suche landet bei derselben
+Validierung (0,53 gegen 0,54) und löst wieder beide ausgelassenen Aufgaben. Die Gewichtung zwischen Kopf und
+Innen ist aber eine Sache der Saat: `pos_map_s1` ist auf den Kopf-Aufgaben besser (layer_s@25k xmFF 0,68 gegen
+0,58; layer_s xmFF 0,80 gegen 0,52, so gut wie rls_rf), im Inneren schwächer und bleibt dort nach 20 Updates
+stehen (prev 0,60 → 0,63 nach 200, `pos_map` 0,66 → 0,80). (b) hier_s im Meta-Training hilft auf hier_s im
+Inneren nicht: prev bleibt bei allen vier Regeln bei 0,07 (dfa 0,10, Backprop 0,59). ES gibt das Innere von
+hier_s schon früh auf und zahlt dafür im Inneren von layer_s@25k (prev 0,66 / 0,60 → 0,41 / 0,45). Innerhalb
+dieser Regel-Familie (lokale Telemetrie, Fehler-Faktor, Hebb-Term, Schrittweite je Abbildung) gibt es für beide
+Architekturen offenbar keine gemeinsame Innen-Regel, oder ES findet sie in 300 Generationen nicht. Am Kopf
+ändert das Training auf hier_s nichts Messbares: Die Gewinne auf hier_s xmFF / xm0F hat auch `pos_map_s1`, das
+hier_s nie gesehen hat. (c) Die Rollen-Kennung ist auf den Meta-Train-Aufgaben gleich gut lernbar, auf dem
+breiteren layer_s im Inneren etwas besser als `arch_map` (prev 0,68 gegen 0,54; 4 Episoden, `arch_map` mit großer
+Spanne 0,17–0,72). Sie hat aber einen neuen Fehler, den die Validierung nicht zeigt: Auf der ausgelassenen
+Aufgabe xmFF fällt sie auf layer_s@25k schon nach dem ersten Update auf 0,00 und bleibt dort; auf hier_s erholt
+sie sich nach dem ersten Update. Die Probe verortet das im inneren Hebb-Term (auf null gesetzt: 0,00 → 0,67).
+Vermutung, nicht geprüft: Die Rollen-Kennung ist stetig (Werte bis |2,88|), und das MLP interpoliert zwischen
+den Rollen auf eine Weise, die auf einer neuen Telemetrie-Lage kippt; mit dem Namen als One-hot gibt es diese
+Zwischenwerte nicht. (d) Damit ist die Antwort auf die Frage aus der Positions-Ablation vorläufig: Für ein
+Netz derselben Architektur reicht ein geteilter Teacher mit Namen der Schicht. Für eine zweite Architektur
+reicht weder mehr Meta-Training noch eine Rollen-Kennung; das Innere der Hierarchie bleibt für diese Regel-Familie
+unerreicht. Die saubere nächste Frage ist, ob ES auf hier_s *allein* überhaupt eine Innen-Regel findet.
+
+**Belege.** `results/teacher.jsonl` (Zeilen `pos_map_s1`, `arch_map`, `arch_role`; je Generation, Validierung je
+Fall und je Netz, letzte Zeile mit θ und bestem θ), `results/phase_d_arch.jsonl` (184 Zeilen), Bezugswerte aus
+`results/phase_d_test.jsonl` und `results/phase_d_transfer.jsonl` (Seeds 5–6). Ausführlich: `PHASE_D.md`
+Abschnitt 5.6.
+
+## Laufend / offen
 
 - Noch in Bits: `*_parts` (die Anpassungs-Studien servo / robot sind seit 2026-11-23 umgestellt); nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

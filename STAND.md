@@ -416,5 +416,7 @@ Erfahrungen, die in die Pipeline gehören:
   xmFF 0,58 nach 20 Updates); ohne Kennung scheitert er. Der Innen-Gewinn kommt aus einem Hebb-Term mit
   globalem Modulator, nicht aus dem rückprojizierten Fehler. Unverändert überträgt sich die Regel auf ein
   viermal größeres Netz derselben Architektur (prev 0,81, Backprop 0,82), auf die Hierarchie hier_s nur am
-  Kopf. Ausführlich: `PHASE_D.md`.
+  Kopf. Eine zweite ES-Saat bestätigt das Ergebnis; Meta-Training auf beiden Architekturen (mit Name oder
+  Rollen-Kennung der Schicht) erschließt das Innere der Hierarchie nicht und kostet Innen-Leistung auf dem
+  ersten Netz. Ausführlich: `PHASE_D.md`.
 - Noch nicht begonnen: Weltmodell, Reinforcement Learning.
