@@ -2,7 +2,7 @@
 
 Stand 2026-11-25. Ausführliche Darstellung als Grundlage für das Ergebnis-Papier. Die knappen, datierten
 Einträge mit den Vorhersagen vor jedem Lauf stehen im `LOGBUCH.md` (2026-11-23 Vorarbeit 2, D.0, D.2 / D.3 /
-D.5; 2026-11-24 Position im Netz, Übertragung; 2026-11-25 zweite Saat und zwei Architekturen). Das Konzept steht in `PLAN_TRAINER.md`, Phase D.
+D.5; 2026-11-24 Position im Netz, Übertragung; 2026-11-25 zweite Saat und zwei Architekturen, ES auf hier_s allein). Das Konzept steht in `PLAN_TRAINER.md`, Phase D.
 
 ## 1. Kurzfassung
 
@@ -33,7 +33,8 @@ Ergebnisse:
    so schnell wie Backprop (0,81 gegen 0,82; dfa 0,24). Auf eine andere Architektur (Hierarchie) überträgt sich
    nur der Teil am Ausgang; der Innen-Teil hilft dort in keiner Stärke. Auch Meta-Training auf beiden
    Architekturen, mit Schicht-Name oder mit einer Kennung der Rolle, findet für die Hierarchie keine Innen-Regel
-   (0,07, dfa 0,10) und kostet auf dem ersten Netz einen Teil des Innen-Gewinns (0,66 → 0,41).
+   (0,07, dfa 0,10) und kostet auf dem ersten Netz einen Teil des Innen-Gewinns (0,66 → 0,41). Selbst eine
+   Suche allein auf der Hierarchie findet dort keine Innen-Regel (0,13, Backprop 0,59).
 6. **Wiederholbarkeit:** Eine zweite ES-Suche mit anderer Saat findet wieder eine Regel für beide
    Aufgabenarten (Validierung 0,53 gegen 0,54); die Gewichtung zwischen Kopf und Innen hängt von der Saat ab.
 7. **Grenze:** Eine fernere Aufgabe (Differenz zweier Zahlen) lernt keine gefundene Regel; nur Backprop.
@@ -309,6 +310,34 @@ Meta-Test, Testwertung nach 20 (200) Updates, 4 Episoden je Feld:
   nicht. Bei `arch_map` ändert keine Ausschaltung viel. Vermutung (ungeprüft): Die stetige Kennung lässt das
   MLP zwischen Rollen interpolieren, und dieser Zwischenbereich kippt auf einer neuen Telemetrie-Lage.
 
+### 5.7 ES allein auf der Hierarchie
+
+`hier_map`: wie `map`, aber alle Episoden aus hier_s (300 Generationen). Validierung 0,41; prev2 bleibt über
+alle Generationen bei 0,03–0,05. Meta-Test, Testwertung nach 20 (200) Updates, 4 Episoden je Feld:
+
+| Netz, Fall | dfa@task | grad@task | delta_head@task | rls_rf@task | `arch_map` | `hier_map` |
+|---|---|---|---|---|---|---|
+| hier_s, prev | 0,10 (0,60) | 0,59 (0,75) | 0,03 (0,10) | 0,13 | 0,07 (0,07) | **0,13 (0,14)** |
+| hier_s, prev2 | 0,06 (0,53) | 0,46 (0,66) | 0,02 (0,05) | 0,07 | 0,03 (0,04) | 0,07 (0,08) |
+| hier_s, xmFF | 0,01 | 0,01 | 0,24 (0,63) | 0,57 | 0,61 (0,63) | **0,71 (0,71)** |
+| hier_s, xm0F | 0,07 | 0,04 | 0,51 (0,79) | 0,70 | 0,77 (0,77) | 0,78 (0,77) |
+| layer_s@25k, prev | 0,16 (0,75) | 0,79 (0,95) | 0,05 (0,16) | 0,24 | 0,41 (0,43) | 0,13 (0,51) |
+| layer_s@25k, prev2 | 0,20 (0,76) | 0,79 (0,97) | 0,04 (0,10) | 0,14 | 0,48 (0,50) | 0,03 (0,71) |
+| layer_s@25k, xmFF | 0,01 | 0,01 | 0,45 (0,71) | 0,57 | 0,60 (0,62) | **0,00 (0,01)** |
+| layer_s@25k, xm0F | 0,01 | 0,05 | 0,67 (0,83) | 0,62 | 0,79 (0,78) | 0,73 (**0,00**) |
+| layer_s, prev | 0,30 (0,78) | 0,81 (0,95) | 0,02 (0,10) | 0,18 | 0,54 (0,58) | 0,07 (0,55) |
+| layer_s, prev2 | 0,25 (0,78) | 0,90 (0,99) | 0,01 (0,07) | 0,13 | 0,42 (0,44) | 0,04 (0,57) |
+| layer_s, xmFF | 0,01 | 0,01 | 0,32 (0,82) | 0,79 | 0,67 (0,69) | **0,01 (0,00)** |
+| layer_s, xm0F | 0,01 | 0,04 | 0,60 (0,92) | 0,90 | 0,90 (0,90) | 0,93 (0,94) |
+
+- **Keine Innen-Regel für die Hierarchie**, auch ohne Zielkonflikt: prev 0,13 knapp über dfa 0,10, weit unter
+  Backprop 0,59. Es liegt also nicht am gemischten Meta-Training, sondern an der Regel-Familie. Kandidat für
+  die fehlende Eingabe (ungeprüft): der Index des Aufrufs (fc1 / fc2 laufen in hier_s 6-mal je Update, die
+  Telemetrie fasst diese Aufrufe je Abbildung zusammen) oder ein Fehler je Aufruf.
+- **Kopf:** auf hier_s die beste Regel bisher (xmFF 0,71 gegen rls_rf 0,57).
+- **Rückwärts keine Übertragung, auch nicht am Kopf:** Auf layer_s@25k und layer_s fällt xmFF auf 0,00–0,01,
+  auf layer_s@25k kippt xm0F nach 20 Updates. Die Bindung an die Architektur gilt in beide Richtungen.
+
 ## 6. Diskussion
 
 1. **Meta-Lernen findet eine lokale Regel, die Backprop im kurzen Lernen erreicht.** Mit 64 Beispielen und 20
@@ -325,8 +354,10 @@ Meta-Test, Testwertung nach 20 (200) Updates, 4 Episoden je Feld:
    eine Architektur, in der dieselbe Abbildung eine andere Rolle spielt. Eine Regel für viele Architekturen
    braucht Meta-Training auf mehreren Architekturen oder eine Kennung, die die *Rolle* beschreibt (zum Beispiel
    Verdichten oder Aufweiten, Tiefe, Aufrufe je Schritt) statt des Namens. Beides haben wir geprüft (5.6):
-   Keines von beiden erschließt das Innere der Hierarchie. Für diese Regel-Familie ist die Innen-Regel an die
-   Architektur gebunden; offen ist, ob es für die Hierarchie allein eine gibt.
+   Keines von beiden erschließt das Innere der Hierarchie, und auch eine Suche allein auf der Hierarchie findet
+   dort keine Innen-Regel (5.7). Für diese Regel-Familie ist die Innen-Regel an die Architektur gebunden, und
+   für die Hierarchie gibt es in ihr keine. Die Familie beschreibt eine Abbildung, nicht ihre Aufrufe; in der
+   Hierarchie wird dieselbe Abbildung je Update 6-mal in verschiedenen Zusammenhängen benutzt.
 4. **Die Schrittweite ist eine starke Kontrolle.** Auf Aufgaben, die nur eine neue Auslese verlangen, ist
    „Kopf schnell, innen aus“ (D.2) schwer zu schlagen. Eine gelernte Regel muss sich deshalb immer gegen diese
    Kontrolle messen, sonst schreibt man einer Regel zu, was eine Schrittweite leistet.
@@ -350,9 +381,9 @@ Meta-Test, Testwertung nach 20 (200) Updates, 4 Episoden je Feld:
 ## 8. Offene Fragen und nächste Schritte
 
 1. ~~Mehrere Architekturen im Meta-Training, Rollen-Kennung~~ erledigt (5.6): erschließt das Innere von hier_s
-   nicht. **Neu: ES auf hier_s allein.** Gibt es für die Hierarchie überhaupt eine Innen-Regel in dieser
-   Familie? Wenn nein, fehlt dem Teacher eine Eingabe (zum Beispiel welcher der 6 Aufrufe gerade läuft), nicht
-   Meta-Training.
+   nicht. ~~ES auf hier_s allein~~ erledigt (5.7): keine Innen-Regel. **Neu:** Telemetrie je Aufruf statt je
+   Abbildung (Index des Aufrufs als Eingabe des Teachers, Fehler je Aufruf) und dann ES auf hier_s. Lohnt nur,
+   wenn die Übertragung über Architekturen für das Papier zentral sein soll.
 2. **Längerer Trainings-Horizont** (Fitness bis 50 Updates), damit `map` auf prev das Niveau von D.3 erreicht.
 3. **Mechanismus:** Ausschalt-Proben je Eingang des Teachers (S, ΔS, t), Darstellung in fc1 vor und nach dem
    anti-hebbischen Schub (Dekorrelation? lineare Auslesbarkeit der früheren Zahl?).
@@ -366,12 +397,12 @@ Meta-Test, Testwertung nach 20 (200) Updates, 4 Episoden je Feld:
 
 | Was | Datei / Commit |
 |---|---|
-| Code | `netresearch/teacher.py` (D.1 df4998b; `--pos` ac1392b; `--model`, `--names` 7973cf9; `--seed`, `--models`, `--pos role` 6b2161b), `netresearch/fastweights.py`, `netresearch/adapt.py` (Fälle `lib_<name>`) |
+| Code | `netresearch/teacher.py` (D.1 df4998b; `--pos` ac1392b; `--model`, `--names` 7973cf9; `--seed`, `--models`, `--pos role` 6b2161b; Fortsetzen nach Unterbrechung d0357f2), `netresearch/fastweights.py`, `netresearch/adapt.py` (Fälle `lib_<name>`) |
 | D.0 Leiter | `results/phase_d_ladder.jsonl` (360 Zeilen), Job `20261123-184213-d0_ladder` |
-| ES-Läufe | `results/teacher.jsonl` (eine Zeile je Generation; letzte Zeile mit θ und bestem θ): `d2_eta`, `d3_full`, `pos_map`, `pos_blind`, `pos_split`, `pos_map_s1`, `arch_map`, `arch_role` |
+| ES-Läufe | `results/teacher.jsonl` (eine Zeile je Generation; letzte Zeile mit θ und bestem θ): `d2_eta`, `d3_full`, `pos_map`, `pos_blind`, `pos_split`, `pos_map_s1`, `arch_map`, `arch_role`, `hier_map` |
 | Meta-Test | `results/phase_d_test.jsonl` (116 Zeilen) |
 | Übertragung | `results/phase_d_transfer.jsonl` (640 Zeilen) |
-| Zweite Saat, zwei Architekturen | `results/phase_d_arch.jsonl` (184 Zeilen) |
+| Zweite Saat, zwei Architekturen | `results/phase_d_arch.jsonl` (232 Zeilen) |
 | Startnetze | `data/base_nets/numseq/{layer_s@25k,layer_s,hier_s}_s{0,1,2,5,6}.pt` |
 
 Befehle:

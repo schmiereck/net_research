@@ -4447,23 +4447,75 @@ Fall und je Netz, letzte Zeile mit θ und bestem θ), `results/phase_d_arch.json
 `results/phase_d_test.jsonl` und `results/phase_d_transfer.jsonl` (Seeds 5–6). Ausführlich: `PHASE_D.md`
 Abschnitt 5.6.
 
-## Laufend / offen
+## 2026-11-25 — Phase D, ES auf hier_s allein: auch ohne Zielkonflikt findet ES für die Hierarchie keine Innen-Regel; am Kopf ist die Regel dort die beste bisher, überträgt sich aber nicht zurück auf layer_s
 
-- Phase D, ES auf hier_s allein (Auftrag Nutzer 2026-11-25, `PHASE_D.md` Abschnitt 8, Punkt 1): Gibt es für
-  die Hierarchie in dieser Regel-Familie überhaupt eine Innen-Regel? Lauf `hier_map`: `teacher.py run --pos map
-  --models hier_s`, 300 Generationen, σ 0,1, lr 0,05, ES-Saat 0, Meta-Train-Aufgaben und Seeds 0–2 wie
-  bisher, Episoden nur aus hier_s. Neu im Code (Commit nach diesem Eintrag): ein unterbrochener ES-Lauf setzt
-  nach einem Neustart des Workers am letzten Prüfpunkt (alle 10 Generationen) fort; geprüft bitgleich zu einem
-  ununterbrochenen Lauf (20 Generationen, Unterbrechung bei 10). Worker mit 6 Prozessen, etwa 150 s je
-  Generation, also etwa 13 h; nach einem Neustart mit 14 Prozessen schneller. Danach Meta-Test auf Seeds 5–6
-  (prev, prev2, xmFF, xm0F, k = 64) auf hier_s, layer_s@25k und layer_s. Bezug hier_s nach 20 Updates:
-  prev dfa 0,10, grad 0,59, rls_rf 0,13, `arch_map` 0,07; xmFF delta_head 0,24, rls_rf 0,57, `arch_map` 0,61;
-  xm0F delta_head 0,51, rls_rf 0,70, `arch_map` 0,77; Validierung `arch_map` auf hier_s 0,38.
-  **Vorhersage vor dem Lauf (2026-11-25):** (1) Auch allein auf hier_s findet ES keine Innen-Regel: Meta-Test
-  hier_s prev nach 20 Updates ≤ 0,15 (dfa 0,10, Backprop 0,59). (2) Die Kopf-Aufgaben lernt die Regel wie
-  bisher: hier_s xmFF ≥ 0,55 und xm0F ≥ 0,70 nach 20 Updates. (3) Validierung (nur hier_s) am Ende zwischen
-  0,35 und 0,45. Trifft (1) nicht zu, ist die Hierarchie für diese Familie erreichbar und das Problem in
-  `arch_map` war der Zielkonflikt zwischen den Architekturen; trifft (1) zu, fehlt dem Teacher eine Eingabe.
+**Frage.** Gibt es für die Hierarchie hier_s in der bisherigen Regel-Familie überhaupt eine Innen-Regel, wenn ES
+nur auf hier_s sucht (kein Zielkonflikt mit layer_s@25k wie in `arch_map`)?
+
+**Gemacht.** ES-Job `20261125-075342-hier_map` (Commit d0357f2), Worker zuerst mit 6 Prozessen, ab 17:11 nach
+Neustart mit 14 Prozessen; der Lauf setzte am Prüfpunkt Generation 180 fort (`resume hier_map at gen 180` im
+Log; 301 Zeilen, jede Generation genau einmal). Rechenzeit 265 min nach dem Neustart, davor etwa 9 h (etwa
+190 s je Generation mit 6 Prozessen). Meta-Test: `20261125-214404-ev_hier_hier_s`, `-214405-ev_hier_layer_s25k`,
+`-214406-ev_hier_layer_s` (Fälle prev, prev2, xmFF, xm0F; Seeds 5–6, je 2 Ziehungen, k = 64). Vorhersage vor dem
+Lauf (wörtlich aus „Laufend / offen“):
+
+> - Phase D, ES auf hier_s allein (Auftrag Nutzer 2026-11-25, `PHASE_D.md` Abschnitt 8, Punkt 1): Gibt es für
+>   die Hierarchie in dieser Regel-Familie überhaupt eine Innen-Regel? Lauf `hier_map`: `teacher.py run --pos map
+>   --models hier_s`, 300 Generationen, σ 0,1, lr 0,05, ES-Saat 0, Meta-Train-Aufgaben und Seeds 0–2 wie
+>   bisher, Episoden nur aus hier_s. Neu im Code (Commit nach diesem Eintrag): ein unterbrochener ES-Lauf setzt
+>   nach einem Neustart des Workers am letzten Prüfpunkt (alle 10 Generationen) fort; geprüft bitgleich zu einem
+>   ununterbrochenen Lauf (20 Generationen, Unterbrechung bei 10). Worker mit 6 Prozessen, etwa 150 s je
+>   Generation, also etwa 13 h; nach einem Neustart mit 14 Prozessen schneller. Danach Meta-Test auf Seeds 5–6
+>   (prev, prev2, xmFF, xm0F, k = 64) auf hier_s, layer_s@25k und layer_s. Bezug hier_s nach 20 Updates:
+>   prev dfa 0,10, grad 0,59, rls_rf 0,13, `arch_map` 0,07; xmFF delta_head 0,24, rls_rf 0,57, `arch_map` 0,61;
+>   xm0F delta_head 0,51, rls_rf 0,70, `arch_map` 0,77; Validierung `arch_map` auf hier_s 0,38.
+>   **Vorhersage vor dem Lauf (2026-11-25):** (1) Auch allein auf hier_s findet ES keine Innen-Regel: Meta-Test
+>   hier_s prev nach 20 Updates ≤ 0,15 (dfa 0,10, Backprop 0,59). (2) Die Kopf-Aufgaben lernt die Regel wie
+>   bisher: hier_s xmFF ≥ 0,55 und xm0F ≥ 0,70 nach 20 Updates. (3) Validierung (nur hier_s) am Ende zwischen
+>   0,35 und 0,45. Trifft (1) nicht zu, ist die Hierarchie für diese Familie erreichbar und das Problem in
+>   `arch_map` war der Zielkonflikt zwischen den Architekturen; trifft (1) zu, fehlt dem Teacher eine Eingabe.
+
+**Ergebnis.** Validierung (nur hier_s, Seeds 0–2): Generation 40 0,36, danach langsam auf 0,41 bei Generation
+300 (prev2 durchweg 0,03–0,05, prev3 0,02–0,03; xm0F 0,62 → 0,69, xmA5 0,66, xm33 0,60). Meta-Test, Testwertung
+nach 20 (200) Updates, 4 Episoden je Feld:
+
+| Netz, Fall | dfa@task | grad@task | delta_head@task | rls_rf@task | `arch_map` | `hier_map` |
+|---|---|---|---|---|---|---|
+| hier_s, prev | 0,10 (0,60) | 0,59 (0,75) | 0,03 (0,10) | 0,13 | 0,07 (0,07) | **0,13 (0,14)** |
+| hier_s, prev2 | 0,06 (0,53) | 0,46 (0,66) | 0,02 (0,05) | 0,07 | 0,03 (0,04) | 0,07 (0,08) |
+| hier_s, xmFF | 0,01 | 0,01 | 0,24 (0,63) | 0,57 | 0,61 (0,63) | **0,71 (0,71)** |
+| hier_s, xm0F | 0,07 | 0,04 | 0,51 (0,79) | 0,70 | 0,77 (0,77) | 0,78 (0,77) |
+| layer_s@25k, prev | 0,16 (0,75) | 0,79 (0,95) | 0,05 (0,16) | 0,24 | 0,41 (0,43) | 0,13 (0,51) |
+| layer_s@25k, prev2 | 0,20 (0,76) | 0,79 (0,97) | 0,04 (0,10) | 0,14 | 0,48 (0,50) | 0,03 (0,71) |
+| layer_s@25k, xmFF | 0,01 | 0,01 | 0,45 (0,71) | 0,57 | 0,60 (0,62) | **0,00 (0,01)** |
+| layer_s@25k, xm0F | 0,01 | 0,05 | 0,67 (0,83) | 0,62 | 0,79 (0,78) | 0,73 (**0,00**) |
+| layer_s, prev | 0,30 (0,78) | 0,81 (0,95) | 0,02 (0,10) | 0,18 | 0,54 (0,58) | 0,07 (0,55) |
+| layer_s, prev2 | 0,25 (0,78) | 0,90 (0,99) | 0,01 (0,07) | 0,13 | 0,42 (0,44) | 0,04 (0,57) |
+| layer_s, xmFF | 0,01 | 0,01 | 0,32 (0,82) | 0,79 | 0,67 (0,69) | **0,01 (0,00)** |
+| layer_s, xm0F | 0,01 | 0,04 | 0,60 (0,92) | 0,90 | 0,90 (0,90) | 0,93 (0,94) |
+
+**Vergleich mit der Vorhersage.** (1) Getroffen: hier_s prev 0,13 nach 20 Updates (≤ 0,15; dfa 0,10, Backprop
+0,59). (2) Getroffen: hier_s xmFF 0,71 (≥ 0,55), xm0F 0,78 (≥ 0,70). (3) Getroffen: Validierung 0,41 (zwischen
+0,35 und 0,45). Bilanz: 3 getroffen.
+
+**Schluss.** (a) Auch ohne Zielkonflikt findet ES für das Innere der Hierarchie keine Regel: prev 0,13 liegt
+knapp über dfa (0,10), weit unter Backprop (0,59), und die Validierung auf prev2 / prev3 bewegt sich in 300
+Generationen nicht. Der Unterschied zu `arch_map` (0,07) ist nur, dass die Regel das Innere nicht mehr unter
+dfa drückt. Damit liegt es nicht am Meta-Training, sondern an der Regel-Familie: Dem Teacher fehlt für die
+Hierarchie eine Eingabe oder eine Form des Updates. Kandidaten (ungeprüft): welcher der 6 Aufrufe je Update
+gerade läuft (die Telemetrie mittelt bisher über die Aufrufe einer Abbildung), oder ein Fehler je Aufruf statt
+je Abbildung. (b) Am Kopf ist `hier_map` auf hier_s die beste Regel bisher (xmFF 0,71 gegen rls_rf 0,57 und
+`arch_map` 0,61). (c) Die Bindung an die Architektur gilt in beide Richtungen, und für `hier_map` sogar am
+Kopf: Auf layer_s@25k und layer_s fällt xmFF auf 0,00 bis 0,01, und auf layer_s@25k kippt xm0F nach 20 Updates
+(0,73 → 0,00 nach 200). `pos_map` (auf layer_s@25k gefunden) hatte seinen Kopf-Teil noch auf hier_s übertragen.
+Warum die hier_s-Regel auf den layer-Netzen instabil ist, ist nicht geprüft. (d) Zusammen mit dem Eintrag
+davor: Für eine Architektur findet ES eine Regel, die Kopf- und, bei layer_s, Innen-Aufgaben in 20 Updates
+lernt; über die Grenze der Architektur trägt höchstens der Kopf-Teil und das nur in eine Richtung.
+
+**Belege.** `results/teacher.jsonl` (Zeilen `hier_map`), `results/phase_d_arch.jsonl` (+48 Zeilen, jetzt 232),
+Bezugswerte wie im Eintrag davor. Ausführlich: `PHASE_D.md` Abschnitt 5.7.
+
+## Laufend / offen
 
 - Noch in Bits: `*_parts` (die Anpassungs-Studien servo / robot sind seit 2026-11-23 umgestellt); nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

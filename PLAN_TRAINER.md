@@ -1604,8 +1604,12 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
     wiederholbar (Validierung 0,53 / 0,54); Meta-Training auf layer_s@25k + hier_s, mit Name oder
     Rollen-Kennung, findet für hier_s keine Innen-Regel (prev 0,07, dfa 0,10) und kostet auf layer_s@25k
     Innen-Leistung (0,66 → 0,41); die Rollen-Kennung kippt auf der ausgelassenen Aufgabe xmFF (innerer
-    Hebb-Term). Nächste Kandidaten (`PHASE_D.md` Abschnitt 8): ES auf hier_s allein, längerer Horizont,
-    Mechanismus des anti-hebbischen Schubs, ferne Aufgaben.
+    Hebb-Term).
+  - **ES auf hier_s allein erledigt (2026-11-25, `PHASE_D.md` 5.7):** auch ohne Zielkonflikt keine Innen-Regel
+    für die Hierarchie (prev 0,13, dfa 0,10, Backprop 0,59); am Kopf auf hier_s die beste Regel bisher (xmFF
+    0,71), auf die layer-Netze überträgt sie sich nicht, auch am Kopf nicht. Nächste Kandidaten (`PHASE_D.md`
+    Abschnitt 8): Telemetrie je Aufruf für die Hierarchie, längerer Horizont, Mechanismus des anti-hebbischen
+    Schubs, ferne Aufgaben, Gate aus der Bibliothek.
 
 **Phase E – Teacher liest Gewichte (Stufe 2)**
 - Zusätzlich eine Zusammenfassung des Moduls selbst (Weight-Space-Encoder, permutationsinvariant) und ein
