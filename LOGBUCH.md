@@ -4517,5 +4517,24 @@ Bezugswerte wie im Eintrag davor. Ausführlich: `PHASE_D.md` Abschnitt 5.7.
 
 ## Laufend / offen
 
+- Phase D, Telemetrie je Aufruf auf hier_s (Auftrag Nutzer 2026-11-25, `PHASE_D.md` Abschnitt 8, Punkt 1).
+  Befund vorab beim Bau: In beiden Netzen sind die Aufrufe einer Abbildung die Schritte der Rekurrenz
+  (layer_s@25k 4 × fc1 / fc2, hier_s 6 ×), und alle Aufrufe einer Abbildung bekamen bisher *denselben*
+  rückprojizierten Fehler d = e B (eine Zufallsmatrix je Abbildung, wie bei `dfa`); der Teacher konnte die
+  Aufrufe nur über Aktivität und Eingang unterscheiden. Neue Variante `--pos call` (Commit nach diesem Eintrag):
+  wie `map`, dazu (i) der Index des Aufrufs (0 … 1) als zehnte Eingabe des Teachers (485 statt 469 Parameter)
+  und (ii) eine eigene feste Zufalls-Rückprojektion je Aufruf. Bei θ = 0 ist das dfa mit Rückprojektion je
+  Aufruf, nicht mehr bitgleich zu dfa@task (alle alten Varianten weiter bitgleich, `check`). Beide Änderungen
+  zugleich, weil nur eine Nacht Rechenzeit da ist; trägt es, folgt die Trennung. Lauf `hier_call`: `--pos call
+  --models hier_s`, 200 Generationen (Worker mit 14 Prozessen bis 7 Uhr; `hier_map` stand bei Generation 200
+  auf Validierung 0,40, prev2 0,04), sonst wie `hier_map`. Danach Meta-Test wie bei `hier_map`. Bezug hier_s
+  nach 20 Updates: prev dfa 0,10, grad 0,59, `hier_map` 0,13; xmFF `hier_map` 0,71.
+  **Vorhersage vor dem Lauf (2026-11-25):** (1) Die Telemetrie je Aufruf erschließt das Innere von hier_s
+  nicht: Meta-Test prev nach 20 Updates ≤ 0,20 und Validierung prev2 ≤ 0,10 bei Generation 200. Begründung:
+  Die fehlende Unterscheidung der Aufrufe erklärt nicht, warum schon auf layer_s@25k (auch 4 gleiche Aufrufe)
+  eine Innen-Regel gefunden wurde. (2) Die Kopf-Aufgaben bleiben wie bei `hier_map`: xmFF ≥ 0,60, xm0F ≥ 0,70
+  nach 20 Updates. (3) ES nutzt den Index des Aufrufs: Die Gewichte der zehnten Eingabe in W1 sind am Ende im
+  Betrag größer als das Mittel der übrigen sechs Kennungs- und Rundfunk-Zeilen.
+
 - Noch in Bits: `*_parts` (die Anpassungs-Studien servo / robot sind seit 2026-11-23 umgestellt); nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

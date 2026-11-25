@@ -22,7 +22,10 @@ rule" from "a better step size".
 Position in the net (--pos, ablation after D.3): "map" (default, D.3) one MLP for all maps, map one-hot in the
 input and one p per map; "blind" the same MLP without the one-hot (zeros) and one p shared by all maps, so the
 map is only visible through the telemetry itself; "split" one MLP of its own per map (three times the parameters);
-"role" the map is described by what it does instead of its name: [is head, log2(n_out / n_in), log2(calls of
+"call" (for maps called several times per forward pass, as the 6 fc1 / fc2 calls of hier_s) like "map" plus
+the index of the call (0..1) as one more input and an own fixed random feedback per call instead of one per
+map (at theta = 0 this is dfa with per-call feedback, not dfa@task); "role" the map is described by what it
+does instead of its name: [is head, log2(n_out / n_in), log2(calls of
 the map per update) / 2] in place of the one-hot (for several architectures, --models); p stays per map name.
 
 ES (outer loop): antithetic pairs, centred ranks, Adam on the mean. Fitness of a candidate: mean over the
@@ -54,12 +57,18 @@ MAPS = ["fc1", "fc2", "head"]
 N_IN, HID = 9, 16
 MLP_SHAPES = [("W1", (N_IN, HID)), ("b1", (HID,)), ("W2", (HID, HID)), ("b2", (HID,)), ("W3", (HID, 2)),
               ("b3", (2,))]
-POS = ["map", "blind", "split", "role"]
+POS = ["map", "blind", "split", "role", "call"]
+
+
+def n_in(pos="map"):
+    return N_IN + (pos == "call")
 
 
 def shapes(pos="map"):
     if pos == "split":
         return [(f"{m}.{n}", s) for m in MAPS for n, s in MLP_SHAPES] + [("p", (3,))]
+    if pos == "call":                                       # one more input: index of the call
+        return [("W1", (n_in(pos), HID))] + MLP_SHAPES[1:] + [("p", (3,))]
     return MLP_SHAPES + [("p", (3,))]
 
 
@@ -92,7 +101,7 @@ def init_theta(seed, pos="map"):
     th = torch.zeros(n_theta(pos))
     P = unpack(th, pos)
     for pre in ([f"{m}." for m in MAPS] if pos == "split" else [""]):
-        P[pre + "W1"].copy_(torch.randn(N_IN, HID, generator=g) / math.sqrt(N_IN))
+        P[pre + "W1"].copy_(torch.randn(n_in(pos), HID, generator=g) / math.sqrt(n_in(pos)))
         P[pre + "W2"].copy_(torch.randn(HID, HID, generator=g) / math.sqrt(HID))
     return th
 
@@ -134,11 +143,15 @@ class Teach(Fast):
         self.S_prev = S
         glob = torch.tensor([S, 10 * dS, self.t / self.T])
         self.t += 1
+        seen = {}
         for n, x, out in rec:
+            ci = seen[n] = seen.get(n, -1) + 1             # index of this call of map n in the forward pass
             if n == "head":
                 d, base = e, None
             else:
                 key = (n, x.shape[1], out.shape[-1])
+                if self.pos == "call":                      # own fixed random feedback per call
+                    key = key + (ci,)
                 if key not in self.B:                       # fixed random feedback, as dfa (same order, same gen)
                     self.B[key] = torch.randn(e.shape[-1], x.shape[1] * out.shape[-1], generator=self.gen) \
                         / math.sqrt(e.shape[-1])
@@ -155,9 +168,12 @@ class Teach(Fast):
                                        math.log2(n_calls) / 2])
             elif self.pos != "blind":
                 onehot[MAPS.index(n)] = 1.0
+            if self.pos == "call":
+                onehot = torch.cat([onehot, torch.tensor([ci / max(1, n_calls - 1)])])
             ty = torch.tanh(out)
             f = torch.stack([d / rms, ty, base if base is not None else torch.ones_like(d)], -1)
-            f = torch.cat([f, torch.cat([glob, onehot]).expand(*d.shape, 6)], -1)
+            g6 = torch.cat([glob, onehot])
+            f = torch.cat([f, g6.expand(*d.shape, len(g6))], -1)
             o = self.mlp(f, n)
             dd = d * (1 + o[..., 0])
             if base is not None:
