@@ -4449,5 +4449,21 @@ Abschnitt 5.6.
 
 ## Laufend / offen
 
+- Phase D, ES auf hier_s allein (Auftrag Nutzer 2026-11-25, `PHASE_D.md` Abschnitt 8, Punkt 1): Gibt es für
+  die Hierarchie in dieser Regel-Familie überhaupt eine Innen-Regel? Lauf `hier_map`: `teacher.py run --pos map
+  --models hier_s`, 300 Generationen, σ 0,1, lr 0,05, ES-Saat 0, Meta-Train-Aufgaben und Seeds 0–2 wie
+  bisher, Episoden nur aus hier_s. Neu im Code (Commit nach diesem Eintrag): ein unterbrochener ES-Lauf setzt
+  nach einem Neustart des Workers am letzten Prüfpunkt (alle 10 Generationen) fort; geprüft bitgleich zu einem
+  ununterbrochenen Lauf (20 Generationen, Unterbrechung bei 10). Worker mit 6 Prozessen, etwa 150 s je
+  Generation, also etwa 13 h; nach einem Neustart mit 14 Prozessen schneller. Danach Meta-Test auf Seeds 5–6
+  (prev, prev2, xmFF, xm0F, k = 64) auf hier_s, layer_s@25k und layer_s. Bezug hier_s nach 20 Updates:
+  prev dfa 0,10, grad 0,59, rls_rf 0,13, `arch_map` 0,07; xmFF delta_head 0,24, rls_rf 0,57, `arch_map` 0,61;
+  xm0F delta_head 0,51, rls_rf 0,70, `arch_map` 0,77; Validierung `arch_map` auf hier_s 0,38.
+  **Vorhersage vor dem Lauf (2026-11-25):** (1) Auch allein auf hier_s findet ES keine Innen-Regel: Meta-Test
+  hier_s prev nach 20 Updates ≤ 0,15 (dfa 0,10, Backprop 0,59). (2) Die Kopf-Aufgaben lernt die Regel wie
+  bisher: hier_s xmFF ≥ 0,55 und xm0F ≥ 0,70 nach 20 Updates. (3) Validierung (nur hier_s) am Ende zwischen
+  0,35 und 0,45. Trifft (1) nicht zu, ist die Hierarchie für diese Familie erreichbar und das Problem in
+  `arch_map` war der Zielkonflikt zwischen den Architekturen; trifft (1) zu, fehlt dem Teacher eine Eingabe.
+
 - Noch in Bits: `*_parts` (die Anpassungs-Studien servo / robot sind seit 2026-11-23 umgestellt); nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

@@ -232,9 +232,15 @@ def run(name, mode, cases, seeds, gens, pop, n_ep, sigma, lr, workers, out, seed
     m, v = torch.zeros(nt), torch.zeros(nt)
     val = [(c, md, s, 10_000 + i) for c in cases for md in models for s in seeds for i in range(2)]   # fixed
     best = (-1.0, theta.clone())
-    t0 = time.time()
+    g0, t_prev = _resume_point(name, seed, pos, models, gens, out)
+    if g0:                                              # an interrupted run (worker restart): continue it exactly
+        ck = torch.load(TDIR / f"{name}.pt", weights_only=False)
+        theta, m, v, best = ck["theta"], ck["m"], ck["v"], (ck["best_val"], ck["best"])
+        rng.bit_generator.state = ck["rng"]
+        print(f"resume {name} at gen {g0}", flush=True)
+    t0 = time.time() - t_prev
     with mp.get_context("spawn").Pool(workers, initializer=_init_worker) as pool, open(out, "a") as f:
-        for g in range(gens + 1):
+        for g in range(g0, gens + 1):
             row = {"name": name, "mode": mode, "pos": pos, "gen": g, "seed": seed, "models": models}
             if g % VAL_EVERY == 0 or g == gens:
                 vf = pool.map(_fit_job, [(theta, *e, pos) for e in val])
@@ -247,7 +253,8 @@ def run(name, mode, cases, seeds, gens, pop, n_ep, sigma, lr, workers, out, seed
                 if row["val"] > best[0]:
                     best = (row["val"], theta.clone())
                 torch.save({"theta": theta, "best": best[1], "best_val": best[0], "mode": mode, "pos": pos, "gen": g,
-                            "cases": cases, "seeds": seeds, "models": models}, TDIR / f"{name}.pt")
+                            "cases": cases, "seeds": seeds, "models": models, "seed": seed, "m": m, "v": v,
+                            "rng": rng.bit_generator.state, "time": time.time() - t0}, TDIR / f"{name}.pt")
             if g == gens:
                 row.update({"theta": [round(float(x), 6) for x in theta],
                             "best": [round(float(x), 6) for x in best[1]], "best_val": best[0]})
@@ -275,6 +282,27 @@ def run(name, mode, cases, seeds, gens, pop, n_ep, sigma, lr, workers, out, seed
             print(f"gen {g:4d} fit {row['fit_mean']:.3f} (max {row['fit_max']:.3f})"
                   + (f" val {row['val']:.3f}" if "val" in row else "") + f" p {row['p']} t={row['time']:.0f}s",
                   flush=True)
+
+
+def _resume_point(name, seed, pos, models, gens, out):
+    """-> (gen, seconds so far) to resume an interrupted run from, or (0, 0). Only when the output file already
+    holds rows of this run (the worker copies them back after a restart) and its checkpoint carries the ES state
+    (Adam moments, random stream) of an unfinished search with the same settings. Rows from that generation on
+    are dropped from the output file; they are written again identically."""
+    f, o = TDIR / f"{name}.pt", Path(out)
+    if not (f.exists() and o.exists()):
+        return 0, 0.0
+    ck = torch.load(f, weights_only=False)
+    if ("rng" not in ck or ck.get("seed") != seed or ck.get("pos") != pos or ck.get("models") != list(models)
+            or not 0 < ck["gen"] < gens):
+        return 0, 0.0
+    lines = o.read_text().splitlines()
+    mine = [json.loads(ln) for ln in lines if ln.strip() and f'"name": "{name}"' in ln]
+    if not mine or "theta" in mine[-1] and mine[-1].get("gen") == gens:
+        return 0, 0.0
+    keep = [ln for ln in lines if not (ln.strip() and f'"name": "{name}"' in ln and json.loads(ln)["gen"] >= ck["gen"])]
+    o.write_text("".join(ln + "\n" for ln in keep))
+    return ck["gen"], float(ck.get("time", 0.0))
 
 
 def load_rule(name, which="best"):
