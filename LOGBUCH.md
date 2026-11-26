@@ -4591,25 +4591,69 @@ statt 300 Generationen liegt, ist offen; die Validierung auf xm0F / xmA5 / xm33 
 **Belege.** `results/teacher.jsonl` (Zeilen `hier_call`, 201), `results/phase_d_arch.jsonl` (+48 Zeilen,
 jetzt 280), Bezugswerte wie im Eintrag davor. Ausführlich: `PHASE_D.md` Abschnitt 5.8.
 
-## Laufend / offen
+## 2026-11-26 — Phase D, längerer Trainings-Horizont auf hier_s: mit Horizont 100 lernt die Regel das Innere der Hierarchie zum ersten Mal über dfa hinaus (bis 50 Updates), bleibt dann aber bei 0,26–0,30 stehen; der Kopf wird dabei besser
 
-- Phase D, längerer Trainings-Horizont auf hier_s (Auftrag Nutzer 2026-11-26, `PHASE_D.md` Abschnitt 8,
-  Punkt 2). Auf hier_s lernt schon dfa das Innere erst spät (prev 0,10 / 0,22 / 0,47 / 0,60 nach 20 / 50 /
-  100 / 200 Updates; Backprop 0,59 / 0,69 / 0,72 / 0,75), die Fitness sah bisher nur 20 Updates. Neu im Code
-  (Commit nach diesem Eintrag): `teacher.py run --horizon H` (Updates je Fitness-Episode; der Zeit-Eingang
-  t / T des Teachers läuft über die H Updates von 0 bis 1; Fitness = Mittel der Testwertung nach H/10, H/5,
-  H/2 und H Updates) und `--init NAME` (Start vom besten θ eines früheren Laufs); `eval` nimmt den Horizont
-  der Regel mit. Voreinstellung unverändert (`check` weiter bitgleich). Lauf `hier_h100`: `--pos map --models
-  hier_s --horizon 100 --init hier_map`, 60 Generationen, sonst wie `hier_map` (σ 0,1, lr 0,05, Population 48,
-  8 Episoden). Warmstart, weil der Worker nur einen Tag mit 6 Prozessen läuft (lokal gemessen etwa 12 s je
-  Episode, also etwa 13 min je Generation); `hier_map` brauchte von null etwa 40 Generationen bis zum Kopf.
-  `hier_map` drückt die Schrittweite im Inneren (p fc1 −3,0, fc2 −4,2, Kopf +1,7); ES kann sie wieder heben.
-  Danach Meta-Test wie bisher (hier_s, Schritte bis 200).
-  **Vorhersage vor dem Lauf (2026-11-26):** (1) Mit Horizont 100 holt ES auf hier_s wenigstens das dfa-Innere
-  zurück: Meta-Test prev nach 100 Updates ≥ 0,40 (dfa 0,47, `hier_map` 0,13). (2) Eine schnelle Innen-Regel
-  entsteht nicht: prev nach 20 Updates ≤ 0,20 und nach 100 Updates ≤ 0,60 (Backprop 0,59 / 0,72). (3) Der Kopf
-  bleibt: xmFF ≥ 0,60 und xm0F ≥ 0,70 nach 20 Updates. Trifft (1) nicht zu, hält der Warmstart die Suche in
-  der Lösung „innen aus“ fest, oder dfa-artiges Lernen schadet in der Fitness dem Kopf mehr, als es innen bringt.
+**Frage.** Findet ES für das Innere von hier_s eine Regel, wenn die Fitness 100 statt 20 Updates sieht?
+
+**Gemacht.** `teacher.py run --horizon / --init` (Commit df7ebce). ES-Job `20261126-064618-hier_h100`
+(`--pos map --models hier_s --horizon 100 --init hier_map`, 60 Generationen; Worker mit 6 Prozessen, 06:46 bis
+21:17, 871 min, etwa 14,5 min je Generation). Meta-Test `20261126-212646-ev_h100_hier_s` (Commit 6fea877;
+prev, prev2, xmFF, xm0F; Seeds 5–6, je 2 Ziehungen, k = 64). Vorhersage vor dem Lauf (wörtlich aus
+„Laufend / offen“):
+
+> - Phase D, längerer Trainings-Horizont auf hier_s (Auftrag Nutzer 2026-11-26, `PHASE_D.md` Abschnitt 8,
+>   Punkt 2). Auf hier_s lernt schon dfa das Innere erst spät (prev 0,10 / 0,22 / 0,47 / 0,60 nach 20 / 50 /
+>   100 / 200 Updates; Backprop 0,59 / 0,69 / 0,72 / 0,75), die Fitness sah bisher nur 20 Updates. Neu im Code
+>   (Commit nach diesem Eintrag): `teacher.py run --horizon H` (Updates je Fitness-Episode; der Zeit-Eingang
+>   t / T des Teachers läuft über die H Updates von 0 bis 1; Fitness = Mittel der Testwertung nach H/10, H/5,
+>   H/2 und H Updates) und `--init NAME` (Start vom besten θ eines früheren Laufs); `eval` nimmt den Horizont
+>   der Regel mit. Voreinstellung unverändert (`check` weiter bitgleich). Lauf `hier_h100`: `--pos map --models
+>   hier_s --horizon 100 --init hier_map`, 60 Generationen, sonst wie `hier_map` (σ 0,1, lr 0,05, Population 48,
+>   8 Episoden). Warmstart, weil der Worker nur einen Tag mit 6 Prozessen läuft (lokal gemessen etwa 12 s je
+>   Episode, also etwa 13 min je Generation); `hier_map` brauchte von null etwa 40 Generationen bis zum Kopf.
+>   `hier_map` drückt die Schrittweite im Inneren (p fc1 −3,0, fc2 −4,2, Kopf +1,7); ES kann sie wieder heben.
+>   Danach Meta-Test wie bisher (hier_s, Schritte bis 200).
+>   **Vorhersage vor dem Lauf (2026-11-26):** (1) Mit Horizont 100 holt ES auf hier_s wenigstens das dfa-Innere
+>   zurück: Meta-Test prev nach 100 Updates ≥ 0,40 (dfa 0,47, `hier_map` 0,13). (2) Eine schnelle Innen-Regel
+>   entsteht nicht: prev nach 20 Updates ≤ 0,20 und nach 100 Updates ≤ 0,60 (Backprop 0,59 / 0,72). (3) Der Kopf
+>   bleibt: xmFF ≥ 0,60 und xm0F ≥ 0,70 nach 20 Updates. Trifft (1) nicht zu, hält der Warmstart die Suche in
+>   der Lösung „innen aus“ fest, oder dfa-artiges Lernen schadet in der Fitness dem Kopf mehr, als es innen bringt.
+
+**Ergebnis.** Validierung (hier_s, Seeds 0–2, Horizont 100) steigt ohne Pause von 0,43 (Generation 0, θ von
+`hier_map`) auf 0,49 bei Generation 60; prev2 0,085 → 0,195, prev3 0,055 → 0,192, xm0F 0,69 → 0,73. Schrittweite
+im Inneren: p fc1 −3,03 → −1,76, fc2 −4,18 → −4,56, Kopf 1,74 → 1,25. Meta-Test, Testwertung nach 20 / 50 / 100 /
+200 Updates, 4 Episoden je Feld:
+
+| Fall | dfa@task | grad@task | `hier_map` | `hier_h100` |
+|---|---|---|---|---|
+| prev | 0,10 / 0,22 / 0,47 / 0,60 | 0,59 / 0,69 / 0,72 / 0,75 | 0,13 / 0,13 / 0,13 / 0,14 | **0,20 / 0,26 / 0,26 / 0,30** |
+| prev2 | 0,06 / 0,18 / 0,37 / 0,53 | 0,46 / 0,61 / 0,64 / 0,66 | 0,07 / 0,07 / 0,07 / 0,08 | 0,05 / **0,26** / 0,28 / 0,31 |
+| xmFF | 0,01 / 0,02 / 0,02 / 0,01 | 0,01 / 0,01 / 0,01 / 0,02 | 0,71 / 0,71 / 0,71 / 0,71 | **0,74 / 0,74 / 0,74 / 0,74** |
+| xm0F | 0,07 / 0,02 / 0,02 / 0,01 | 0,04 / 0,04 / 0,05 / 0,05 | 0,78 / 0,78 / 0,77 / 0,77 | **0,84 / 0,84 / 0,83 / 0,83** |
+
+prev nach 20 Updates je Episode 0,16 / 0,22 / 0,18 / 0,23 (Mittel 0,198), nach 100 Updates 0,34 / 0,27 / 0,21 /
+0,24.
+
+**Vergleich mit der Vorhersage.** (1) Nicht getroffen: prev nach 100 Updates 0,26, nicht ≥ 0,40 (dfa 0,47).
+(2) Getroffen, knapp: prev nach 20 Updates 0,198 (≤ 0,20), nach 100 Updates 0,26 (≤ 0,60). (3) Getroffen:
+xmFF 0,74, xm0F 0,84. Bilanz: 2 von 3 getroffen.
+
+**Schluss.** (a) Der kurze Horizont war ein Teil des Problems: Zum ersten Mal lernt eine gefundene Regel das
+Innere von hier_s über dfa hinaus, solange das Lernen kurz ist (prev 0,20 nach 20 Updates, dfa 0,10; prev2 0,26
+nach 50, dfa 0,18). ES hat dafür die Schrittweite von fc1 um das 3,5-Fache geöffnet (p −3,0 → −1,8), nicht die
+von fc2; wie auf layer_s sitzt der Innen-Teil in der ersten Abbildung. (b) Die Regel bleibt dann aber stehen:
+von 50 bis 200 Updates nur 0,26 → 0,30, während dfa auf 0,60 weiterläuft. Es entsteht ein Plateau, keine
+anhaltende Innen-Regel; jenseits von etwa 60 Updates ist dfa besser. Vorhersage (1) hatte angenommen, ES hole
+zuerst das dfa-Verhalten zurück; stattdessen findet ES einen schnellen, früh gesättigten Innen-Teil. (c) Der Kopf
+leidet nicht, er wird besser: xmFF 0,74 und xm0F 0,84 sind die besten Kopf-Werte auf hier_s bisher. (d) Die
+Suche ist nicht fertig: Die Validierung steigt bis zur letzten Generation (prev2 / prev3 in 60 Generationen
+etwa verdoppelt). Ob eine Fortsetzung das Plateau hebt oder nur früher erreicht, ist offen. Offen bleibt auch,
+ob der Warmstart von `hier_map` die Suche einschränkt.
+
+**Belege.** `results/teacher.jsonl` (Zeilen `hier_h100`, 61), `results/phase_d_arch.jsonl` (+16 Zeilen, jetzt
+296). Ausführlich: `PHASE_D.md` Abschnitt 5.9.
+
+## Laufend / offen
 
 - Noch in Bits: `*_parts` (die Anpassungs-Studien servo / robot sind seit 2026-11-23 umgestellt); nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

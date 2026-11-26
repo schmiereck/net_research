@@ -419,7 +419,8 @@ Erfahrungen, die in die Pipeline gehören:
   Kopf. Eine zweite ES-Saat bestätigt das Ergebnis; Meta-Training auf beiden Architekturen (mit Name oder
   Rollen-Kennung der Schicht) erschließt das Innere der Hierarchie nicht und kostet Innen-Leistung auf dem
   ersten Netz. Auch eine Suche allein auf der Hierarchie findet dort keine Innen-Regel, auch nicht, wenn der
-  Teacher die wiederholten Aufrufe einer Abbildung unterscheiden kann (2026-11-26). Wahrscheinlich ist der
-  Trainings-Horizont von 20 Updates zu kurz: Auf der Hierarchie lernt schon dfa das Innere erst nach 100 und
-  mehr Updates. Ausführlich: `PHASE_D.md`.
+  Teacher die wiederholten Aufrufe einer Abbildung unterscheiden kann (2026-11-26). Mit 100 statt 20 Updates
+  in der Fitness findet ES dort einen Innen-Teil, der bis etwa 50 Updates schneller als dfa lernt (prev 0,20
+  nach 20, dfa 0,10), dann aber bei 0,26–0,30 stehen bleibt (dfa erreicht 0,60 nach 200). Ausführlich:
+  `PHASE_D.md`.
 - Noch nicht begonnen: Weltmodell, Reinforcement Learning.

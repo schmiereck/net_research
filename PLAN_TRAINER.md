@@ -1611,8 +1611,12 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
   - **Telemetrie je Aufruf erledigt (2026-11-26, `PHASE_D.md` 5.8):** Index des Aufrufs und eigene
     Rückprojektion je Aufruf erschließen das Innere von hier_s nicht (prev 0,10 nach 20 Updates); die
     Rückprojektion je Aufruf hilft dfa erst nach 200 Updates (0,70 statt 0,60), jenseits des
-    Trainings-Horizonts. Nächste Kandidaten (`PHASE_D.md` Abschnitt 8): längerer Horizont (jetzt auch für die
-    Hierarchie), Mechanismus des anti-hebbischen Schubs, ferne Aufgaben, Gate aus der Bibliothek.
+    Trainings-Horizonts.
+  - **Längerer Horizont auf hier_s erledigt (2026-11-26, `PHASE_D.md` 5.9):** mit 100 Updates in der Fitness
+    (Warmstart von `hier_map`, 60 Generationen) ein Innen-Teil, der bis etwa 50 Updates schneller als dfa
+    lernt (prev 0,20 nach 20, dfa 0,10), dann bei 0,26–0,30 stehen bleibt; Kopf besser (xmFF 0,74). Die Suche
+    steigt noch. Nächste Kandidaten (`PHASE_D.md` Abschnitt 8): Fortsetzung von `hier_h100`, Lauf von null,
+    Mechanismus des anti-hebbischen Schubs, ferne Aufgaben, Gate aus der Bibliothek.
 
 **Phase E – Teacher liest Gewichte (Stufe 2)**
 - Zusätzlich eine Zusammenfassung des Moduls selbst (Weight-Space-Encoder, permutationsinvariant) und ein
