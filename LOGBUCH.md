@@ -4515,26 +4515,83 @@ lernt; über die Grenze der Architektur trägt höchstens der Kopf-Teil und das 
 **Belege.** `results/teacher.jsonl` (Zeilen `hier_map`), `results/phase_d_arch.jsonl` (+48 Zeilen, jetzt 232),
 Bezugswerte wie im Eintrag davor. Ausführlich: `PHASE_D.md` Abschnitt 5.7.
 
-## Laufend / offen
+## 2026-11-26 — Phase D, Telemetrie je Aufruf auf hier_s: auch mit Index des Aufrufs und eigener Rückprojektion je Aufruf findet ES keine Innen-Regel für die Hierarchie; am Kopf etwas schwächer als `hier_map`
 
-- Phase D, Telemetrie je Aufruf auf hier_s (Auftrag Nutzer 2026-11-25, `PHASE_D.md` Abschnitt 8, Punkt 1).
-  Befund vorab beim Bau: In beiden Netzen sind die Aufrufe einer Abbildung die Schritte der Rekurrenz
-  (layer_s@25k 4 × fc1 / fc2, hier_s 6 ×), und alle Aufrufe einer Abbildung bekamen bisher *denselben*
-  rückprojizierten Fehler d = e B (eine Zufallsmatrix je Abbildung, wie bei `dfa`); der Teacher konnte die
-  Aufrufe nur über Aktivität und Eingang unterscheiden. Neue Variante `--pos call` (Commit nach diesem Eintrag):
-  wie `map`, dazu (i) der Index des Aufrufs (0 … 1) als zehnte Eingabe des Teachers (485 statt 469 Parameter)
-  und (ii) eine eigene feste Zufalls-Rückprojektion je Aufruf. Bei θ = 0 ist das dfa mit Rückprojektion je
-  Aufruf, nicht mehr bitgleich zu dfa@task (alle alten Varianten weiter bitgleich, `check`). Beide Änderungen
-  zugleich, weil nur eine Nacht Rechenzeit da ist; trägt es, folgt die Trennung. Lauf `hier_call`: `--pos call
-  --models hier_s`, 200 Generationen (Worker mit 14 Prozessen bis 7 Uhr; `hier_map` stand bei Generation 200
-  auf Validierung 0,40, prev2 0,04), sonst wie `hier_map`. Danach Meta-Test wie bei `hier_map`. Bezug hier_s
-  nach 20 Updates: prev dfa 0,10, grad 0,59, `hier_map` 0,13; xmFF `hier_map` 0,71.
-  **Vorhersage vor dem Lauf (2026-11-25):** (1) Die Telemetrie je Aufruf erschließt das Innere von hier_s
-  nicht: Meta-Test prev nach 20 Updates ≤ 0,20 und Validierung prev2 ≤ 0,10 bei Generation 200. Begründung:
-  Die fehlende Unterscheidung der Aufrufe erklärt nicht, warum schon auf layer_s@25k (auch 4 gleiche Aufrufe)
-  eine Innen-Regel gefunden wurde. (2) Die Kopf-Aufgaben bleiben wie bei `hier_map`: xmFF ≥ 0,60, xm0F ≥ 0,70
-  nach 20 Updates. (3) ES nutzt den Index des Aufrufs: Die Gewichte der zehnten Eingabe in W1 sind am Ende im
-  Betrag größer als das Mittel der übrigen sechs Kennungs- und Rundfunk-Zeilen.
+**Frage.** Fehlt dem Teacher für das Innere der Hierarchie die Unterscheidung der 6 Aufrufe von fc1 / fc2 je
+Update? Bisher bekam jeder Aufruf einer Abbildung denselben rückprojizierten Fehler und keine Kennung des Aufrufs.
+
+**Gemacht.** Neue Variante `--pos call` (Commit bf3355c): Index des Aufrufs als zehnte Eingabe des Teachers
+(485 Parameter) und eigene feste Zufalls-Rückprojektion je Aufruf. ES-Job `20261125-220255-hier_call`
+(200 Generationen, nur hier_s, sonst wie `hier_map`; Worker mit 14 Prozessen, 22:03 bis 05:22, etwa 2,2 min je
+Generation). Meta-Test: `20261126-052317-ev_call_hier_s`, `-052318-ev_call_layer_s25k`, `-052319-ev_call_layer_s`
+(Commit 23e4ec0; prev, prev2, xmFF, xm0F; Seeds 5–6, je 2 Ziehungen, k = 64). Lokal vor dem Lauf, nicht Teil der
+Vorhersage: dfa mit Rückprojektion je Aufruf (θ = 0 der neuen Variante) auf hier_s prev, Seeds 5–6 × 2:
+0,11 nach 20 Updates, 0,70 nach 200 (dfa wie bisher 0,10 / 0,60). Vorhersage vor dem Lauf (wörtlich aus
+„Laufend / offen“):
+
+> - Phase D, Telemetrie je Aufruf auf hier_s (Auftrag Nutzer 2026-11-25, `PHASE_D.md` Abschnitt 8, Punkt 1).
+>   Befund vorab beim Bau: In beiden Netzen sind die Aufrufe einer Abbildung die Schritte der Rekurrenz
+>   (layer_s@25k 4 × fc1 / fc2, hier_s 6 ×), und alle Aufrufe einer Abbildung bekamen bisher *denselben*
+>   rückprojizierten Fehler d = e B (eine Zufallsmatrix je Abbildung, wie bei `dfa`); der Teacher konnte die
+>   Aufrufe nur über Aktivität und Eingang unterscheiden. Neue Variante `--pos call` (Commit nach diesem Eintrag):
+>   wie `map`, dazu (i) der Index des Aufrufs (0 … 1) als zehnte Eingabe des Teachers (485 statt 469 Parameter)
+>   und (ii) eine eigene feste Zufalls-Rückprojektion je Aufruf. Bei θ = 0 ist das dfa mit Rückprojektion je
+>   Aufruf, nicht mehr bitgleich zu dfa@task (alle alten Varianten weiter bitgleich, `check`). Beide Änderungen
+>   zugleich, weil nur eine Nacht Rechenzeit da ist; trägt es, folgt die Trennung. Lauf `hier_call`: `--pos call
+>   --models hier_s`, 200 Generationen (Worker mit 14 Prozessen bis 7 Uhr; `hier_map` stand bei Generation 200
+>   auf Validierung 0,40, prev2 0,04), sonst wie `hier_map`. Danach Meta-Test wie bei `hier_map`. Bezug hier_s
+>   nach 20 Updates: prev dfa 0,10, grad 0,59, `hier_map` 0,13; xmFF `hier_map` 0,71.
+>   **Vorhersage vor dem Lauf (2026-11-25):** (1) Die Telemetrie je Aufruf erschließt das Innere von hier_s
+>   nicht: Meta-Test prev nach 20 Updates ≤ 0,20 und Validierung prev2 ≤ 0,10 bei Generation 200. Begründung:
+>   Die fehlende Unterscheidung der Aufrufe erklärt nicht, warum schon auf layer_s@25k (auch 4 gleiche Aufrufe)
+>   eine Innen-Regel gefunden wurde. (2) Die Kopf-Aufgaben bleiben wie bei `hier_map`: xmFF ≥ 0,60, xm0F ≥ 0,70
+>   nach 20 Updates. (3) ES nutzt den Index des Aufrufs: Die Gewichte der zehnten Eingabe in W1 sind am Ende im
+>   Betrag größer als das Mittel der übrigen sechs Kennungs- und Rundfunk-Zeilen.
+
+**Ergebnis.** Validierung (nur hier_s, Seeds 0–2) bei Generation 200: 0,405, prev2 0,049, prev3 0,035
+(`hier_map` bei Generation 200: 0,399, prev2 0,041). Der Verlauf ist bis auf einen langsameren Start
+(Generation 20: 0,08 gegen 0,16) gleich. Meta-Test, Testwertung nach 20 (200) Updates, 4 Episoden je Feld:
+
+| Netz, Fall | dfa@task | grad@task | rls_rf@task | `hier_map` | `hier_call` |
+|---|---|---|---|---|---|
+| hier_s, prev | 0,10 (0,60) | 0,59 (0,75) | 0,13 | 0,13 (0,14) | 0,10 (0,12) |
+| hier_s, prev2 | 0,06 (0,53) | 0,46 (0,66) | 0,07 | 0,07 (0,08) | 0,06 (0,08) |
+| hier_s, xmFF | 0,01 | 0,01 | 0,57 | **0,71 (0,71)** | 0,58 (0,62) |
+| hier_s, xm0F | 0,07 | 0,04 | 0,70 | 0,78 (0,77) | 0,78 (0,77) |
+| layer_s@25k, prev | 0,16 (0,75) | 0,79 (0,95) | 0,24 | 0,13 (0,51) | 0,17 (0,41) |
+| layer_s@25k, prev2 | 0,20 (0,76) | 0,79 (0,97) | 0,14 | 0,03 (0,71) | 0,14 (0,38) |
+| layer_s@25k, xmFF | 0,01 | 0,01 | 0,57 | 0,00 (0,01) | 0,01 (0,00) |
+| layer_s@25k, xm0F | 0,01 | 0,05 | 0,62 | 0,73 (0,00) | 0,33 (0,01) |
+| layer_s, prev | 0,30 (0,78) | 0,81 (0,95) | 0,18 | 0,07 (0,55) | 0,21 (0,27) |
+| layer_s, prev2 | 0,25 (0,78) | 0,90 (0,99) | 0,13 | 0,04 (0,57) | 0,14 (0,22) |
+| layer_s, xmFF | 0,01 | 0,01 | 0,79 | 0,01 (0,00) | 0,01 (0,01) |
+| layer_s, xm0F | 0,01 | 0,04 | 0,90 | 0,93 (0,94) | 0,90 (0,90) |
+
+Gewichte der ersten Teacher-Schicht (bestes θ), mittlerer Betrag der Änderung gegenüber dem Start je
+Eingabe-Zeile: Index des Aufrufs 0,63; Mittel der sechs Kennungs- und Rundfunk-Zeilen 0,53 (S 0,75, ΔS 0,51,
+t 0,54, fc1 0,33, fc2 0,42, Kopf 0,61). Absolute Beträge: 0,64 gegen 0,58.
+
+**Vergleich mit der Vorhersage.** (1) Getroffen: hier_s prev 0,10 nach 20 Updates (≤ 0,20), Validierung prev2
+0,049 (≤ 0,10). (2) Nicht getroffen: xmFF 0,58 liegt unter 0,60 (xm0F 0,78 ≥ 0,70 getroffen). (3) Getroffen,
+aber knapp: Die Zeile des Aufruf-Index ist größer als das Mittel der übrigen sechs (0,64 gegen 0,58; Änderung
+0,63 gegen 0,53), aber nicht die größte (S 0,76). Bilanz: 2 von 3 getroffen.
+
+**Schluss.** (a) Die fehlende Unterscheidung der Aufrufe ist nicht der Grund, warum ES für die Hierarchie keine
+Innen-Regel findet: Mit Index und eigener Rückprojektion je Aufruf bleibt prev nach 20 Updates auf dfa-Niveau
+(0,10), die Validierung auf prev2 bewegt sich in 200 Generationen nicht. Eine Trennung der beiden Änderungen
+lohnt deshalb nicht. (b) Die Rückprojektion je Aufruf hilft dfa auf hier_s nur über lange Zeit (0,70 statt
+0,60 nach 200 Updates, nach 20 gleich). Die gefundene Regel nutzt das nicht, sie hält das Innere still
+(0,12 nach 200). ES sieht in der Fitness nur 20 Updates; ein Innen-Gewinn, der erst nach 100 und mehr Updates
+entsteht, ist für ES unsichtbar. Für die Hierarchie wird damit der längere Trainings-Horizont (`PHASE_D.md`
+Abschnitt 8, Punkt 2) zum nächsten Kandidaten. (c) Am Kopf kostet die neue Variante: xmFF 0,58 gegen 0,71 bei
+`hier_map` (die 4 Episoden 0,52–0,62 gegen 0,67–0,74), xm0F gleich. Ob das an der Variante oder an nur 200
+statt 300 Generationen liegt, ist offen; die Validierung auf xm0F / xmA5 / xm33 ist bei Generation 200 gleich.
+(d) Auf den layer-Netzen bleibt die Regel wie `hier_map` ohne Kopf-Übertragung (xmFF 0,00–0,01).
+
+**Belege.** `results/teacher.jsonl` (Zeilen `hier_call`, 201), `results/phase_d_arch.jsonl` (+48 Zeilen,
+jetzt 280), Bezugswerte wie im Eintrag davor. Ausführlich: `PHASE_D.md` Abschnitt 5.8.
+
+## Laufend / offen
 
 - Noch in Bits: `*_parts` (die Anpassungs-Studien servo / robot sind seit 2026-11-23 umgestellt); nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

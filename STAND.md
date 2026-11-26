@@ -418,6 +418,8 @@ Erfahrungen, die in die Pipeline gehören:
   viermal größeres Netz derselben Architektur (prev 0,81, Backprop 0,82), auf die Hierarchie hier_s nur am
   Kopf. Eine zweite ES-Saat bestätigt das Ergebnis; Meta-Training auf beiden Architekturen (mit Name oder
   Rollen-Kennung der Schicht) erschließt das Innere der Hierarchie nicht und kostet Innen-Leistung auf dem
-  ersten Netz. Auch eine Suche allein auf der Hierarchie findet dort keine Innen-Regel; der Teacher kennt nur
-  Abbildungen, nicht ihre wiederholten Aufrufe. Ausführlich: `PHASE_D.md`.
+  ersten Netz. Auch eine Suche allein auf der Hierarchie findet dort keine Innen-Regel, auch nicht, wenn der
+  Teacher die wiederholten Aufrufe einer Abbildung unterscheiden kann (2026-11-26). Wahrscheinlich ist der
+  Trainings-Horizont von 20 Updates zu kurz: Auf der Hierarchie lernt schon dfa das Innere erst nach 100 und
+  mehr Updates. Ausführlich: `PHASE_D.md`.
 - Noch nicht begonnen: Weltmodell, Reinforcement Learning.

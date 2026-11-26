@@ -1607,9 +1607,12 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
     Hebb-Term).
   - **ES auf hier_s allein erledigt (2026-11-25, `PHASE_D.md` 5.7):** auch ohne Zielkonflikt keine Innen-Regel
     für die Hierarchie (prev 0,13, dfa 0,10, Backprop 0,59); am Kopf auf hier_s die beste Regel bisher (xmFF
-    0,71), auf die layer-Netze überträgt sie sich nicht, auch am Kopf nicht. Nächste Kandidaten (`PHASE_D.md`
-    Abschnitt 8): Telemetrie je Aufruf für die Hierarchie, längerer Horizont, Mechanismus des anti-hebbischen
-    Schubs, ferne Aufgaben, Gate aus der Bibliothek.
+    0,71), auf die layer-Netze überträgt sie sich nicht, auch am Kopf nicht.
+  - **Telemetrie je Aufruf erledigt (2026-11-26, `PHASE_D.md` 5.8):** Index des Aufrufs und eigene
+    Rückprojektion je Aufruf erschließen das Innere von hier_s nicht (prev 0,10 nach 20 Updates); die
+    Rückprojektion je Aufruf hilft dfa erst nach 200 Updates (0,70 statt 0,60), jenseits des
+    Trainings-Horizonts. Nächste Kandidaten (`PHASE_D.md` Abschnitt 8): längerer Horizont (jetzt auch für die
+    Hierarchie), Mechanismus des anti-hebbischen Schubs, ferne Aufgaben, Gate aus der Bibliothek.
 
 **Phase E – Teacher liest Gewichte (Stufe 2)**
 - Zusätzlich eine Zusammenfassung des Moduls selbst (Weight-Space-Encoder, permutationsinvariant) und ein
