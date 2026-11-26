@@ -79,6 +79,14 @@ def n_theta(pos="map"):
 SHAPES = shapes()
 N_THETA = n_theta()
 T_FIT, T_POINTS = 20, (1, 5, 10, 20)
+
+
+def fit_points(horizon=T_FIT):
+    """Updates at which the fitness of an episode is scored (mean over them): (1, 5, 10, 20) for the default
+    horizon of 20, else horizon / 10, / 5, / 2 and the horizon itself (100 -> 10, 20, 50, 100)."""
+    if horizon == T_FIT:
+        return T_POINTS
+    return tuple(sorted({max(1, horizon // 10), max(1, horizon // 5), max(1, horizon // 2), horizon}))
 K = 64
 VAL_EVERY = 10
 # D.0 (LOGBUCH 2026-11-23): "head is enough" xm0F / xmA5 / xm33, "only inner backprop solves" prev2 / prev3;
@@ -223,8 +231,8 @@ def episode(theta, case, seed, draw, k=K, T=T_FIT, points=T_POINTS, pos="map", m
 
 
 def _fit_job(a):
-    theta, case, model, seed, draw, pos = a
-    c = episode(theta, case, seed, draw, pos=pos, model_name=model)
+    theta, case, model, seed, draw, pos, horizon = a
+    c = episode(theta, case, seed, draw, T=horizon, points=fit_points(horizon), pos=pos, model_name=model)
     return float(np.mean([v for _, v in c]))
 
 
@@ -238,17 +246,24 @@ def ranks(f):
     return r / (len(f) - 1) - 0.5
 
 
-def run(name, mode, cases, seeds, gens, pop, n_ep, sigma, lr, workers, out, seed=0, pos="map", models=(MODEL,)):
+def run(name, mode, cases, seeds, gens, pop, n_ep, sigma, lr, workers, out, seed=0, pos="map", models=(MODEL,),
+        horizon=T_FIT, init=None):
+    """ES search. horizon: updates per fitness episode (the teacher's t / T runs from 0 to 1 over them);
+    init: start from the best theta of an earlier run (same pos) instead of init_theta."""
     models = list(models)
     TDIR.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(seed)
     theta = init_theta(seed, pos)
+    if init:
+        theta, ipos, _ = load_rule(init)
+        assert ipos == pos, (init, ipos, pos)
+        theta = theta.clone()
     nt = n_theta(pos)
     mask = es_mask(mode, pos)
     m, v = torch.zeros(nt), torch.zeros(nt)
     val = [(c, md, s, 10_000 + i) for c in cases for md in models for s in seeds for i in range(2)]   # fixed
     best = (-1.0, theta.clone())
-    g0, t_prev = _resume_point(name, seed, pos, models, gens, out)
+    g0, t_prev = _resume_point(name, seed, pos, models, gens, out, horizon)
     if g0:                                              # an interrupted run (worker restart): continue it exactly
         ck = torch.load(TDIR / f"{name}.pt", weights_only=False)
         theta, m, v, best = ck["theta"], ck["m"], ck["v"], (ck["best_val"], ck["best"])
@@ -258,8 +273,10 @@ def run(name, mode, cases, seeds, gens, pop, n_ep, sigma, lr, workers, out, seed
     with mp.get_context("spawn").Pool(workers, initializer=_init_worker) as pool, open(out, "a") as f:
         for g in range(g0, gens + 1):
             row = {"name": name, "mode": mode, "pos": pos, "gen": g, "seed": seed, "models": models}
+            if horizon != T_FIT or init:                    # rows of earlier runs unchanged
+                row.update({"horizon": horizon, "init": init})
             if g % VAL_EVERY == 0 or g == gens:
-                vf = pool.map(_fit_job, [(theta, *e, pos) for e in val])
+                vf = pool.map(_fit_job, [(theta, *e, pos, horizon) for e in val])
                 row["val"] = round(float(np.mean(vf)), 4)
                 row["val_cases"] = {c: round(float(np.mean([x for e, x in zip(val, vf) if e[0] == c])), 4)
                                     for c in cases}
@@ -270,7 +287,8 @@ def run(name, mode, cases, seeds, gens, pop, n_ep, sigma, lr, workers, out, seed
                     best = (row["val"], theta.clone())
                 torch.save({"theta": theta, "best": best[1], "best_val": best[0], "mode": mode, "pos": pos, "gen": g,
                             "cases": cases, "seeds": seeds, "models": models, "seed": seed, "m": m, "v": v,
-                            "rng": rng.bit_generator.state, "time": time.time() - t0}, TDIR / f"{name}.pt")
+                            "rng": rng.bit_generator.state, "time": time.time() - t0, "horizon": horizon,
+                            "init": init}, TDIR / f"{name}.pt")
             if g == gens:
                 row.update({"theta": [round(float(x), 6) for x in theta],
                             "best": [round(float(x), 6) for x in best[1]], "best_val": best[0]})
@@ -282,7 +300,7 @@ def run(name, mode, cases, seeds, gens, pop, n_ep, sigma, lr, workers, out, seed
             eps = [(c, models[rng.integers(len(models))] if len(models) > 1 else models[0], s, d) for c, s, d in eps]
             noise = torch.randn(pop // 2, nt, generator=torch.Generator().manual_seed(seed * 100_000 + g)) * mask
             cands = [theta + sigma * z for z in noise] + [theta - sigma * z for z in noise]
-            fit = pool.map(_fit_job, [(c, *e, pos) for c in cands for e in eps])
+            fit = pool.map(_fit_job, [(c, *e, pos, horizon) for c in cands for e in eps])
             fit = np.array(fit).reshape(len(cands), n_ep).mean(1)
             r = ranks(fit)
             h = pop // 2
@@ -300,7 +318,7 @@ def run(name, mode, cases, seeds, gens, pop, n_ep, sigma, lr, workers, out, seed
                   flush=True)
 
 
-def _resume_point(name, seed, pos, models, gens, out):
+def _resume_point(name, seed, pos, models, gens, out, horizon=T_FIT):
     """-> (gen, seconds so far) to resume an interrupted run from, or (0, 0). Only when the output file already
     holds rows of this run (the worker copies them back after a restart) and its checkpoint carries the ES state
     (Adam moments, random stream) of an unfinished search with the same settings. Rows from that generation on
@@ -310,7 +328,7 @@ def _resume_point(name, seed, pos, models, gens, out):
         return 0, 0.0
     ck = torch.load(f, weights_only=False)
     if ("rng" not in ck or ck.get("seed") != seed or ck.get("pos") != pos or ck.get("models") != list(models)
-            or not 0 < ck["gen"] < gens):
+            or ck.get("horizon", T_FIT) != horizon or not 0 < ck["gen"] < gens):
         return 0, 0.0
     lines = o.read_text().splitlines()
     mine = [json.loads(ln) for ln in lines if ln.strip() and f'"name": "{name}"' in ln]
@@ -322,30 +340,31 @@ def _resume_point(name, seed, pos, models, gens, out):
 
 
 def load_rule(name, which="best"):
-    """theta and pos of a found rule: from its checkpoint, else from the last row of results/teacher.jsonl
-    (on the worker, where the checkpoints of other jobs are not available)."""
+    """theta, pos and training horizon of a found rule: from its checkpoint, else from the last row of
+    results/teacher.jsonl (on the worker, where the checkpoints of other jobs are not available)."""
     f = TDIR / f"{name}.pt"
     if f.exists():
         ck = torch.load(f, weights_only=False)
-        return ck[which], ck.get("pos", "map")
+        return ck[which], ck.get("pos", "map"), ck.get("horizon", T_FIT)
     rows = [json.loads(ln) for ln in OUT.read_text().splitlines() if ln.strip()]
     last = [r for r in rows if r.get("name") == name and which in r][-1]
-    return torch.tensor(last[which], dtype=torch.float32), last.get("pos", "map")
+    return torch.tensor(last[which], dtype=torch.float32), last.get("pos", "map"), last.get("horizon", T_FIT)
 
 
 def evaluate(name, cases, seeds, ks, draws, steps, out, workers, which="best", model=MODEL):
     """Curves of a found rule (rows like fastweights inner, rule 'teach:<name>'), up to max(steps) updates."""
-    theta, pos = load_rule(name, which)
-    jobs = [(theta, c, s, d, k, steps, pos, model) for c in cases for s in seeds for k in ks for d in range(draws)]
+    theta, pos, horizon = load_rule(name, which)
+    jobs = [(theta, c, s, d, k, steps, pos, model, horizon)
+            for c in cases for s in seeds for k in ks for d in range(draws)]
     with mp.get_context("spawn").Pool(workers, initializer=_init_worker) as pool, open(out, "a") as f:
-        for (th, c, s, d, k, st, _, _), cur in zip(jobs, pool.map(_eval_job, jobs)):
+        for (th, c, s, d, k, st, _, _, _), cur in zip(jobs, pool.map(_eval_job, jobs)):
             f.write(json.dumps({"model": model, "case": c, "k": k, "seed": s, "rule": f"teach:{name}:{which}",
                                 "eta": 0, "steps": list(st), "runs": [{"variant": d, "curve": cur}]}) + "\n")
 
 
 def _eval_job(a):
-    theta, c, s, d, k, st, pos, model = a
-    return episode(theta, c, s, d, k=k, T=T_FIT, points=tuple(st), pos=pos, model_name=model)
+    theta, c, s, d, k, st, pos, model, horizon = a
+    return episode(theta, c, s, d, k=k, T=horizon, points=tuple(st), pos=pos, model_name=model)
 
 
 def check():
@@ -388,13 +407,15 @@ def main():
     ap.add_argument("--seed", type=int, default=0, help="run: seed of the search (init of theta, episodes, noise)")
     ap.add_argument("--names", nargs="+", default=None, help="eval: several found rules in one call")
     ap.add_argument("--workers", type=int, default=4)
+    ap.add_argument("--horizon", type=int, default=T_FIT, help="run: updates per fitness episode")
+    ap.add_argument("--init", default=None, help="run: start from the best theta of this earlier run")
     ap.add_argument("--out", default=None)
     a = ap.parse_args()
     if a.cmd == "check":
         check()
     elif a.cmd == "run":
         run(a.name, a.mode, a.cases, a.seeds, a.gens, a.pop, a.episodes, a.sigma, a.lr, a.workers,
-            a.out or str(OUT), seed=a.seed, pos=a.pos, models=a.models)
+            a.out or str(OUT), seed=a.seed, pos=a.pos, models=a.models, horizon=a.horizon, init=a.init)
     else:
         for name in a.names or [a.name]:
             evaluate(name, a.cases, a.seeds, a.ks, a.draws, a.steps,

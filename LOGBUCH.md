@@ -4593,5 +4593,23 @@ jetzt 280), Bezugswerte wie im Eintrag davor. Ausführlich: `PHASE_D.md` Abschni
 
 ## Laufend / offen
 
+- Phase D, längerer Trainings-Horizont auf hier_s (Auftrag Nutzer 2026-11-26, `PHASE_D.md` Abschnitt 8,
+  Punkt 2). Auf hier_s lernt schon dfa das Innere erst spät (prev 0,10 / 0,22 / 0,47 / 0,60 nach 20 / 50 /
+  100 / 200 Updates; Backprop 0,59 / 0,69 / 0,72 / 0,75), die Fitness sah bisher nur 20 Updates. Neu im Code
+  (Commit nach diesem Eintrag): `teacher.py run --horizon H` (Updates je Fitness-Episode; der Zeit-Eingang
+  t / T des Teachers läuft über die H Updates von 0 bis 1; Fitness = Mittel der Testwertung nach H/10, H/5,
+  H/2 und H Updates) und `--init NAME` (Start vom besten θ eines früheren Laufs); `eval` nimmt den Horizont
+  der Regel mit. Voreinstellung unverändert (`check` weiter bitgleich). Lauf `hier_h100`: `--pos map --models
+  hier_s --horizon 100 --init hier_map`, 60 Generationen, sonst wie `hier_map` (σ 0,1, lr 0,05, Population 48,
+  8 Episoden). Warmstart, weil der Worker nur einen Tag mit 6 Prozessen läuft (lokal gemessen etwa 12 s je
+  Episode, also etwa 13 min je Generation); `hier_map` brauchte von null etwa 40 Generationen bis zum Kopf.
+  `hier_map` drückt die Schrittweite im Inneren (p fc1 −3,0, fc2 −4,2, Kopf +1,7); ES kann sie wieder heben.
+  Danach Meta-Test wie bisher (hier_s, Schritte bis 200).
+  **Vorhersage vor dem Lauf (2026-11-26):** (1) Mit Horizont 100 holt ES auf hier_s wenigstens das dfa-Innere
+  zurück: Meta-Test prev nach 100 Updates ≥ 0,40 (dfa 0,47, `hier_map` 0,13). (2) Eine schnelle Innen-Regel
+  entsteht nicht: prev nach 20 Updates ≤ 0,20 und nach 100 Updates ≤ 0,60 (Backprop 0,59 / 0,72). (3) Der Kopf
+  bleibt: xmFF ≥ 0,60 und xm0F ≥ 0,70 nach 20 Updates. Trifft (1) nicht zu, hält der Warmstart die Suche in
+  der Lösung „innen aus“ fest, oder dfa-artiges Lernen schadet in der Fitness dem Kopf mehr, als es innen bringt.
+
 - Noch in Bits: `*_parts` (die Anpassungs-Studien servo / robot sind seit 2026-11-23 umgestellt); nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
