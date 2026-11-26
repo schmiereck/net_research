@@ -4655,5 +4655,18 @@ ob der Warmstart von `hier_map` die Suche einschränkt.
 
 ## Laufend / offen
 
+- Phase D, Fortsetzung von `hier_h100` (Auftrag Nutzer 2026-11-26, `PHASE_D.md` Abschnitt 8, Punkt 2): Hebt
+  eine längere Suche das Plateau des Innen-Teils auf hier_s (prev 0,26 / 0,30 nach 100 / 200 Updates), oder
+  erreicht sie es nur früher? Lauf `hier_h100b`: `--pos map --models hier_s --horizon 100 --init hier_h100`,
+  60 Generationen, sonst wie `hier_h100` (Start vom besten θ, Adam-Momente neu bei null). Worker mit 6
+  Prozessen über Nacht, etwa 14,5 min je Generation; um 7 Uhr startet der Nutzer den Worker neu, der Lauf
+  setzt am letzten Prüfpunkt fort (etwa Generation 30–40). Danach Meta-Test auf hier_s wie bei `hier_h100`.
+  Bezug `hier_h100`: Validierung 0,49 (prev2 0,195, prev3 0,192); Meta-Test prev 0,20 / 0,26 / 0,26 / 0,30 nach
+  20 / 50 / 100 / 200 Updates, prev2 0,05 / 0,26 / 0,28 / 0,31, xmFF 0,74, xm0F 0,84; dfa prev 0,10 / 0,22 /
+  0,47 / 0,60.
+  **Vorhersage vor dem Lauf (2026-11-26):** (1) Die Validierung steigt weiter: am Ende ≥ 0,51. (2) Das Plateau
+  steigt, bleibt aber unter dfa auf lange Sicht: Meta-Test prev nach 100 Updates ≥ 0,32 und nach 200 Updates
+  ≤ 0,50. (3) Der Kopf bleibt: xmFF ≥ 0,70 und xm0F ≥ 0,80 nach 20 Updates.
+
 - Noch in Bits: `*_parts` (die Anpassungs-Studien servo / robot sind seit 2026-11-23 umgestellt); nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
