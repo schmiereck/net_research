@@ -5074,5 +5074,25 @@ W + S nach mehreren Tagen), oder die Aufgabe müsste etwas verlangen, was direkt
 
 ## Laufend / offen
 
+- Phase F, Wach-Regel per ES im Kreislauf geformt (Auftrag Nutzer 2026-11-27, Weg 1). Neu (Commit nach
+  diesem Eintrag): `teacher.py run --fitness loop`; eine Fitness-Episode ist ein Kreislauf über 4 Tage
+  (`sleep.loop_fitness`: θ ist die Wach-Regel unter dem Überraschungs-Schalter je Update, rls_rf lernt im
+  Schlaf auf Träumen aus Erinnerungen, je Tag 64 neue Beispiele), Fitness = Mittel von W + S nach jeder der 4
+  Nächte. `loop_fitness` rechnet für `pos_map` dieselben Werte wie `sleep.py loop` (geprüft an einer Episode im
+  selben Prozess; zwischen einem und mehreren Threads weichen einzelne Episoden ab, wie in Phase D). Lauf
+  `loop_w1`: `--fitness loop --pos map --init pos_map --cases lib_xmA5 lib_xm33 --seeds 0 1 2`, layer_s@25k,
+  600 Generationen, σ 0,1, lr 0,05, Population 48, 8 Episoden, Worker mit 14 Prozessen (lokal 5,7 s je
+  Episode, also etwa 3 min je Generation, etwa 30 h). Nur Kopf-Aufgaben im Meta-Training, weil rls_rf im
+  Schlaf nur den Kopf tragen kann; ausgelassen für den Meta-Test: xmFF und xm0F (Aufgaben) und Startnetze 5–6.
+  Meta-Test danach: `sleep.py loop --rule loop_w1 --cases lib_xmFF lib_xm0F --learners rls_rf --gates surprise
+  --controls --cycles 8 --seeds 5 6 --draws 6`, verglichen mit demselben Lauf für `pos_map` (`results/sleep_ctl.jsonl`:
+  Kreislauf nach Tag 1 / 4 / 8 xmFF 0,49 / 0,68 / 0,75, xm0F 0,66 / 0,74 / 0,76; `rls_direct` 0,55 / 0,70 / 0,74
+  und 0,62 / 0,71 / 0,74; Wach-Updates je Tag 2–6).
+  **Vorhersage vor dem Lauf (2026-11-27):** (1) Die Validierung (Fitness auf xmA5 / xm33, Startnetze 0–2)
+  steigt um ≥ 0,05 gegenüber Generation 0. (2) ES macht den Kreislauf schneller, nicht höher: auf xmFF und xm0F
+  liegt das Mittel von W + S über die Tage 1–4 um ≥ 0,05 über `pos_map`, an Tag 8 aber höchstens 0,03 über
+  `rls_direct`. (3) Die neue Regel wacht mehr: Wach-Updates an den Tagen 2–4 im Mittel mindestens doppelt so
+  viele wie bei `pos_map`.
+
 - Noch in Bits: `*_parts` (die Anpassungs-Studien servo / robot sind seit 2026-11-23 umgestellt); nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

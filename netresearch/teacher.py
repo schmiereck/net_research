@@ -231,7 +231,10 @@ def episode(theta, case, seed, draw, k=K, T=T_FIT, points=T_POINTS, pos="map", m
 
 
 def _fit_job(a):
-    theta, case, model, seed, draw, pos, horizon = a
+    theta, case, model, seed, draw, pos, horizon = a[:7]
+    if len(a) > 7 and a[7] == "loop":                       # fitness inside the wake / sleep loop (sleep.py)
+        from .sleep import loop_fitness
+        return loop_fitness(theta, pos, horizon, case, seed, draw, model)
     c = episode(theta, case, seed, draw, T=horizon, points=fit_points(horizon), pos=pos, model_name=model)
     return float(np.mean([v for _, v in c]))
 
@@ -247,9 +250,11 @@ def ranks(f):
 
 
 def run(name, mode, cases, seeds, gens, pop, n_ep, sigma, lr, workers, out, seed=0, pos="map", models=(MODEL,),
-        horizon=T_FIT, init=None):
+        horizon=T_FIT, init=None, fitness="episode"):
     """ES search. horizon: updates per fitness episode (the teacher's t / T runs from 0 to 1 over them);
-    init: start from the best theta of an earlier run (same pos) instead of init_theta."""
+    init: start from the best theta of an earlier run (same pos) instead of init_theta.
+    fitness "loop": an episode is a wake / sleep loop over 4 days (sleep.loop_fitness: the rule is the wake rule
+    under the surprise switch, rls_rf learns in sleep on dreams); fitness = mean of W + S after each night."""
     models = list(models)
     TDIR.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(seed)
@@ -263,7 +268,7 @@ def run(name, mode, cases, seeds, gens, pop, n_ep, sigma, lr, workers, out, seed
     m, v = torch.zeros(nt), torch.zeros(nt)
     val = [(c, md, s, 10_000 + i) for c in cases for md in models for s in seeds for i in range(2)]   # fixed
     best = (-1.0, theta.clone())
-    g0, t_prev = _resume_point(name, seed, pos, models, gens, out, horizon)
+    g0, t_prev = _resume_point(name, seed, pos, models, gens, out, horizon, fitness)
     if g0:                                              # an interrupted run (worker restart): continue it exactly
         ck = torch.load(TDIR / f"{name}.pt", weights_only=False)
         theta, m, v, best = ck["theta"], ck["m"], ck["v"], (ck["best_val"], ck["best"])
@@ -275,8 +280,10 @@ def run(name, mode, cases, seeds, gens, pop, n_ep, sigma, lr, workers, out, seed
             row = {"name": name, "mode": mode, "pos": pos, "gen": g, "seed": seed, "models": models}
             if horizon != T_FIT or init:                    # rows of earlier runs unchanged
                 row.update({"horizon": horizon, "init": init})
+            if fitness != "episode":
+                row["fitness"] = fitness
             if g % VAL_EVERY == 0 or g == gens:
-                vf = pool.map(_fit_job, [(theta, *e, pos, horizon) for e in val])
+                vf = pool.map(_fit_job, [(theta, *e, pos, horizon, fitness) for e in val])
                 row["val"] = round(float(np.mean(vf)), 4)
                 row["val_cases"] = {c: round(float(np.mean([x for e, x in zip(val, vf) if e[0] == c])), 4)
                                     for c in cases}
@@ -288,7 +295,7 @@ def run(name, mode, cases, seeds, gens, pop, n_ep, sigma, lr, workers, out, seed
                 torch.save({"theta": theta, "best": best[1], "best_val": best[0], "mode": mode, "pos": pos, "gen": g,
                             "cases": cases, "seeds": seeds, "models": models, "seed": seed, "m": m, "v": v,
                             "rng": rng.bit_generator.state, "time": time.time() - t0, "horizon": horizon,
-                            "init": init}, TDIR / f"{name}.pt")
+                            "init": init, "fitness": fitness}, TDIR / f"{name}.pt")
             if g == gens:
                 row.update({"theta": [float(x) for x in theta],   # exact float32 (rounding changes inner episodes on hier_s)
                             "best": [float(x) for x in best[1]], "best_val": best[0]})
@@ -300,7 +307,7 @@ def run(name, mode, cases, seeds, gens, pop, n_ep, sigma, lr, workers, out, seed
             eps = [(c, models[rng.integers(len(models))] if len(models) > 1 else models[0], s, d) for c, s, d in eps]
             noise = torch.randn(pop // 2, nt, generator=torch.Generator().manual_seed(seed * 100_000 + g)) * mask
             cands = [theta + sigma * z for z in noise] + [theta - sigma * z for z in noise]
-            fit = pool.map(_fit_job, [(c, *e, pos, horizon) for c in cands for e in eps])
+            fit = pool.map(_fit_job, [(c, *e, pos, horizon, fitness) for c in cands for e in eps])
             fit = np.array(fit).reshape(len(cands), n_ep).mean(1)
             r = ranks(fit)
             h = pop // 2
@@ -318,7 +325,7 @@ def run(name, mode, cases, seeds, gens, pop, n_ep, sigma, lr, workers, out, seed
                   flush=True)
 
 
-def _resume_point(name, seed, pos, models, gens, out, horizon=T_FIT):
+def _resume_point(name, seed, pos, models, gens, out, horizon=T_FIT, fitness="episode"):
     """-> (gen, seconds so far) to resume an interrupted run from, or (0, 0). Only when the output file already
     holds rows of this run (the worker copies them back after a restart) and its checkpoint carries the ES state
     (Adam moments, random stream) of an unfinished search with the same settings. Rows from that generation on
@@ -328,7 +335,8 @@ def _resume_point(name, seed, pos, models, gens, out, horizon=T_FIT):
         return 0, 0.0
     ck = torch.load(f, weights_only=False)
     if ("rng" not in ck or ck.get("seed") != seed or ck.get("pos") != pos or ck.get("models") != list(models)
-            or ck.get("horizon", T_FIT) != horizon or not 0 < ck["gen"] < gens):
+            or ck.get("horizon", T_FIT) != horizon or ck.get("fitness", "episode") != fitness
+            or not 0 < ck["gen"] < gens):
         return 0, 0.0
     lines = o.read_text().splitlines()
     mine = [json.loads(ln) for ln in lines if ln.strip() and f'"name": "{name}"' in ln]
@@ -409,13 +417,16 @@ def main():
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--horizon", type=int, default=T_FIT, help="run: updates per fitness episode")
     ap.add_argument("--init", default=None, help="run: start from the best theta of this earlier run")
+    ap.add_argument("--fitness", choices=["episode", "loop"], default="episode",
+                    help="run: score a rule on single episodes or inside the wake / sleep loop (sleep.py)")
     ap.add_argument("--out", default=None)
     a = ap.parse_args()
     if a.cmd == "check":
         check()
     elif a.cmd == "run":
         run(a.name, a.mode, a.cases, a.seeds, a.gens, a.pop, a.episodes, a.sigma, a.lr, a.workers,
-            a.out or str(OUT), seed=a.seed, pos=a.pos, models=a.models, horizon=a.horizon, init=a.init)
+            a.out or str(OUT), seed=a.seed, pos=a.pos, models=a.models, horizon=a.horizon, init=a.init,
+            fitness=a.fitness)
     else:
         for name in a.names or [a.name]:
             evaluate(name, a.cases, a.seeds, a.ks, a.draws, a.steps,

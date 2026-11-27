@@ -276,6 +276,35 @@ def loop_episode(case, seed, draw, kind, rule="pos_map", model_name=MODEL, cycle
     return row
 
 
+def loop_fitness(theta, pos, horizon, case, seed, draw, model_name=MODEL, days=4, gate="surprise", kind="rls_rf",
+                 source="dream_mem"):
+    """ES fitness of a wake rule theta inside the loop (teacher.py run --fitness loop): the loop of loop_episode
+    without its controls; -> mean test score of W + S after each of the `days` nights (rewards early and lasting
+    gains alike)."""
+    base, maker = CASES[case][0], CASES[case][1]
+    spec = spec_of(base)
+    tb = maker(draw + 10 * seed, 64)[1]
+    rng = np.random.default_rng(1000 * seed + draw)
+    m = _net(seed, model_name)
+    S = learner(kind, m, seed * 100 + draw + 50, spec)
+    F = Teach(m, theta, seed * 100 + draw, spec, T=horizon, pos=pos)
+    model0 = _net(seed, model_name)
+    scores = []
+    for c in range(days):
+        b = maker(draw + 10 * seed + 1000 * c, 64)[0]
+        reset(F)
+        F.task_on = 1.0
+        for _ in range(T_WAKE):
+            wake_step(F, m, b, spec, gate)
+        w3 = pool_of(source, model0, windows_of(b), rng, spec)
+        y = predict_bits(m, w3, spec)
+        F.task_on = 0.0
+        for _ in range(T_LOOP_SLEEP):
+            S.step(dream_batch(w3, y, rng))
+        scores.append(score_on(m, tb, spec))
+    return float(np.mean(scores))
+
+
 def _job(a):
     return episode(*a)
 
