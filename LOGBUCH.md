@@ -5008,5 +5008,20 @@ der Kreislauf etwas bringt, was Training nicht bringt.
 
 ## Laufend / offen
 
+- Phase F, faire Kontrollen für den Kreislauf (Auftrag Nutzer 2026-11-27): Führt der Kreislauf über reines
+  Training hinaus, und was trägt das Wachen an den späteren Tagen bei? Neu in `sleep.py loop --controls`
+  (Commit nach diesem Eintrag; der Kreislauf selbst rechnet bitgleich weiter, geprüft an einer Episode):
+  `rls_direct` (rls_rf am Kopf direkt auf den echten Beispielen jedes Tages, 20 Updates je Tag, auf einem
+  eigenen Netz: gewöhnliches Training mit der besten Kopf-Regel) und `sleep_only` (Kreislauf mit Wachphase nur
+  an Tag 1, danach nur Schlaf auf Träumen aus den Beispielen des Tages, beschriftet von W + S). Lauf: `loop
+  --cases lib_xmFF lib_xm0F --learners rls_rf --gates surprise --controls --cycles 8 --seeds 5 6 --draws 6`
+  (12 Episoden je Fall, 8 Tage). Vorab gesehen (Probe xmFF, Seed 5, Ziehung 0, 4 Tage): Kreislauf nach dem
+  Schlaf 0,52 / 0,65 / 0,30 / 0,16, `sleep_only` 0,52 / 0,58 / 0,59 / 0,62, `rls_direct` 0,58 / 0,68 /
+  0,71 / 0,73.
+  **Vorhersage vor dem Lauf (2026-11-27):** (1) Reines Training mit rls_rf ist mindestens so gut wie der
+  Kreislauf: `rls_direct` an Tag 8 ≥ Kreislauf (W + S) an Tag 8 auf beiden Fällen. (2) Schlaf allein verbessert:
+  `sleep_only` Tag 8 − Tag 1 ≥ +0,05 auf beiden Fällen. (3) Das Wachen an den späteren Tagen trägt wenig bei:
+  |Kreislauf − `sleep_only`| an Tag 8 ≤ 0,05 im Mittel auf beiden Fällen.
+
 - Noch in Bits: `*_parts` (die Anpassungs-Studien servo / robot sind seit 2026-11-23 umgestellt); nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
