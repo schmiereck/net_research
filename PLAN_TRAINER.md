@@ -1717,6 +1717,14 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
     (der Prädiktor lernt auf seinen eigenen Vorhersagen) und doppelt so viele Lauf-Daten: Lesbarkeit nach 4
     Schritten 0,19 → 0,39 (echt 0,63); Träume aus zwei Schritten 0,78 → 0,88, aus einem 0,93; nach der ersten
     Nacht 0,84 gegen direktes Training 0,65. Nächstes: die Folge der Handlung lernen; Stufe 2 live in MuJoCo.
+  - **Folge der Handlung gelernt, legitime Beschriftung (2026-11-27, `results/latent_sleep_legit.jsonl`):** Ein
+    Folge-Modell aus den eigenen Lesungen vor / nach Augenbewegungen ist als Traum-Grundlage so gut wie die
+    Geometrie (0,81 gegen 0,79). Legitim beschriftete Träume (gelesene Lage + gelernte Folge + aus den 64
+    Erinnerungen gelernte affine Abbildung Lage → Kommando) liegen nach der ersten Nacht über direktem Training
+    (0,72 gegen 0,65), an Tag 4 darunter (0,81 gegen 0,96); echte unbeschriftete Bilder mit derselben Beschriftung
+    sind besser (0,84). Der Gewinn kommt aus der Zerlegung, nicht aus dem Träumen, und die affine Annahme bricht
+    bei weak (0,20). Offen: ein Aufbau, in dem echte Erfahrung fehlt (nie gesehene Lagen), denn nur dort könnten
+    Träume mehr leisten als unbeschriftete echte Bilder.
 - Langzeittest: 20 neue Varianten nacheinander lernen und dabei das Vergessen und die Generalisierung
   verfolgen.
 

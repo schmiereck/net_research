@@ -5349,6 +5349,82 @@ Orakel-Kontrolle gekennzeichnet.
 wandert (Geometrie des eigenen Auges, oder aus Augenbewegungen gelernt), (iii) welche Beschriftung zu einer
 Würfel-Lage gehört (aus den 64 beschrifteten Erinnerungen des Tages gelernt). Das prüft der nächste Versuch.
 
+## 2026-11-27 — Phase F, Folge der Handlung gelernt: das gelernte Folge-Modell ist so gut wie die Geometrie des Auges; legitim beschriftete Träume liegen nach der ersten Nacht über direktem Training, aber echte unbeschriftete Bilder mit derselben Beschriftung sind besser, und der Vorteil kommt aus einer affinen Annahme, die bei einer Kalibrierung bricht
+
+**Frage.** Lässt sich die Folge eines Blick-Schritts aus den eigenen Augenbewegungen lernen, und tragen
+Prädiktor-Träume, deren Beschriftung das System selbst herleitet (ohne die wahre Kalibrier-Funktion)?
+
+**Gemacht.** Commit vor diesem Eintrag; lokal mit 2 Prozessen (2 min, dieselben 24 Episoden). Vorhersage und
+Entwicklung vor dem Lauf (wörtlich aus „Laufend / offen“):
+
+> - Phase F, Folge der Handlung lernen und legitim beschriftete Träume (Auftrag Nutzer 2026-11-27, nach der
+>   Korrektur). Neu (Commit nach diesem Eintrag): `latent_pred.py conseq`: ein Folge-Modell (Zelle des roten
+>   Würfels vorher, Blick-Schritt) → Zelle nachher, gelernt nur aus dem, was der Kopf des Grundnetzes vor und
+>   nach den eigenen Augenbewegungen *liest* (keine Beschriftung, keine Geometrie); `latent_sleep.py` Quellen
+>   learn1_lin (Prädiktor-Traum, ein Schritt; Beschriftung aus (i) gelesener Zelle der Erinnerung, (ii) gelernter
+>   Folge, (iii) aus den 64 Erinnerungen des Tages gelernter Abbildung Zelle → Beschriftung, affin mit getrimmten
+>   kleinsten Quadraten), geo1_lin (wie learn1_lin, (ii) aus der Geometrie des eigenen Auges) und unlab_lin
+>   (Kontrolle ohne Vorstellung: unbeschriftete echte Bilder des Tages, beschriftet über (i) + (iii)).
+>   Entwicklung (Startnetz 5, `results/latent_pred.jsonl`; Treffer der Zelle nach dem Schritt, wo der Würfel vor
+>   und nach dem Schritt im Blickfeld liegt; Kopf liest den Würfel dort zu 0,80, im Zentrum ±4 zu 0,98, außen zu
+>   0,74): Folge-Modell mit Zahlen-Eingaben, nur zentrale Lesungen: Zentrum 0,67 (Geometrie 0,91; c − s 0,57);
+>   viermal mehr Daten 0,69; One-hot-Eingaben (Versatz jeder zweiten Hex-Zeile) 0,84; One-hot auf dem ganzen
+>   Blickfeld (gewählt, `_all`) Zentrum 0,82, ganzes Feld aus gelesener Zelle 0,60 (Geometrie 0,73). Die affine
+>   Abbildung brauchte Trimmen (ohne: 0,17 Treffer auf den eigenen Erinnerungen, weil Schritte bei −8 / 7
+>   umwickeln); nächste Erinnerung statt affin (knn) war in Proben schlecht (0,14–0,38) und ist nicht im Lauf;
+>   Träume nur im Zentrum ±5 halbierten die Abdeckung (Proben 0,13–0,57). Startnetz 6 entsprechend (Zentrum 0,85,
+>   ganzes Feld 0,61). Lauf: 24 Episoden, Quellen learn1_lin, geo1_lin, unlab_lin, Prädiktor `_roll8`, nach
+>   `results/latent_sleep_legit.jsonl`. Vorab gesehen (Probe Seed 5, Ziehung 0; W + S an Tag 1 / 4): flipx
+>   learn1_lin 0,76 / 0,93, geo1_lin 0,79 / 0,91, unlab_lin 0,96 / 0,96; strong 0,87 / 0,96, 0,93 / 0,95, 0,99 / 0,96.
+>   **Vorhersage vor dem Lauf (2026-11-27):** (1) Legitim beschriftete Prädiktor-Träume liegen nach der ersten
+>   Nacht über direktem Training: learn1_lin an Tag 1 ≥ rls_direct an Tag 1 + 0,05 (0,65). (2) Gelernte Folge
+>   und Geometrie sind gleichwertig: |learn1_lin − geo1_lin| an Tag 4 ≤ 0,03. (3) Ohne Vorstellung geht es
+>   mindestens so gut: unlab_lin an Tag 4 ≥ learn1_lin an Tag 4; der Gewinn kommt dann aus der Zerlegung
+>   (Wahrnehmung der Würfel-Lage + kleine gelernte Abbildung), nicht aus dem Träumen.
+
+**Ergebnis.** W + S nach jeder Nacht, Mittel über 24 Episoden (letzte Spalte: ohne die 4 Episoden von weak):
+
+| Quelle | Tag 1 | Tag 2 | Tag 3 | Tag 4 | Tag 1 / 4 ohne weak |
+|---|---|---|---|---|---|
+| learn1_lin (Prädiktor-Traum, gelernte Folge) | 0,72 | 0,77 | 0,80 | 0,81 | 0,83 / 0,92 |
+| geo1_lin (Prädiktor-Traum, Geometrie) | 0,71 | 0,76 | 0,78 | 0,79 | 0,81 / 0,91 |
+| unlab_lin (echte unbeschriftete Bilder, ohne Vorstellung) | 0,84 | 0,84 | 0,85 | 0,85 | 0,96 / 0,97 |
+| *rls_direct (direktes Training)* | 0,65 | 0,89 | 0,94 | 0,96 | 0,65 / 0,96 |
+| *mix (Stufe 1)* | 0,64 | 0,87 | 0,92 | 0,93 | 0,64 / 0,93 |
+| *Orakel carry1 (Korrektur-Eintrag)* | 0,84 | 0,89 | 0,91 | 0,93 | |
+
+Je Gerät Tag 1 / Tag 4 für learn1_lin: flipx 0,82 / 0,91, offx 0,83 / 0,93, rot90 0,81 / 0,91, strong 0,86 / 0,94,
+swap 0,82 / 0,92, **weak 0,20 / 0,23** (geo1_lin und unlab_lin dort ebenso 0,19–0,23). Gepaart (± Standardfehler,
+Anteil positiv): learn1_lin − rls_direct an Tag 1 +0,07 ± 0,05 (19 von 24), an Tag 4 −0,15 ± 0,06; learn1_lin −
+geo1_lin an Tag 4 +0,01 ± 0,00 (17 von 24); unlab_lin − learn1_lin an Tag 1 +0,11 ± 0,01 (23 von 24), an Tag 4
++0,04 ± 0,01 (22 von 24).
+
+**Vergleich mit der Vorhersage.** (1) Getroffen, knapp: learn1_lin an Tag 1 0,72 (≥ 0,70). (2) Getroffen: 0,01
+Abstand zur Geometrie. (3) Getroffen: unlab_lin an Tag 4 0,04 über learn1_lin. Bilanz: 3 von 3 getroffen. Nicht
+vorhergesagt: das Versagen auf weak.
+
+**Schluss.** (a) **Die Folge der Handlung lässt sich lernen:** Das Folge-Modell, gelernt nur aus den eigenen
+Lesungen vor und nach den Augenbewegungen, ist als Grundlage der Traum-Beschriftung so gut wie die bekannte
+Geometrie (0,81 gegen 0,79), obwohl es für sich genommen weniger oft die genaue Zelle trifft (0,60 gegen 0,73
+auf dem ganzen Feld). (b) **Legitim beschriftete Träume schlagen direktes Training nur am Anfang:** nach der
+ersten Nacht 0,72 gegen 0,65 (ohne weak 0,83 gegen 0,65), an Tag 4 deutlich darunter (0,81 gegen 0,96; ohne weak
+0,92 gegen 0,96). (c) **Der Gewinn am Anfang kommt nicht aus dem Träumen:** Dieselbe Beschriftung auf echten
+unbeschrifteten Bildern des Tages ist besser (0,84 gegen 0,72; ohne weak 0,96 nach der ersten Nacht). Er kommt
+aus der Zerlegung: Der Kopf des Grundnetzes liest die Lage des Würfels, und die Aufgabe wird als kleine Abbildung
+Lage → Kommando aus den 64 Erinnerungen gelernt. (d) **Diese Abbildung ist hier affin, und das ist eine
+Annahme:** Bei weak (doppelte Schrittweite, an den Rändern abgeschnitten) sind die meisten Erinnerungen
+gesättigt, die affine Abbildung passt nicht, und alle drei Quellen fallen auf 0,20–0,23. Eine Abbildung über
+die nächste Erinnerung (ohne Annahme) war in Proben schlecht. Die Zerlegung trägt also nur, wo die Annahme über
+die Form der Aufgabe stimmt. (e) Gesamtbild zur Traum-Idee bis hier: Ein gelerntes Weltmodell im Latent-Space
+und eine gelernte Folge der Handlung funktionieren; Träume daraus tragen eine Fähigkeit, wenn ihre Beschriftung
+stimmt. Ein Vorteil des Träumens über echte unbeschriftete Erfahrung oder über direktes Training auf Dauer ist
+auf dieser Aufgabe nicht gezeigt. Wo Träume nötig wären: wenn echte Erfahrung fehlt (Lagen, die der Roboter
+noch nie gesehen hat) – das prüft dieser Aufbau nicht, weil die unbeschrifteten Bilder dieselbe Verteilung haben
+wie der Test.
+
+**Belege.** `results/latent_pred.jsonl` (Folge-Modelle: 2 Zeilen nur zentral, 2 Zeilen ganzes Feld),
+`results/latent_sleep_legit.jsonl` (24 Zeilen).
+
 ## Laufend / offen
 
 - Phase F, Wach-Regel per ES im Kreislauf geformt (Auftrag Nutzer 2026-11-27, Weg 1). Neu (Commit nach
@@ -5370,31 +5446,6 @@ Würfel-Lage gehört (aus den 64 beschrifteten Erinnerungen des Tages gelernt). 
   liegt das Mittel von W + S über die Tage 1–4 um ≥ 0,05 über `pos_map`, an Tag 8 aber höchstens 0,03 über
   `rls_direct`. (3) Die neue Regel wacht mehr: Wach-Updates an den Tagen 2–4 im Mittel mindestens doppelt so
   viele wie bei `pos_map`.
-
-- Phase F, Folge der Handlung lernen und legitim beschriftete Träume (Auftrag Nutzer 2026-11-27, nach der
-  Korrektur). Neu (Commit nach diesem Eintrag): `latent_pred.py conseq`: ein Folge-Modell (Zelle des roten
-  Würfels vorher, Blick-Schritt) → Zelle nachher, gelernt nur aus dem, was der Kopf des Grundnetzes vor und
-  nach den eigenen Augenbewegungen *liest* (keine Beschriftung, keine Geometrie); `latent_sleep.py` Quellen
-  learn1_lin (Prädiktor-Traum, ein Schritt; Beschriftung aus (i) gelesener Zelle der Erinnerung, (ii) gelernter
-  Folge, (iii) aus den 64 Erinnerungen des Tages gelernter Abbildung Zelle → Beschriftung, affin mit getrimmten
-  kleinsten Quadraten), geo1_lin (wie learn1_lin, (ii) aus der Geometrie des eigenen Auges) und unlab_lin
-  (Kontrolle ohne Vorstellung: unbeschriftete echte Bilder des Tages, beschriftet über (i) + (iii)).
-  Entwicklung (Startnetz 5, `results/latent_pred.jsonl`; Treffer der Zelle nach dem Schritt, wo der Würfel vor
-  und nach dem Schritt im Blickfeld liegt; Kopf liest den Würfel dort zu 0,80, im Zentrum ±4 zu 0,98, außen zu
-  0,74): Folge-Modell mit Zahlen-Eingaben, nur zentrale Lesungen: Zentrum 0,67 (Geometrie 0,91; c − s 0,57);
-  viermal mehr Daten 0,69; One-hot-Eingaben (Versatz jeder zweiten Hex-Zeile) 0,84; One-hot auf dem ganzen
-  Blickfeld (gewählt, `_all`) Zentrum 0,82, ganzes Feld aus gelesener Zelle 0,60 (Geometrie 0,73). Die affine
-  Abbildung brauchte Trimmen (ohne: 0,17 Treffer auf den eigenen Erinnerungen, weil Schritte bei −8 / 7
-  umwickeln); nächste Erinnerung statt affin (knn) war in Proben schlecht (0,14–0,38) und ist nicht im Lauf;
-  Träume nur im Zentrum ±5 halbierten die Abdeckung (Proben 0,13–0,57). Startnetz 6 entsprechend (Zentrum 0,85,
-  ganzes Feld 0,61). Lauf: 24 Episoden, Quellen learn1_lin, geo1_lin, unlab_lin, Prädiktor `_roll8`, nach
-  `results/latent_sleep_legit.jsonl`. Vorab gesehen (Probe Seed 5, Ziehung 0; W + S an Tag 1 / 4): flipx
-  learn1_lin 0,76 / 0,93, geo1_lin 0,79 / 0,91, unlab_lin 0,96 / 0,96; strong 0,87 / 0,96, 0,93 / 0,95, 0,99 / 0,96.
-  **Vorhersage vor dem Lauf (2026-11-27):** (1) Legitim beschriftete Prädiktor-Träume liegen nach der ersten
-  Nacht über direktem Training: learn1_lin an Tag 1 ≥ rls_direct an Tag 1 + 0,05 (0,65). (2) Gelernte Folge
-  und Geometrie sind gleichwertig: |learn1_lin − geo1_lin| an Tag 4 ≤ 0,03. (3) Ohne Vorstellung geht es
-  mindestens so gut: unlab_lin an Tag 4 ≥ learn1_lin an Tag 4; der Gewinn kommt dann aus der Zerlegung
-  (Wahrnehmung der Würfel-Lage + kleine gelernte Abbildung), nicht aus dem Träumen.
 
 - Noch in Bits: `*_parts` (die Anpassungs-Studien servo / robot sind seit 2026-11-23 umgestellt); nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

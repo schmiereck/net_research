@@ -435,6 +435,8 @@ Erfahrungen, die in die Pipeline gehören:
   echten Beispielen, nicht darüber; Schlaf allein verbessert S ohne neue Beschriftungen um etwa 0,10. Auf den
   Roboter-Bildern übertragen Träume im Latent-Space Blick-Kalibrierungen fast verlustfrei, solange sie nahe an
   den Erinnerungen bleiben. Ein gelernter Latent-Prädiktor sagt den nächsten Latent nach einem Blick-Schritt
-  brauchbar vorher; seine Träume tragen die Fähigkeit, wenn ihre Beschriftung stimmt (gemessen bisher nur mit
-  Orakel-Beschriftung, Korrektur im LOGBUCH 2026-11-27).
+  brauchbar vorher; seine Träume tragen die Fähigkeit, wenn ihre Beschriftung stimmt. Die Folge eines Blick-Schritts
+  lässt sich aus den eigenen Augenbewegungen lernen (so gut wie die Geometrie). Legitim beschriftete Träume
+  schlagen direktes Training nur nach der ersten Nacht; echte unbeschriftete Bilder mit derselben Beschriftung
+  sind besser.
 - Noch nicht begonnen: Weltmodell, Reinforcement Learning.
