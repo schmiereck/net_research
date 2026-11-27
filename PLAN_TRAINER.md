@@ -1698,6 +1698,12 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
     Erinnerungen ausgehen und nahe bleiben. Nächster Baustein: gelernter Latent-Prädiktor (nächster Latent aus
     jetzigem und Blick-Schritt) für Traum-Sequenzen; dann Stufe 2 live in MuJoCo (Lernen im Betrieb aus dem
     Rest-Versatz nach der Blickbewegung).
+  - **Latent-Prädiktor gebaut (2026-11-27, `netresearch/latent_pred.py`, `results/latent_pred.jsonl`,
+    `results/latent_sleep_pred.jsonl`):** gelernt aus neu abgetasteten Augenbewegungen auf den Würfel-Szenen
+    (Kamerabilder aus dem Roboter-Export), ohne Aufgabe. Einen Schritt voraus liest der Kopf den Würfel aus dem
+    vorhergesagten Latent zu 0,56–0,58 (echt 0,73–0,76, unbewegt 0,03). Als Traum-Quelle schlechter als Mischungen
+    (0,73 gegen 0,93) und als echte unbeschriftete Blicke (0,82). Nächstes: die Beschriftung der Erinnerung mit dem
+    Schritt mitführen (Traum als vorgestellte Erfahrung mit bekannter Folge); Prädiktor verbessern.
 - Langzeittest: 20 neue Varianten nacheinander lernen und dabei das Vergessen und die Generalisierung
   verfolgen.
 

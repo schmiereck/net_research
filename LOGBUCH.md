@@ -5142,6 +5142,73 @@ der Blickschleife vor (`data/robot/gazeloop2_*`, noch nicht geprüft).
 
 **Belege.** `results/latent_sleep.jsonl` (24 Zeilen).
 
+## 2026-11-27 — Phase F, Latent-Prädiktor: er sagt den nächsten Latent-Zustand nach einem Blick-Schritt brauchbar vorher, aber seine Träume übertragen die Kalibrierung schlechter als einfache Mischungen von Erinnerungen
+
+**Frage.** Lässt sich ein Prädiktor im Latent-Space (nächster Latent-Zustand aus dem jetzigen und dem
+Blick-Schritt) aus den eigenen Augenbewegungen lernen, und taugen seine Träume für den Schlaf?
+
+**Gemacht.** Commits 3f4aa31 (rdf_thalamus_sml, Export mit Kamerabildern der Würfel-Szenen) und der Commit vor
+diesem Eintrag in NetResearch; Prädiktor lokal trainiert (3 min für beide Startnetze), Schlaf-Lauf lokal mit 2
+Prozessen (1 min, 24 Episoden). Vorhersage und Bau vor dem Lauf (wörtlich aus „Laufend / offen“):
+
+> - Phase F, Latent-Prädiktor als Traum-Quelle (Auftrag Nutzer 2026-11-27). Gebaut (Commit nach diesem
+>   Eintrag): `netresearch/latent_pred.py`. Daten: Im Roboter-Projekt speichert `export_netresearch.py --tasks
+>   gazemulti --images` jetzt auch das Kamerabild und die Pixelorte der drei Würfel (ohne den Schalter
+>   unverändert; geprüft: dieselben Szenen wie `gazemulti_test.npz`, die Fovea aus dem Kamerabild bitgleich zu den
+>   exportierten Bildern, die Würfel-Schritte aus den Pixelorten gleich `cells`); exportiert 4000 / 1000 Szenen
+>   (`data/robot/gazemulti_{train,test}_img.npz`, nicht im Repo). Auf jeder Szene Läufe aus 4 zufälligen
+>   Blick-Schritten (|dx|, |dy| ≤ 5), die Fovea neu abgetastet und vom eingefrorenen robot_gaze-Netz (layer_s)
+>   kodiert; P: MLP (h, Schritt) → h + Δh, 40 Epochen, 64 000 Übergänge, ohne Aufgabe und ohne Beschriftung.
+>   Ein erster Versuch auf den Suchszenen der Form-Aufgaben scheiterte: Das robot_gaze-Netz sieht deren Körper
+>   nicht (sein Kopf trifft dort 0,03). Ergebnis auf ungesehenen Szenen, Startnetze 5 / 6 (`results/latent_pred.jsonl`):
+>   Fehler relativ zur Varianz nach 1 / 2 / 3 / 4 Schritten 0,39 / 0,53 / 0,67 / 0,80 und 0,38 / 0,50 / 0,63 /
+>   0,71 (unbewegt 1,78–1,93); der Kopf des Grundnetzes liest den Schritt zum roten Würfel aus dem vorhergesagten
+>   Latent zu 0,56 / 0,38 / 0,24 / 0,19 und 0,58 / 0,41 / 0,30 / 0,22 richtig (aus dem echten 0,73–0,63 und
+>   0,76–0,66, aus dem unbewegten 0,02–0,03). In `latent_sleep.py` zwei neue Traum-Quellen: pred_near (von
+>   einer Erinnerung ein Blick-Schritt mit |dx|, |dy| ≤ 2) und pred_far (zwei Schritte mit ≤ 5); die alten Quellen
+>   rechnen bitgleich weiter. Lauf: dieselben 24 Episoden wie in Stufe 1, nur die neuen Quellen, nach
+>   `results/latent_sleep_pred.jsonl`. Vorab gesehen (Probe flipx, Seed 5, Ziehung 0; W + S an Tag 1 / 4):
+>   pred_near 0,58 / 0,79, pred_far 0,55 / 0,82 (mix 0,80 / 0,93, unlab 0,80 / 0,87).
+>   **Vorhersage vor dem Lauf (2026-11-27):** (1) Träume des Prädiktors sind schlechter als Mischungen: pred_near
+>   und pred_far an Tag 4 um ≥ 0,05 unter mix. (2) Vorhergesagte Latente wirken wie echte andere Blicke: pred_far
+>   an Tag 4 innerhalb ± 0,05 von unlab. (3) Sie sind besser als Stichproben ohne Bezug zur Erinnerung: pred_near
+>   an Tag 4 ≥ gauss + 0,05.
+
+**Ergebnis.** W + S nach jeder Nacht, Mittel über dieselben 24 Episoden wie in Stufe 1:
+
+| Quelle | Tag 1 | Tag 2 | Tag 3 | Tag 4 |
+|---|---|---|---|---|
+| pred_near (1 Schritt, ≤ 2) | 0,51 | 0,60 | 0,67 | 0,71 |
+| pred_far (2 Schritte, ≤ 5) | 0,52 | 0,63 | 0,69 | 0,73 |
+| *mix (Stufe 1)* | 0,64 | 0,87 | 0,92 | 0,93 |
+| *unlab (Stufe 1)* | 0,66 | 0,74 | 0,79 | 0,82 |
+| *gauss (Stufe 1)* | 0,48 | 0,57 | 0,63 | 0,67 |
+| *rls_direct (Stufe 1)* | 0,65 | 0,89 | 0,94 | 0,96 |
+
+Gepaart an Tag 4 (± Standardfehler): pred_near − mix −0,22 ± 0,02, pred_far − mix −0,19 ± 0,02 (je 0 von 24
+positiv), pred_far − unlab −0,08 ± 0,01, pred_near − gauss +0,03 ± 0,01 (17 von 24). Je Gerät pred_far an Tag 4:
+flipx 0,79, offx 0,72, rot90 0,63, strong 0,87, swap 0,62, weak 0,76.
+
+**Vergleich mit der Vorhersage.** (1) Getroffen: beide um 0,19–0,22 unter mix. (2) Nicht getroffen: pred_far
+liegt 0,08 unter unlab, nicht innerhalb ± 0,05. (3) Nicht getroffen: pred_near nur 0,03 über gauss. Bilanz:
+1 von 3 getroffen.
+
+**Schluss.** (a) **Der Prädiktor funktioniert als Weltmodell, aber noch nicht genau genug für Träume:** Einen
+Schritt voraus trägt der vorhergesagte Latent die Lage des Würfels für den Kopf des Grundnetzes zu 0,56–0,58
+(echter Latent 0,73–0,76), über mehrere Schritte weniger. Als Traum-Quelle liegt er unter echten
+unbeschrifteten Blicken (0,73 gegen 0,82) und weit unter Mischungen von Erinnerungen (0,93). (b) Zwei Verluste
+kommen zusammen: Vorhergesagte Latente zeigen andere Blicke, auf denen der wache Kopf häufiger falsch liegt
+(wie bei unlab), und sie liegen zusätzlich neben den echten Latenten (Fehler des Prädiktors). (c) Gegen die
+Erwartung sind kleine Schritte nicht besser als große (0,71 gegen 0,73): Der kleine Abstand zur Erinnerung hilft
+nicht, wenn der Traum-Latent selbst ungenau ist. (d) **Was ein Prädiktor-Traum dem Mischen voraus hätte, ist
+hier ungenutzt:** Er weiß, *wohin* der Blick gegangen ist. Die Beschriftung einer Erinnerung lässt sich
+deshalb mit dem Schritt mitführen (Würfel vorher bei c, nach dem Schritt s bei etwa c − s), statt den
+Traum vom wachen Kopf beschriften zu lassen. Das wäre ein Traum als vorgestellte Erfahrung mit bekannter Folge.
+Nächste Schritte: diese mitgeführte Beschriftung prüfen; den Prädiktor verbessern (mehr Daten, Verlust über
+mehrere Schritte).
+
+**Belege.** `results/latent_pred.jsonl` (2 Zeilen), `results/latent_sleep_pred.jsonl` (24 Zeilen).
+
 ## Laufend / offen
 
 - Phase F, Wach-Regel per ES im Kreislauf geformt (Auftrag Nutzer 2026-11-27, Weg 1). Neu (Commit nach
@@ -5163,29 +5230,6 @@ der Blickschleife vor (`data/robot/gazeloop2_*`, noch nicht geprüft).
   liegt das Mittel von W + S über die Tage 1–4 um ≥ 0,05 über `pos_map`, an Tag 8 aber höchstens 0,03 über
   `rls_direct`. (3) Die neue Regel wacht mehr: Wach-Updates an den Tagen 2–4 im Mittel mindestens doppelt so
   viele wie bei `pos_map`.
-
-- Phase F, Latent-Prädiktor als Traum-Quelle (Auftrag Nutzer 2026-11-27). Gebaut (Commit nach diesem
-  Eintrag): `netresearch/latent_pred.py`. Daten: Im Roboter-Projekt speichert `export_netresearch.py --tasks
-  gazemulti --images` jetzt auch das Kamerabild und die Pixelorte der drei Würfel (ohne den Schalter
-  unverändert; geprüft: dieselben Szenen wie `gazemulti_test.npz`, die Fovea aus dem Kamerabild bitgleich zu den
-  exportierten Bildern, die Würfel-Schritte aus den Pixelorten gleich `cells`); exportiert 4000 / 1000 Szenen
-  (`data/robot/gazemulti_{train,test}_img.npz`, nicht im Repo). Auf jeder Szene Läufe aus 4 zufälligen
-  Blick-Schritten (|dx|, |dy| ≤ 5), die Fovea neu abgetastet und vom eingefrorenen robot_gaze-Netz (layer_s)
-  kodiert; P: MLP (h, Schritt) → h + Δh, 40 Epochen, 64 000 Übergänge, ohne Aufgabe und ohne Beschriftung.
-  Ein erster Versuch auf den Suchszenen der Form-Aufgaben scheiterte: Das robot_gaze-Netz sieht deren Körper
-  nicht (sein Kopf trifft dort 0,03). Ergebnis auf ungesehenen Szenen, Startnetze 5 / 6 (`results/latent_pred.jsonl`):
-  Fehler relativ zur Varianz nach 1 / 2 / 3 / 4 Schritten 0,39 / 0,53 / 0,67 / 0,80 und 0,38 / 0,50 / 0,63 /
-  0,71 (unbewegt 1,78–1,93); der Kopf des Grundnetzes liest den Schritt zum roten Würfel aus dem vorhergesagten
-  Latent zu 0,56 / 0,38 / 0,24 / 0,19 und 0,58 / 0,41 / 0,30 / 0,22 richtig (aus dem echten 0,73–0,63 und
-  0,76–0,66, aus dem unbewegten 0,02–0,03). In `latent_sleep.py` zwei neue Traum-Quellen: pred_near (von
-  einer Erinnerung ein Blick-Schritt mit |dx|, |dy| ≤ 2) und pred_far (zwei Schritte mit ≤ 5); die alten Quellen
-  rechnen bitgleich weiter. Lauf: dieselben 24 Episoden wie in Stufe 1, nur die neuen Quellen, nach
-  `results/latent_sleep_pred.jsonl`. Vorab gesehen (Probe flipx, Seed 5, Ziehung 0; W + S an Tag 1 / 4):
-  pred_near 0,58 / 0,79, pred_far 0,55 / 0,82 (mix 0,80 / 0,93, unlab 0,80 / 0,87).
-  **Vorhersage vor dem Lauf (2026-11-27):** (1) Träume des Prädiktors sind schlechter als Mischungen: pred_near
-  und pred_far an Tag 4 um ≥ 0,05 unter mix. (2) Vorhergesagte Latente wirken wie echte andere Blicke: pred_far
-  an Tag 4 innerhalb ± 0,05 von unlab. (3) Sie sind besser als Stichproben ohne Bezug zur Erinnerung: pred_near
-  an Tag 4 ≥ gauss + 0,05.
 
 - Noch in Bits: `*_parts` (die Anpassungs-Studien servo / robot sind seit 2026-11-23 umgestellt); nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
