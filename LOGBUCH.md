@@ -5231,5 +5231,20 @@ mehrere Schritte).
   `rls_direct`. (3) Die neue Regel wacht mehr: Wach-Updates an den Tagen 2–4 im Mittel mindestens doppelt so
   viele wie bei `pos_map`.
 
+- Phase F, mitgeführte Beschriftung für Prädiktor-Träume (Auftrag Nutzer 2026-11-27). Neu (Commit nach diesem
+  Eintrag): Traum-Quellen carry1 / carry2 in `latent_sleep.py`: von einer Erinnerung 1 oder 2 Blick-Schritte
+  (|dx|, |dy| ≤ 5) durch den Prädiktor; die Beschriftung kommt nicht vom wachen Kopf, sondern wird mitgeführt:
+  Der rote Würfel der Erinnerung liegt in Zelle c (für die beschrifteten Bilder bekannt; `adapt.py` gibt sie
+  jetzt mit), nach den Schritten dort, wo ihn die Fovea-Geometrie vom neuen Blick aus sieht; Beschriftung =
+  Kalibrierung dieses Schritts; Träume, in denen der Würfel das Blickfeld verlässt, fallen weg (etwa 5–8 %).
+  Geprüft an 1000 Test-Szenen mit Kamerabild: die mitgeführte Zelle stimmt mit der wahren nach 1 / 2 Schritten
+  zu 0,98 / 0,98 überein. Die alten Quellen rechnen bitgleich weiter. Lauf: dieselben 24 Episoden, Quellen
+  carry1, carry2, nach `results/latent_sleep_carry.jsonl`. Vorab gesehen (Probe flipx, Seed 5, Ziehung 0; W + S
+  an Tag 1 / 4): carry1 0,78 / 0,93, carry2 0,63 / 0,72 (pred_far 0,55 / 0,82, mix 0,80 / 0,93).
+  **Vorhersage vor dem Lauf (2026-11-27):** (1) Die mitgeführte Beschriftung behebt das Problem der
+  Beschriftung: carry1 an Tag 4 ≥ pred_far + 0,10. (2) Mit einem Schritt erreichen Prädiktor-Träume die
+  Mischungen: carry1 an Tag 4 innerhalb ± 0,03 von mix. (3) Der Fehler des Prädiktors wächst mit den Schritten:
+  carry2 an Tag 4 um ≥ 0,10 unter carry1.
+
 - Noch in Bits: `*_parts` (die Anpassungs-Studien servo / robot sind seit 2026-11-23 umgestellt); nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

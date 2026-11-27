@@ -264,8 +264,10 @@ def case_robot_eye(device, variant, k, pop=True):
         i = rng.permutation(len(d["obs"]))[:n]
         c = d["cells"][i].astype(np.int64)
         dx, dy = DEVICES[device](c[:, 0], c[:, 1])
-        return to_t({"obs": (d["obs"][i].astype(np.float32) / 255.0)[None],
-                     "target": step_target(dx, dy, pop)[None], "mask": np.ones((1, n), np.float32)})
+        out = to_t({"obs": (d["obs"][i].astype(np.float32) / 255.0)[None],
+                    "target": step_target(dx, dy, pop)[None], "mask": np.ones((1, n), np.float32)})
+        out["red"] = c[:, :2]                                   # where the red cube is (diagnostics, dreams)
+        return out
     return make(k, "train"), make(N_TEST, "test")
 
 

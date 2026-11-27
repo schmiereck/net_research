@@ -19,6 +19,11 @@ Dream latents (DREAM_N per night):
     pred_near / pred_far  dreams of the latent predictor (latent_pred.py; learned from the robot's own eye
              movements, no labels): from one of the day's latents, 1 random gaze step with |dx|, |dy| <= 2
              (near), or 2 steps with |dx|, |dy| <= 5 (far); the dream is the predicted latent after the steps
+    carry1 / carry2  dreams of the predictor as in pred_*, 1 or 2 gaze steps with |dx|, |dy| <= 5, but the label
+             is CARRIED along instead of asked from the waking head: the memory's red cube lies at cell c (known for
+             the labelled images); after the steps it lies where the fovea geometry puts it (tasks/fovea.py: its
+             sampling point seen from the moved gaze), and the label is the calibration of that step. Dreams in
+             which the cube leaves the field of view are dropped.
 Controls: `unlab_true` (sleep on the unlabelled latents with their TRUE labels: what the dream labels cost) and
 `rls_direct` (rls_rf at the head trained directly on every day's labelled images, kept over the days).
 """
@@ -39,6 +44,24 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "results" / "latent_sleep.jsonl"
 SOURCES = ["replay", "noise", "mix", "unlab", "gauss", "unlab_true"]
 PRED = {"pred_near": (1, 2), "pred_far": (2, 5)}             # dream source -> (gaze steps, largest |dx|, |dy|)
+CARRY = {"carry1": 1, "carry2": 2}                            # dream source -> gaze steps (|dx|, |dy| <= 5)
+
+
+def carried(red, steps):
+    """Cell of the red cube after the gaze steps (fovea geometry), from its cell `red` [n, 2] before;
+    -> cells [n, 2] and a mask of dreams in which it stays in view."""
+    from .tasks import fovea as fv
+    cp = fv.cell_px(np.zeros(2))
+    out, ok = np.zeros_like(red), np.ones(len(red), bool)
+    for j in range(len(red)):
+        px = cp[fv.F // 2 + red[j, 1], fv.F // 2 + red[j, 0]]
+        g = np.zeros(2)
+        for s in steps[j]:
+            g = fv.shift(g, s[0], s[1])
+        dx, dy, dist = fv.nearest_cell(g, px)
+        out[j] = (dx, dy)
+        ok[j] = dist <= 2 * fv.K
+    return out, ok
 DAYS, K, DREAM_N, BATCH, EPS, SURPRISE_MIN = 4, 64, 1024, 64, 0.5, 0.1
 _nets = {}
 
@@ -122,7 +145,7 @@ def episode(case, seed, draw, model_name="layer_s", days=DAYS, gate="surprise", 
            "dream_n": DREAM_N, "eps": EPS}
     eta = default_eta("rls_rf@task")
     pred = None
-    if any(s in PRED for s in sources):
+    if any(s in PRED or s in CARRY for s in sources):
         from .latent_pred import load
         pred = load(model_name, seed)
     for src in sources:
@@ -152,13 +175,28 @@ def episode(case, seed, draw, model_name="layer_s", days=DAYS, gate="surprise", 
             cur["n_wake"].append(int(woke))
             cur["wake"].append(score_on(m, tb, spec))                        # W + S + F
             h_day = probe.head_inputs(b["obs"])
-            if src in ("unlab", "unlab_true"):
+            carry_y = None
+            if src in CARRY:
+                from .tasks.servo import DEVICES
+                i = rng.integers(0, len(h_day), DREAM_N)
+                st = rng.integers(-5, 6, (DREAM_N, CARRY[src], 2))
+                z = h_day[torch.from_numpy(i)]
+                with torch.no_grad():
+                    for t in range(CARRY[src]):
+                        z = pred(z, torch.from_numpy(st[:, t].astype(np.float32)))
+                cell, ok = carried(np.asarray(b["red"])[i], st)
+                dx, dy = DEVICES[device](cell[:, 0], cell[:, 1])
+                z, carry_y = z[torch.from_numpy(ok)], torch.from_numpy(step_target(dx, dy, spec.pop))[torch.from_numpy(ok)]
+                cur.setdefault("n_dreams", []).append(int(ok.sum()))
+            elif src in ("unlab", "unlab_true"):
                 obs_u, cells = unlabelled(seed, draw, c, DREAM_N)
                 z = probe.head_inputs(obs_u)
             else:
                 z = dreams(src, h_day, rng, gauss, pred)
             with torch.no_grad():
-                if src == "unlab_true":
+                if carry_y is not None:
+                    y = carry_y
+                elif src == "unlab_true":
                     from .tasks.servo import DEVICES
                     dx, dy = DEVICES[device](cells[:, 0], cells[:, 1])
                     y = torch.from_numpy(step_target(dx, dy, spec.pop))
