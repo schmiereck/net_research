@@ -5513,5 +5513,28 @@ noch nicht erlebt wurden; dort ist er hier deutlich. Offen: eine übertragbare A
   `rls_direct`. (3) Die neue Regel wacht mehr: Wach-Updates an den Tagen 2–4 im Mittel mindestens doppelt so
   viele wie bei `pos_map`.
 
+- Phase F, übertragbare Abbildung ohne affine Annahme (Auftrag Nutzer 2026-11-27). Neu (Commit nach diesem
+  Eintrag): `netresearch/label_map.py` mit zwei Wegen zur Abbildung Lage → Kommando aus den 64 Erinnerungen
+  (alle in der rechten Hälfte): (a) gelernt über viele Aufgaben: ein Tabellen-Ergänzer (Mengen-Encoder der
+  bekannten Zellen → Aufgaben-Kennung, Decoder Zelle + Kennung → Kommando), trainiert auf zufälligen
+  Kalibrierungen einer Familie (je Achse linear mit Versatz, Rundung, Begrenzung, Schritte umgewickelt;
+  Erinnerungen nur rechts, Verlust auf allen Zellen); die sechs Test-Geräte sind als Tabellen vom Training
+  ausgeschlossen; 4000 Schritte zu 256 frischen Aufgaben, lokal 45 min, Verlust noch fallend (1,10). Eine Variante
+  mit One-hot-Eingaben lernte in 600 Schritten langsamer (verworfen). (b) Hypothesen-Suche: je Achse die
+  Kalibrierung dieser Familie (36 860 verschiedene Tabellen), die zu den Erinnerungen passt (wenigste
+  Fehler, dann die einfachste); die Test-Geräte sind Mitglieder der Familie, die Suche kennt also die *Art* der
+  Aufgabe. Trefferquote der Tabelle in der zurückgehaltenen Hälfte bei richtig gelesenen Lagen (20 Ziehungen
+  der Erinnerungen; Ergänzer / Suche / affin): flipx 0,36 / 0,88 / 0,88, swap 0,37 / 1,00 / 1,00, rot90 0,34 /
+  0,88 / 0,88, strong 0,33 / 1,00 / 0,58, weak 0,41 / 1,00 / 0,03, offx 0,42 / 1,00 / 1,00 (flipx und rot90:
+  bei −8 wickelt der Schritt um, das kennt die Familie nicht). Quellen learn1_meta, learn1_fam, unlab_all_fam in
+  `latent_sleep.py`. Lauf: `--holdout`, 24 Episoden, Quellen learn1_fam, learn1_meta, unlab_all_fam, nach
+  `results/latent_sleep_holdout2.jsonl`; Bezug learn1_lin (zurückgehalten 0,52, weak 0,04). Vorab gesehen
+  (Probe Seed 5, Ziehung 0; zurückgehalten / gesehen an Tag 4): weak learn1_lin 0,00 / 0,16, learn1_fam 0,83 /
+  0,97, learn1_meta 0,39 / 0,58; flipx 0,72 / 0,93, 0,72 / 0,93, 0,35 / 0,46.
+  **Vorhersage vor dem Lauf (2026-11-27):** (1) Die Hypothesen-Suche behebt weak und strong: learn1_fam in der
+  zurückgehaltenen Hälfte an Tag 4 ≥ learn1_lin + 0,10 im Mittel, auf weak ≥ 0,60. (2) Der gelernte Ergänzer
+  ist noch zu schwach: learn1_meta zurückgehalten unter learn1_lin, aber über 0,10. (3) Auch in der gesehenen
+  Hälfte kostet der Ergänzer: learn1_meta gesehen ≤ 0,70.
+
 - Noch in Bits: `*_parts` (die Anpassungs-Studien servo / robot sind seit 2026-11-23 umgestellt); nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

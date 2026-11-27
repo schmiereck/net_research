@@ -31,6 +31,10 @@ Dream latents (DREAM_N per night):
              least-squares map cell -> step ("lin", trimmed: steps wrap around at -8 / 7) or the nearest memory
              ("knn"). With the geometry, dreams in which the cube leaves the field of view are dropped.
     unlab_lin  control without imagination: latents of the day's unlabelled images, labelled by (i) + (iii lin).
+    *_fam      the same with a hypothesis search over a family of calibrations (label_map.family_map: per axis
+             linear with offset, rounding and clipping; the test devices are members of the family).
+    *_meta     the same with the label map of label_map.py (a table completion learned over many random
+             calibrations, without the affine assumption) in place of the affine fit.
     unlab_all_lin  with --holdout: as unlab_lin, but the unlabelled images come from the WHOLE field (real experience
              of the held-out places; an upper bound for what dreams there could give).
 Held-out places (--holdout): the robot meets the task only with the red cube in the RIGHT half of the fovea
@@ -60,12 +64,23 @@ SOURCES = ["replay", "noise", "mix", "unlab", "gauss", "unlab_true"]
 PRED = {"pred_near": (1, 2), "pred_far": (2, 5), "pred1": (1, 5)}             # dream source -> (gaze steps, largest |dx|, |dy|)
 CARRY = {"carry1": 1, "carry2": 2, "carry3": 3}              # dream source -> gaze steps (|dx|, |dy| <= 5)
 LEGIT = {"learn1_lin": ("learn", "lin"), "learn1_knn": ("learn", "knn"), "geo1_lin": ("geo", "lin"),
-         "unlab_lin": (None, "lin"), "unlab_all_lin": ("all", "lin")}
+         "unlab_lin": (None, "lin"), "unlab_all_lin": ("all", "lin"),
+         "learn1_meta": ("learn", "meta"), "unlab_meta": (None, "meta"), "unlab_all_meta": ("all", "meta"),
+         "learn1_fam": ("learn", "fam"), "unlab_fam": (None, "fam"), "unlab_all_fam": ("all", "fam")}
+_completer = []
 CENTRAL = 8     # dreams kept where the cells lie within +-CENTRAL (8 = the whole field; 5 halves the coverage)
 
 
 def cell_label_map(c, y, kind):
     """The label of a cube cell, learned from the day's memories (c: read cells [n, 2], y: label steps [n, 2])."""
+    if kind == "fam":                                       # hypothesis search over a family of calibrations
+        from .label_map import family_map
+        return family_map(c, y)
+    if kind == "meta":                                      # table completer learned over many calibrations
+        from .label_map import completer_map, load
+        if not _completer:
+            _completer.append(load())
+        return completer_map(_completer[0], c, y)
     if kind == "knn":
         def g(q):
             d = ((q[:, None, :] - c[None, :, :]) ** 2).sum(-1)
