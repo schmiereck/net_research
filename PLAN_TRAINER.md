@@ -1632,6 +1632,40 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
 
 **Phase F – Konsolidierung und Schutz der Generalisierung**
 - W_fast → W_slow in Ruhephasen, mit gelernter Bremse oder Replay.
+- **Wach- und Schlafphase mit Träumen (Idee Nutzer 2026-11-27):** Zwei Module gleicher Form arbeiten
+  nebeneinander, werden aber verschieden geformt.
+  - *Wach:* ständiges schnelles Lernen im Betrieb (schnelle Gewichte F, Regel aus Phase D, nur auf schnellen
+    Erfolg geformt).
+  - *Schlaf:* ein langsames Modul S lernt aus Träumen und übernimmt, was sich bewährt hat; danach ist F frei.
+    Langfristig vor allem für Aktionen (prozedurales Gedächtnis).
+  - Anlass aus Phase D: Eine einzige Regel muss zwischen schnell und dauerhaft wählen; mit Horizont 100 opfert
+    ES den schnellen Teil für den späten (`PHASE_D.md` 5.9). Zwei getrennt geformte Module lösen diesen
+    Zielkonflikt auf. Biologisch: komplementäre Lernsysteme (Hippocampus / Kortex).
+  - *Träume aus dem Vorhersage-Netz (Predictive Coding):* Das Netz, das ohnehin den nächsten Zustand vorhersagt,
+    erzeugt Traum-Sequenzen, gestartet aus Zufall oder aus kürzlich gemachten Erinnerungen. Kein Abspielen
+    gespeicherter Daten nötig (Phase A: Replay drückt das Vergessen auf 0,1, braucht aber die alten Daten).
+  - *Wie wird ein Traum bewertet, wenn kein Abgleich mit der Welt stattfindet?* Drei getrennte Fragen:
+    (1) *Was lernt S am Traum?* Das wache System beschriftet den Traum (Destillation): S lernt, auf den
+    Traum-Eingaben so zu antworten wie W + F. Der Abgleich findet zwischen den Modulen statt, nicht mit der
+    Welt; der Traum entscheidet nur, *auf welchen Eingaben* die Fähigkeit übertragen wird. (2) *Was wird
+    geträumt?* Wertungen wie „neu“, „Überraschung“, „Angst“, „schön“ werden beim Erleben als Marken an die
+    Erinnerung gehängt und bestimmen, welche Erinnerungen als Startwert dienen und wie oft (priorisiertes
+    Wiederabspielen; Überraschung S und Wiedererkennen R aus Abschnitt 4b sind schon solche Signale). (3) *Was
+    taugt eine geträumte Handlung?* Ein gelerntes Bewertungs-Netz (die „Gefühle“ als gelernte Vorhersage von
+    Belohnung oder Gefahr) bewertet vorgestellte Handlungsfolgen; so lernen World Models (Ha & Schmidhuber
+    2018) und Dreamer Handlungen im Traum. Das setzt die RL-Schleife (Phase G) voraus.
+  - *Risiken:* Träume können abdriften (das Modell verstärkt eigene Fehler); die Traum-Qualität muss gemessen
+    werden, etwa als Anteil der Traum-Eingaben, die die Welt erzeugen könnte. Lernt S im Schlaf mit Backprop,
+    ist das eine Obergrenze; eine lokale Schlaf-Regel muss sich dagegen messen.
+  - **Erster Versuch vorbereitet (2026-11-27, `netresearch/sleep.py`):** layer_s@25k, Fälle prev (innen) und
+    xmFF (Kopf), Wach-Regel `pos_map` (20 Updates), Schlaf: S per Adam auf Traum-Eingaben, beschriftet vom
+    wachen Netz, 200 Schritte; danach nur W + S auf ungesehenen Sequenzen gemessen. Traum-Quellen: die
+    gespeicherten Trainings-Eingaben (replay), Rollouts des Basis-Netzes aus Erinnerungen (dream_mem) oder aus
+    Zufall (dream_rand), Zufalls-Eingaben (noise), frische echte Eingaben (real). Das Basis-Netz sagt die
+    nächste Zahl auf ungesehenen Sequenzen zu 0,94 richtig; Traum-Fenster sind zu 0,75 (aus Erinnerungen) und
+    0,43 (aus Zufall; 0,09 nach dem ersten Schritt, 0,66 nach 16) echte Basis-Sequenzen, Zufall 0,005.
+    Offen danach: mehrere Aufgaben nacheinander in einem gemeinsamen S mit Kontext (erst dort wird Vergessen
+    messbar), lokale Schlaf-Regel statt Adam, Auswahl der Träume nach Wertungen.
 - Langzeittest: 20 neue Varianten nacheinander lernen und dabei das Vergessen und die Generalisierung
   verfolgen.
 
