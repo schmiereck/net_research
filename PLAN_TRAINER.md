@@ -1710,6 +1710,10 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
     Beispielen (0,81 gegen 0,65, 21 von 24 Episoden): der erste Vorteil des Schlafs über Training hinaus. Zwei
     vorgestellte Schritte sind schlechter (0,78). Nächstes: Prädiktor über mehrere Schritte verbessern; die Folge
     einer Handlung lernen statt aus der Geometrie nehmen; Stufe 2 live in MuJoCo.
+  - **Prädiktor über mehrere Schritte erledigt (2026-11-27, `results/latent_sleep_carry8.jsonl`):** Rollout-Verlust
+    (der Prädiktor lernt auf seinen eigenen Vorhersagen) und doppelt so viele Lauf-Daten: Lesbarkeit nach 4
+    Schritten 0,19 → 0,39 (echt 0,63); Träume aus zwei Schritten 0,78 → 0,88, aus einem 0,93; nach der ersten
+    Nacht 0,84 gegen direktes Training 0,65. Nächstes: die Folge der Handlung lernen; Stufe 2 live in MuJoCo.
 - Langzeittest: 20 neue Varianten nacheinander lernen und dabei das Vergessen und die Generalisierung
   verfolgen.
 

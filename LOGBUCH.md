@@ -5269,6 +5269,63 @@ den wachen Kopf fragt, übernimmt dessen Fehler.
 
 **Belege.** `results/latent_sleep_carry.jsonl` (24 Zeilen).
 
+## 2026-11-27 — Phase F, Prädiktor über mehrere Schritte: mit Rollout-Verlust und mehr Daten tragen auch Träume aus zwei vorgestellten Blick-Schritten; nach der ersten Nacht liegt S 0,18 über direktem Training
+
+**Frage.** Lässt sich der Latent-Prädiktor so verbessern, dass auch längere Träume (mehrere vorgestellte
+Blick-Schritte) die Kalibrierung tragen?
+
+**Gemacht.** Commit vor diesem Eintrag; Prädiktor-Varianten lokal (je 2–4 min), Schlaf-Lauf lokal mit 2
+Prozessen (2 min, dieselben 24 Episoden). Behalten je Nacht: 974 / 947 / 911 von 1024 Träumen (1 / 2 / 3
+Schritte). Vorhersage und Entwicklung vor dem Lauf (wörtlich aus „Laufend / offen“):
+
+> - Phase F, Prädiktor über mehrere Schritte (Auftrag Nutzer 2026-11-27). Neu (Commit nach diesem Eintrag):
+>   `latent_pred.py --loss roll` (der Prädiktor wird mit seinen eigenen Vorhersagen weitergefüttert wie im Traum,
+>   Verlust über alle 4 Schritte, Gradient durch den ganzen Lauf), `--runs` (Läufe je Szene), `--tag`
+>   (Varianten); `latent_sleep.py --pred-tag` und Quelle carry3. Entwicklung auf Startnetz 5 (Kopf liest den Würfel
+>   aus dem vorhergesagten Latent nach 1 / 2 / 3 / 4 Schritten; `results/latent_pred.jsonl`): Ein-Schritt-Verlust
+>   0,56 / 0,38 / 0,24 / 0,19; Rollout-Verlust 0,53 / 0,45 / 0,36 / 0,32; Rollout-Verlust mit doppelt so vielen
+>   Läufen (8 je Szene, 128 000 Übergänge) 0,58 / 0,47 / 0,43 / 0,39 (echte Latente 0,73 / 0,73 / 0,69 / 0,63).
+>   Gewählt: die letzte Variante (`_roll8`); Startnetz 6: 0,59 / 0,51 / 0,42 / 0,38 (alt 0,58 / 0,41 / 0,30 /
+>   0,22). Lauf: dieselben 24 Episoden, Quellen carry1, carry2, carry3 mit `--pred-tag _roll8`, nach
+>   `results/latent_sleep_carry8.jsonl`. Bezug alter Prädiktor: carry1 0,81 / 0,92, carry2 0,61 / 0,78 (Tag 1 / 4).
+>   **Vorhersage vor dem Lauf (2026-11-27):** (1) Zwei vorgestellte Schritte tragen jetzt: carry2 an Tag 4 ≥ 0,86
+>   (alt 0,78). (2) Ein Schritt bleibt gleich: carry1 an Tag 4 innerhalb ± 0,02 von 0,92. (3) Der Fehler wächst
+>   weiter mit den Schritten: carry3 an Tag 4 um ≥ 0,03 unter carry2.
+
+**Ergebnis.** W + S nach jeder Nacht, Mittel über 24 Episoden (alt: Prädiktor mit Ein-Schritt-Verlust, neu:
+`_roll8`):
+
+| Quelle | Prädiktor | Tag 1 | Tag 2 | Tag 3 | Tag 4 |
+|---|---|---|---|---|---|
+| carry1 (1 Schritt) | alt | 0,81 | 0,88 | 0,91 | 0,92 |
+| | **neu** | **0,84** | 0,89 | 0,91 | 0,93 |
+| carry2 (2 Schritte) | alt | 0,61 | 0,72 | 0,76 | 0,78 |
+| | **neu** | 0,74 | 0,83 | 0,86 | **0,88** |
+| carry3 (3 Schritte) | neu | 0,64 | 0,75 | 0,80 | 0,83 |
+| *mix* | | 0,64 | 0,87 | 0,92 | 0,93 |
+| *rls_direct* | | 0,65 | 0,89 | 0,94 | 0,96 |
+
+Gepaart (± Standardfehler, Anteil positiv): carry2 neu − alt an Tag 4 +0,11 ± 0,01 (24 von 24); carry1 neu − alt
++0,01 ± 0,00; carry3 − carry2 −0,05 ± 0,01; carry1 neu − rls_direct an Tag 1 **+0,18 ± 0,02 (22 von 24)**, an
+Tag 4 −0,03 ± 0,01; carry2 neu − rls_direct an Tag 1 +0,08 ± 0,03 (19 von 24).
+
+**Vergleich mit der Vorhersage.** (1) Getroffen: carry2 0,88 (≥ 0,86). (2) Getroffen: carry1 0,93 (0,92 ± 0,02).
+(3) Getroffen: carry3 0,05 unter carry2. Bilanz: 3 von 3 getroffen.
+
+**Schluss.** (a) **Ein Prädiktor, der auf seinen eigenen Vorhersagen trainiert wird, trägt längere Träume:**
+Der Rollout-Verlust (Fehler über den ganzen Lauf, der Prädiktor sieht seine eigenen Fehler) und doppelt so
+viele Lauf-Daten heben die Lesbarkeit nach 4 Schritten von 0,19 auf 0,39 und Träume aus zwei Schritten von 0,78
+auf 0,88. (b) Ein Schritt bleibt am besten und liegt nach der ersten Nacht 0,18 über direktem Training (0,84
+gegen 0,65). (c) Der Fehler wächst weiter mit jedem Schritt (0,93 / 0,88 / 0,83 nach 1 / 2 / 3 Schritten);
+nach 4 Schritten liest der Kopf den Würfel aus dem vorhergesagten Latent zu 0,39, aus dem echten zu 0,63. Die
+Lücke zum echten Latent ist nach einem Schritt 0,15, nach vier 0,24. (d) Weitere Hebel (ungeprüft): mehr
+Szenen (bisher 4000), ein Prädiktor, der nur den für den Kopf wichtigen Teil des Latents genau vorhersagt, oder
+Träume, die nach jedem Schritt durch Mischung mit nahen Erinnerungen „geerdet“ werden.
+
+**Belege.** `results/latent_pred.jsonl` (5 Zeilen: Ein-Schritt-Verlust Startnetze 5 / 6, Rollout-Verlust
+Startnetz 5 mit 4 und 8 Läufen, Rollout-Verlust Startnetz 6 mit 8 Läufen), `results/latent_sleep_carry8.jsonl`
+(24 Zeilen).
+
 ## Laufend / offen
 
 - Phase F, Wach-Regel per ES im Kreislauf geformt (Auftrag Nutzer 2026-11-27, Weg 1). Neu (Commit nach
@@ -5290,20 +5347,6 @@ den wachen Kopf fragt, übernimmt dessen Fehler.
   liegt das Mittel von W + S über die Tage 1–4 um ≥ 0,05 über `pos_map`, an Tag 8 aber höchstens 0,03 über
   `rls_direct`. (3) Die neue Regel wacht mehr: Wach-Updates an den Tagen 2–4 im Mittel mindestens doppelt so
   viele wie bei `pos_map`.
-
-- Phase F, Prädiktor über mehrere Schritte (Auftrag Nutzer 2026-11-27). Neu (Commit nach diesem Eintrag):
-  `latent_pred.py --loss roll` (der Prädiktor wird mit seinen eigenen Vorhersagen weitergefüttert wie im Traum,
-  Verlust über alle 4 Schritte, Gradient durch den ganzen Lauf), `--runs` (Läufe je Szene), `--tag`
-  (Varianten); `latent_sleep.py --pred-tag` und Quelle carry3. Entwicklung auf Startnetz 5 (Kopf liest den Würfel
-  aus dem vorhergesagten Latent nach 1 / 2 / 3 / 4 Schritten; `results/latent_pred.jsonl`): Ein-Schritt-Verlust
-  0,56 / 0,38 / 0,24 / 0,19; Rollout-Verlust 0,53 / 0,45 / 0,36 / 0,32; Rollout-Verlust mit doppelt so vielen
-  Läufen (8 je Szene, 128 000 Übergänge) 0,58 / 0,47 / 0,43 / 0,39 (echte Latente 0,73 / 0,73 / 0,69 / 0,63).
-  Gewählt: die letzte Variante (`_roll8`); Startnetz 6: 0,59 / 0,51 / 0,42 / 0,38 (alt 0,58 / 0,41 / 0,30 /
-  0,22). Lauf: dieselben 24 Episoden, Quellen carry1, carry2, carry3 mit `--pred-tag _roll8`, nach
-  `results/latent_sleep_carry8.jsonl`. Bezug alter Prädiktor: carry1 0,81 / 0,92, carry2 0,61 / 0,78 (Tag 1 / 4).
-  **Vorhersage vor dem Lauf (2026-11-27):** (1) Zwei vorgestellte Schritte tragen jetzt: carry2 an Tag 4 ≥ 0,86
-  (alt 0,78). (2) Ein Schritt bleibt gleich: carry1 an Tag 4 innerhalb ± 0,02 von 0,92. (3) Der Fehler wächst
-  weiter mit den Schritten: carry3 an Tag 4 um ≥ 0,03 unter carry2.
 
 - Noch in Bits: `*_parts` (die Anpassungs-Studien servo / robot sind seit 2026-11-23 umgestellt); nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
