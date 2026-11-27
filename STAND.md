@@ -432,5 +432,7 @@ Erfahrungen, die in die Pipeline gehören:
   Phase D stört ein Netz, das die Aufgabe schon kann. Mit einem Überraschungs-Schalter (die Wach-Regel lernt
   nur, solange genug Beispiele falsch sind) wird der Kreislauf auf Kopf-Aufgaben von Tag zu Tag besser
   (xmFF 0,49 → 0,66). Nach 8 Tagen liegt er gleichauf mit direktem Training derselben Kopf-Regel auf allen
-  echten Beispielen, nicht darüber; Schlaf allein verbessert S ohne neue Beschriftungen um etwa 0,10.
+  echten Beispielen, nicht darüber; Schlaf allein verbessert S ohne neue Beschriftungen um etwa 0,10. Auf den
+  Roboter-Bildern übertragen Träume im Latent-Space Blick-Kalibrierungen fast verlustfrei, solange sie nahe an
+  den Erinnerungen bleiben.
 - Noch nicht begonnen: Weltmodell, Reinforcement Learning.

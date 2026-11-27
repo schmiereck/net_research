@@ -5072,6 +5072,76 @@ W + S nach mehreren Tagen), oder die Aufgabe müsste etwas verlangen, was direkt
 
 **Belege.** `results/sleep_ctl.jsonl` (24 Zeilen).
 
+## 2026-11-27 — Phase F, Stufe 1 auf den Roboter-Bildern: Träume im Latent-Space übertragen eine Blick-Kalibrierung fast verlustfrei, solange sie nahe an den Erinnerungen bleiben; Träume weit weg von ihnen verankern die Fehler des wachen Kopfes
+
+**Frage.** Lässt sich eine im Wachen gelernte Kalibrierung des Blick-Kommandos im Schlaf allein aus Träumen im
+Latent-Space in ein zweites Modul übertragen, und welche Art von Traum taugt dafür?
+
+**Gemacht.** Commit 153cce2, lokal mit 2 Prozessen (3 min), 24 Episoden (6 Geräte × Seeds 5–6 × 2
+Ziehungen). Vorhersage vor dem Lauf (wörtlich aus „Laufend / offen“):
+
+> - Phase F, Stufe 1 auf den Roboter-Bildern: Wachen und Schlafen mit Träumen im Latent-Space (Auftrag Nutzer
+>   2026-11-27; Vorgabe: das Netz sagt keine Bilder vorher, Vorhersage und Träume finden im Latent-Space statt).
+>   Neu (Commit nach diesem Eintrag): Fälle `robot_eye_<Gerät>` in `adapt.py` (Kalibrierungen des Blick-Kommandos
+>   auf den MuJoCo-Bildern, wie Suite robot der Bibliothek, mit getrennten Test-Bildern) und
+>   `netresearch/latent_sleep.py`. Beide Module sitzen am Kopf und lesen den Latent-Zustand h (Kopf-Eingang des
+>   eingefrorenen Netzes): wach F (rls_rf, ein Update auf den 64 beschrifteten Bildern des Tages, unter dem
+>   Überraschungs-Schalter), im Schlaf S (rls_rf, eigene Zufalls-Merkmale) nur auf Traum-Latenten, beschriftet
+>   vom wachen Kopf; im Schlaf wird kein Bild gesehen. Traum-Quellen je Nacht (1024 Latente): replay (die 64
+>   Latente des Tages), noise (Variationen h + 0,5 · sd · Rauschen), mix (Mischungen zweier Latente des Tages),
+>   unlab (Latente von 1024 unbeschrifteten Bildern des Tages), gauss (Stichproben einer einmal auf die Latente
+>   der Basis-Bilder angepassten Normalverteilung); Kontrollen unlab_true (dieselben Latente mit wahren
+>   Beschriftungen) und rls_direct (rls_rf direkt auf den beschrifteten Bildern aller Tage). 4 Tage, layer_s
+>   (robot_gaze, gepinnt), Seeds 5–6 × 2 Ziehungen, Geräte flipx, swap, rot90, strong, weak, offx (24
+>   Episoden). Lokal, 2 Prozesse, etwa 4 min. Ein gelernter Latent-Prädiktor als Traum-Quelle braucht
+>   Sequenzdaten und ist noch nicht gebaut. Vorab gesehen (Probe flipx, Seed 5, Ziehung 0; W + S an Tag 1 / 4):
+>   replay 0,81 / 0,94, noise 0,64 / 0,95, mix 0,80 / 0,93, unlab 0,80 / 0,87, gauss 0,51 / 0,75, unlab_true
+>   0,98 / 0,98, rls_direct 0,81 / 0,98.
+>   **Vorhersage vor dem Lauf (2026-11-27):** (1) Latente Träume tragen die Kalibrierung: noise und mix an Tag 4
+>   im Mittel ≥ rls_direct − 0,05. (2) Träume aus der angepassten Normalverteilung (nicht an Erinnerungen
+>   gebunden) sind an Tag 4 um ≥ 0,10 schlechter als mix. (3) Echte unbeschriftete Latente helfen nicht mehr
+>   als Mischungen: unlab an Tag 4 ≤ mix + 0,02 (die Beschriftung durch den wachen Kopf begrenzt, nicht die
+>   Echtheit der Eingabe). (4) Kein Kreislauf übertrifft direktes Training: keine Quelle außer unlab_true liegt
+>   an Tag 4 um mehr als 0,02 über rls_direct.
+
+**Ergebnis.** layer_s (robot_gaze), W + S nach jeder Nacht, Mittel über 24 Episoden; ± Standardfehler gepaart:
+
+| Quelle | Tag 1 | Tag 2 | Tag 3 | Tag 4 | Tag 4 − rls_direct (je Episode) |
+|---|---|---|---|---|---|
+| replay (Latente der 64 Bilder) | 0,65 | 0,88 | 0,94 | 0,94 | −0,02 ± 0,00 |
+| noise (Variationen) | 0,69 | 0,87 | 0,92 | 0,94 | −0,02 ± 0,00 |
+| mix (Mischungen) | 0,64 | 0,87 | 0,92 | 0,93 | −0,03 ± 0,00 |
+| unlab (unbeschriftete Bilder des Tages) | 0,66 | 0,74 | 0,79 | 0,82 | −0,14 |
+| gauss (angepasste Normalverteilung) | 0,48 | 0,57 | 0,63 | 0,67 | −0,29 |
+| unlab_true (dieselben, wahre Beschriftung) | 0,99 | 0,99 | 0,99 | 0,99 | +0,03 |
+| rls_direct (direktes Training) | 0,65 | 0,89 | 0,94 | 0,96 | |
+| wach (W + S + F, Quelle mix) | 0,66 | 0,84 | 0,91 | 0,93 | |
+
+Je Gerät an Tag 4 (replay / mix / unlab / gauss / rls_direct): flipx 0,96 / 0,95 / 0,91 / 0,69 / 0,98, offx
+0,93 / 0,91 / 0,87 / 0,70 / 0,97, rot90 0,93 / 0,91 / 0,73 / 0,58 / 0,94, strong 0,95 / 0,95 / 0,84 / 0,75 / 0,97,
+swap 0,91 / 0,91 / 0,73 / 0,60 / 0,93, weak 0,95 / 0,93 / 0,82 / 0,73 / 0,96. Die Wachphase lief an den Tagen
+1–4 in 100 / 96 / 67 / 13 % der Episoden (Überraschungs-Schalter).
+
+**Vergleich mit der Vorhersage.** (1) Getroffen: noise −0,02, mix −0,03 unter rls_direct (≥ −0,05).
+(2) Getroffen: gauss 0,25 unter mix. (3) Getroffen, aber anders als begründet: unlab liegt nicht nur nicht über
+mix, sondern 0,11 darunter. (4) Getroffen: keine Quelle außer unlab_true über rls_direct. Bilanz: 4 von 4.
+
+**Schluss.** (a) **Träume im Latent-Space tragen die Fähigkeit:** Ohne ein einziges Bild im Schlaf erreicht S
+nach 4 Tagen 0,93–0,94, 0,02–0,03 unter direktem Training auf allen beschrifteten Bildern. Das gilt für alle
+sechs Kalibrierungen. Das Netz sagt dabei keine Bilder vorher; Variationen und Mischungen der erinnerten
+Latente genügen. (b) **Entscheidend ist die Nähe zu den Erinnerungen, nicht die Echtheit:** Latente echter,
+aber unbeschrifteter Bilder sind schlechter als erfundene Mischungen (0,82 gegen 0,93), obwohl dieselben
+Latente mit wahren Beschriftungen 0,99 ergeben. Weit weg von den Erinnerungen liegt der wache Kopf oft falsch,
+und der Schlaf verankert genau diese Fehler; nahe an ihnen ist er richtig. Die Normalverteilung über den
+ganzen Latent-Raum ist das Extrem davon (0,67). Für die Traum-Idee heißt das: Träume sollen von Erinnerungen
+ausgehen und in ihrer Nähe bleiben, oder der Schlaf braucht ein Maß, wie sicher der wache Kopf auf einem Traum
+ist. (c) Wie bei den Zahlenfolgen führt der Kreislauf nicht über direktes Training hinaus. (d) Nächster
+Baustein für echte Träume: ein gelernter Latent-Prädiktor (nächster Latent-Zustand aus dem jetzigen und dem
+Blick-Schritt), aus dem sich Traum-Sequenzen von Erinnerungen aus erzeugen lassen; dafür liegen Sequenzdaten
+der Blickschleife vor (`data/robot/gazeloop2_*`, noch nicht geprüft).
+
+**Belege.** `results/latent_sleep.jsonl` (24 Zeilen).
+
 ## Laufend / offen
 
 - Phase F, Wach-Regel per ES im Kreislauf geformt (Auftrag Nutzer 2026-11-27, Weg 1). Neu (Commit nach
@@ -5093,30 +5163,6 @@ W + S nach mehreren Tagen), oder die Aufgabe müsste etwas verlangen, was direkt
   liegt das Mittel von W + S über die Tage 1–4 um ≥ 0,05 über `pos_map`, an Tag 8 aber höchstens 0,03 über
   `rls_direct`. (3) Die neue Regel wacht mehr: Wach-Updates an den Tagen 2–4 im Mittel mindestens doppelt so
   viele wie bei `pos_map`.
-
-- Phase F, Stufe 1 auf den Roboter-Bildern: Wachen und Schlafen mit Träumen im Latent-Space (Auftrag Nutzer
-  2026-11-27; Vorgabe: das Netz sagt keine Bilder vorher, Vorhersage und Träume finden im Latent-Space statt).
-  Neu (Commit nach diesem Eintrag): Fälle `robot_eye_<Gerät>` in `adapt.py` (Kalibrierungen des Blick-Kommandos
-  auf den MuJoCo-Bildern, wie Suite robot der Bibliothek, mit getrennten Test-Bildern) und
-  `netresearch/latent_sleep.py`. Beide Module sitzen am Kopf und lesen den Latent-Zustand h (Kopf-Eingang des
-  eingefrorenen Netzes): wach F (rls_rf, ein Update auf den 64 beschrifteten Bildern des Tages, unter dem
-  Überraschungs-Schalter), im Schlaf S (rls_rf, eigene Zufalls-Merkmale) nur auf Traum-Latenten, beschriftet
-  vom wachen Kopf; im Schlaf wird kein Bild gesehen. Traum-Quellen je Nacht (1024 Latente): replay (die 64
-  Latente des Tages), noise (Variationen h + 0,5 · sd · Rauschen), mix (Mischungen zweier Latente des Tages),
-  unlab (Latente von 1024 unbeschrifteten Bildern des Tages), gauss (Stichproben einer einmal auf die Latente
-  der Basis-Bilder angepassten Normalverteilung); Kontrollen unlab_true (dieselben Latente mit wahren
-  Beschriftungen) und rls_direct (rls_rf direkt auf den beschrifteten Bildern aller Tage). 4 Tage, layer_s
-  (robot_gaze, gepinnt), Seeds 5–6 × 2 Ziehungen, Geräte flipx, swap, rot90, strong, weak, offx (24
-  Episoden). Lokal, 2 Prozesse, etwa 4 min. Ein gelernter Latent-Prädiktor als Traum-Quelle braucht
-  Sequenzdaten und ist noch nicht gebaut. Vorab gesehen (Probe flipx, Seed 5, Ziehung 0; W + S an Tag 1 / 4):
-  replay 0,81 / 0,94, noise 0,64 / 0,95, mix 0,80 / 0,93, unlab 0,80 / 0,87, gauss 0,51 / 0,75, unlab_true
-  0,98 / 0,98, rls_direct 0,81 / 0,98.
-  **Vorhersage vor dem Lauf (2026-11-27):** (1) Latente Träume tragen die Kalibrierung: noise und mix an Tag 4
-  im Mittel ≥ rls_direct − 0,05. (2) Träume aus der angepassten Normalverteilung (nicht an Erinnerungen
-  gebunden) sind an Tag 4 um ≥ 0,10 schlechter als mix. (3) Echte unbeschriftete Latente helfen nicht mehr
-  als Mischungen: unlab an Tag 4 ≤ mix + 0,02 (die Beschriftung durch den wachen Kopf begrenzt, nicht die
-  Echtheit der Eingabe). (4) Kein Kreislauf übertrifft direktes Training: keine Quelle außer unlab_true liegt
-  an Tag 4 um mehr als 0,02 über rls_direct.
 
 - Noch in Bits: `*_parts` (die Anpassungs-Studien servo / robot sind seit 2026-11-23 umgestellt); nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

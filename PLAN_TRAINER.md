@@ -1688,6 +1688,16 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
     darüber. Schlaf allein, ohne neue Beschriftungen, hebt S in allen 24 Episoden um etwa 0,10
     (Selbst-Destillation). Das Wachen trägt auf xmFF +0,16 bei, auf xm0F nichts. Nächster Schritt für einen
     echten Vorteil: die Wach-Regel per ES im Kreislauf formen (Fitness = W + S nach mehreren Tagen).
+  - **ES der Wach-Regel im Kreislauf gestartet (2026-11-27, Lauf `loop_w1`, LOGBUCH „Laufend“).**
+  - **Stufe 1 auf den Roboter-Bildern erledigt (2026-11-27, `netresearch/latent_sleep.py`,
+    `results/latent_sleep.jsonl`):** Vorgabe Nutzer: keine Bilder vorhersagen, Träume im Latent-Space (Kopf-Eingang
+    des eingefrorenen Netzes). Sechs Blick-Kalibrierungen; S lernt im Schlaf nur auf Traum-Latenten: Variationen
+    und Mischungen der erinnerten Latente erreichen nach 4 Tagen 0,93–0,94 (direktes Training 0,96). Latente echter
+    unbeschrifteter Bilder sind schlechter (0,82), eine Normalverteilung über den Latent-Raum noch schlechter
+    (0,67): Weit weg von den Erinnerungen verankert der Schlaf die Fehler des wachen Kopfes. Träume sollen von
+    Erinnerungen ausgehen und nahe bleiben. Nächster Baustein: gelernter Latent-Prädiktor (nächster Latent aus
+    jetzigem und Blick-Schritt) für Traum-Sequenzen; dann Stufe 2 live in MuJoCo (Lernen im Betrieb aus dem
+    Rest-Versatz nach der Blickbewegung).
 - Langzeittest: 20 neue Varianten nacheinander lernen und dabei das Vergessen und die Generalisierung
   verfolgen.
 
