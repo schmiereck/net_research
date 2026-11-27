@@ -1,8 +1,8 @@
 # Phase D: eine per Evolution gefundene lokale Lernregel für die inneren schnellen Gewichte
 
-Stand 2026-11-26. Ausführliche Darstellung als Grundlage für das Ergebnis-Papier. Die knappen, datierten
+Stand 2026-11-27. Ausführliche Darstellung als Grundlage für das Ergebnis-Papier. Die knappen, datierten
 Einträge mit den Vorhersagen vor jedem Lauf stehen im `LOGBUCH.md` (2026-11-23 Vorarbeit 2, D.0, D.2 / D.3 /
-D.5; 2026-11-24 Position im Netz, Übertragung; 2026-11-25 zweite Saat und zwei Architekturen, ES auf hier_s allein; 2026-11-26 Telemetrie je Aufruf, längerer Horizont). Das Konzept steht in `PLAN_TRAINER.md`, Phase D.
+D.5; 2026-11-24 Position im Netz, Übertragung; 2026-11-25 zweite Saat und zwei Architekturen, ES auf hier_s allein; 2026-11-26 Telemetrie je Aufruf, längerer Horizont; 2026-11-27 Fortsetzung des längeren Horizonts). Das Konzept steht in `PLAN_TRAINER.md`, Phase D.
 
 ## 1. Kurzfassung
 
@@ -37,7 +37,8 @@ Ergebnisse:
    Suche allein auf der Hierarchie findet dort keine Innen-Regel (0,13, Backprop 0,59), auch nicht, wenn der
    Teacher die wiederholten Aufrufe einer Abbildung unterscheiden kann (0,10). Erst mit einer Fitness über 100
    statt 20 Updates findet ES dort einen Innen-Teil: schneller als dfa bis etwa 50 Updates (prev 0,20 nach 20,
-   dfa 0,10), dann ein Plateau bei 0,26–0,30.
+   dfa 0,10), dann ein Plateau bei 0,26–0,30; eine Fortsetzung der Suche hebt es auf 0,39 nach 100 Updates
+   (dfa 0,47) und kostet dafür den schnellen Teil (0,13 nach 20).
 6. **Wiederholbarkeit:** Eine zweite ES-Suche mit anderer Saat findet wieder eine Regel für beide
    Aufgabenarten (Validierung 0,53 gegen 0,54); die Gewichtung zwischen Kopf und Innen hängt von der Saat ab.
 7. **Grenze:** Eine fernere Aufgabe (Differenz zweier Zahlen) lernt keine gefundene Regel; nur Backprop.
@@ -398,6 +399,26 @@ nach 20 / 50 / 100 / 200 Updates, 4 Episoden je Feld:
 - **Der Kopf wird besser:** xmFF 0,74, xm0F 0,84, die besten Kopf-Werte auf hier_s bisher.
 - **Nicht fertig gesucht:** Die Validierung steigt bis Generation 60; Warmstart von `hier_map`.
 
+**Fortsetzung `hier_h100b`** (60 weitere Generationen vom besten θ, Adam neu): Validierung 0,476 → 0,511, ab
+Generation 50 flach. Meta-Test auf hier_s, Testwertung nach 20 / 50 / 100 / 200 Updates:
+
+| Fall | dfa@task | grad@task | `hier_h100` | `hier_h100b` |
+|---|---|---|---|---|
+| prev | 0,10 / 0,22 / 0,47 / 0,60 | 0,59 / 0,69 / 0,72 / 0,75 | 0,20 / 0,26 / 0,26 / 0,30 | 0,13 / 0,28 / **0,39 / 0,42** |
+| prev2 | 0,06 / 0,18 / 0,37 / 0,53 | 0,46 / 0,61 / 0,64 / 0,66 | 0,05 / 0,26 / 0,28 / 0,31 | 0,05 / **0,34 / 0,38** / 0,40 |
+| xmFF | 0,01 / 0,02 / 0,02 / 0,01 | 0,01 / 0,01 / 0,01 / 0,02 | **0,74 / 0,74 / 0,74 / 0,74** | 0,68 / 0,70 / 0,72 / 0,72 |
+| xm0F | 0,07 / 0,02 / 0,02 / 0,01 | 0,04 / 0,04 / 0,05 / 0,05 | 0,84 / 0,84 / 0,83 / 0,83 | 0,85 / 0,84 / 0,84 / 0,82 |
+
+- **Das Plateau steigt:** prev nach 100 Updates 0,26 → 0,39, prev2 0,28 → 0,38 (dfa 0,47 / 0,37); prev2 nach
+  50 Updates 0,34 gegen dfa 0,18. Nach 200 Updates bleibt die Regel unter dfa (prev 0,42 gegen 0,60).
+- **Bezahlt mit dem schnellen Teil und etwas Kopf:** prev nach 20 Updates 0,20 → 0,13, xmFF 0,74 → 0,68.
+- **Messgenauigkeit:** Für dasselbe θ (bestes θ von `hier_h100`) gibt die Validierung 0,4879 (Worker, `hier_h100` Generation 60),
+  0,4757 (Worker, `hier_h100b` Generation 0) und 0,4854 (lokal). Die Kopf-Aufgaben stimmen dabei bitgleich überein,
+  nur die Innen-Aufgaben weichen ab (prev2 0,195 / 0,186 / 0,183, prev3 0,192 / 0,140 / 0,191). Ursache nicht
+  geprüft; vermutet: kleine Rechenunterschiede, die 100 Updates Innen-Lernen auf hier_s verstärken (geprüft nur,
+  dass eine Episode auf layer_s@25k mit 20 Updates im selben Prozess unabhängig von der Reihenfolge gleich ist). Unterschiede der Innen-Werte
+  unter etwa 0,05 sind auf hier_s mit 100 Updates nicht sicher.
+
 ## 6. Diskussion
 
 1. **Meta-Lernen findet eine lokale Regel, die Backprop im kurzen Lernen erreicht.** Mit 64 Beispielen und 20
@@ -418,8 +439,8 @@ nach 20 / 50 / 100 / 200 Updates, 4 Episoden je Feld:
    dort keine Innen-Regel (5.7), auch nicht mit Telemetrie je Aufruf (5.8). Für diese Regel-Familie ist die Innen-Regel an die Architektur gebunden, und
    für die Hierarchie findet ES mit 20 Updates in der Fitness keine. Dass die Familie eine Abbildung und nicht
    ihre Aufrufe beschreibt, ist nicht der Grund (5.8). Der kurze Trainings-Horizont ist ein Teil davon: Mit
-   100 Updates findet ES einen Innen-Teil, der bis etwa 50 Updates schneller als dfa lernt, dann aber stehen
-   bleibt (5.9). Eine Innen-Regel auf dem Niveau von Backprop (0,59 nach 20) gibt es für die Hierarchie bisher
+   100 Updates findet ES einen Innen-Teil, der bis etwa 100 Updates mit dfa mithält oder es schlägt und dabei
+   den Kopf gut lernt, über 100 Updates hinaus aber hinter dfa zurückfällt (5.9). Eine Innen-Regel auf dem Niveau von Backprop (0,59 nach 20) gibt es für die Hierarchie bisher
    nicht.
 4. **Die Schrittweite ist eine starke Kontrolle.** Auf Aufgaben, die nur eine neue Auslese verlangen, ist
    „Kopf schnell, innen aus“ (D.2) schwer zu schlagen. Eine gelernte Regel muss sich deshalb immer gegen diese
@@ -439,6 +460,8 @@ nach 20 / 50 / 100 / 200 Updates, 4 Episoden je Feld:
   Vergessen) ist nicht geprüft.
 - Ferne Aufgaben (diff, plus / minus) lernt keine gefundene Regel.
 - Der Mechanismus des anti-hebbischen Schubs ist beschrieben, aber nicht erklärt.
+- Die Validierung ist für Innen-Aufgaben auf hier_s mit 100 Updates nicht genau reproduzierbar (dasselbe θ:
+  0,476–0,488; 5.9); Ursache offen.
 - θ für die Übertragung aus `results/teacher.jsonl` (auf 10⁻⁶ gerundet; Abweichung zum Checkpoint ≤ 5·10⁻⁷).
 
 ## 8. Offene Fragen und nächste Schritte
@@ -447,9 +470,9 @@ nach 20 / 50 / 100 / 200 Updates, 4 Episoden je Feld:
    nicht. ~~ES auf hier_s allein~~ erledigt (5.7): keine Innen-Regel. ~~Telemetrie je Aufruf~~ erledigt (5.8):
    keine Innen-Regel; eine Trennung von Index und Rückprojektion je Aufruf lohnt deshalb nicht.
 2. **Längerer Trainings-Horizont:** für hier_s mit 100 Updates erledigt (5.9): ein früh gesättigter Innen-Teil.
-   **Offen:** `hier_h100` fortsetzen (die Validierung steigt noch; `--init hier_h100`), dann prüfen, ob das
-   Plateau steigt; ein Lauf von null statt Warmstart; für layer_s@25k, damit `map` auf prev das Niveau von D.3
-   erreicht. Etwa 14,5 min je Generation mit 6 Prozessen.
+   Fortsetzung erledigt (5.9): Plateau steigt auf 0,39 nach 100 Updates, Validierung flach ab Generation 50.
+   **Offen:** ein Lauf von null statt Warmstart; Horizont 200; für layer_s@25k, damit `map` auf prev das
+   Niveau von D.3 erreicht. Etwa 11–14,5 min je Generation mit 6 Prozessen bei Horizont 100.
 3. **Mechanismus:** Ausschalt-Proben je Eingang des Teachers (S, ΔS, t), Darstellung in fc1 vor und nach dem
    anti-hebbischen Schub (Dekorrelation? lineare Auslesbarkeit der früheren Zahl?).
 4. ~~Wiederholbarkeit~~ erledigt (5.6). Offen: warum die zweite Saat auf prev nach 20 Updates stehen bleibt.
@@ -464,10 +487,10 @@ nach 20 / 50 / 100 / 200 Updates, 4 Episoden je Feld:
 |---|---|
 | Code | `netresearch/teacher.py` (D.1 df4998b; `--pos` ac1392b; `--model`, `--names` 7973cf9; `--seed`, `--models`, `--pos role` 6b2161b; Fortsetzen nach Unterbrechung d0357f2; `--pos call` bf3355c; `--horizon`, `--init` df7ebce), `netresearch/fastweights.py`, `netresearch/adapt.py` (Fälle `lib_<name>`) |
 | D.0 Leiter | `results/phase_d_ladder.jsonl` (360 Zeilen), Job `20261123-184213-d0_ladder` |
-| ES-Läufe | `results/teacher.jsonl` (eine Zeile je Generation; letzte Zeile mit θ und bestem θ): `d2_eta`, `d3_full`, `pos_map`, `pos_blind`, `pos_split`, `pos_map_s1`, `arch_map`, `arch_role`, `hier_map`, `hier_call`, `hier_h100` |
+| ES-Läufe | `results/teacher.jsonl` (eine Zeile je Generation; letzte Zeile mit θ und bestem θ): `d2_eta`, `d3_full`, `pos_map`, `pos_blind`, `pos_split`, `pos_map_s1`, `arch_map`, `arch_role`, `hier_map`, `hier_call`, `hier_h100`, `hier_h100b` |
 | Meta-Test | `results/phase_d_test.jsonl` (116 Zeilen) |
 | Übertragung | `results/phase_d_transfer.jsonl` (640 Zeilen) |
-| Zweite Saat, zwei Architekturen, Hierarchie | `results/phase_d_arch.jsonl` (296 Zeilen) |
+| Zweite Saat, zwei Architekturen, Hierarchie | `results/phase_d_arch.jsonl` (312 Zeilen) |
 | Startnetze | `data/base_nets/numseq/{layer_s@25k,layer_s,hier_s}_s{0,1,2,5,6}.pt` |
 
 Befehle:

@@ -1615,8 +1615,12 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
   - **Längerer Horizont auf hier_s erledigt (2026-11-26, `PHASE_D.md` 5.9):** mit 100 Updates in der Fitness
     (Warmstart von `hier_map`, 60 Generationen) ein Innen-Teil, der bis etwa 50 Updates schneller als dfa
     lernt (prev 0,20 nach 20, dfa 0,10), dann bei 0,26–0,30 stehen bleibt; Kopf besser (xmFF 0,74). Die Suche
-    steigt noch. Nächste Kandidaten (`PHASE_D.md` Abschnitt 8): Fortsetzung von `hier_h100`, Lauf von null,
-    Mechanismus des anti-hebbischen Schubs, ferne Aufgaben, Gate aus der Bibliothek.
+    steigt noch.
+  - **Fortsetzung erledigt (2026-11-27, `PHASE_D.md` 5.9):** Plateau steigt (prev 0,39 nach 100 Updates, dfa
+    0,47; prev2 0,34 nach 50, dfa 0,18), schneller Teil geht zurück (0,13 nach 20), Validierung flach ab
+    Generation 50; für Innen-Aufgaben auf hier_s nicht genau reproduzierbar (±0,01). Nächste Kandidaten
+    (`PHASE_D.md` Abschnitt 8): Lauf von null, Horizont 200, Mechanismus des anti-hebbischen Schubs, ferne
+    Aufgaben, Gate aus der Bibliothek.
 
 **Phase E – Teacher liest Gewichte (Stufe 2)**
 - Zusätzlich eine Zusammenfassung des Moduls selbst (Weight-Space-Encoder, permutationsinvariant) und ein

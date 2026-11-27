@@ -421,6 +421,7 @@ Erfahrungen, die in die Pipeline gehören:
   ersten Netz. Auch eine Suche allein auf der Hierarchie findet dort keine Innen-Regel, auch nicht, wenn der
   Teacher die wiederholten Aufrufe einer Abbildung unterscheiden kann (2026-11-26). Mit 100 statt 20 Updates
   in der Fitness findet ES dort einen Innen-Teil, der bis etwa 50 Updates schneller als dfa lernt (prev 0,20
-  nach 20, dfa 0,10), dann aber bei 0,26–0,30 stehen bleibt (dfa erreicht 0,60 nach 200). Ausführlich:
-  `PHASE_D.md`.
+  nach 20, dfa 0,10), dann aber bei 0,26–0,30 stehen bleibt (dfa erreicht 0,60 nach 200). Eine Fortsetzung
+  hebt das auf 0,39 nach 100 Updates (dfa 0,47) und verliert dafür den schnellen Teil (2026-11-27).
+  Ausführlich: `PHASE_D.md`.
 - Noch nicht begonnen: Weltmodell, Reinforcement Learning.

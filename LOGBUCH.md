@@ -4653,20 +4653,68 @@ ob der Warmstart von `hier_map` die Suche einschränkt.
 **Belege.** `results/teacher.jsonl` (Zeilen `hier_h100`, 61), `results/phase_d_arch.jsonl` (+16 Zeilen, jetzt
 296). Ausführlich: `PHASE_D.md` Abschnitt 5.9.
 
-## Laufend / offen
+## 2026-11-27 — Phase D, Fortsetzung von `hier_h100`: das Plateau im Inneren der Hierarchie steigt (prev 0,39 nach 100 Updates, dfa 0,47), der schnelle Teil nach 20 Updates geht dafür zurück; die Validierung ist für Innen-Aufgaben auf hier_s nicht genau reproduzierbar
 
-- Phase D, Fortsetzung von `hier_h100` (Auftrag Nutzer 2026-11-26, `PHASE_D.md` Abschnitt 8, Punkt 2): Hebt
-  eine längere Suche das Plateau des Innen-Teils auf hier_s (prev 0,26 / 0,30 nach 100 / 200 Updates), oder
-  erreicht sie es nur früher? Lauf `hier_h100b`: `--pos map --models hier_s --horizon 100 --init hier_h100`,
-  60 Generationen, sonst wie `hier_h100` (Start vom besten θ, Adam-Momente neu bei null). Worker mit 6
-  Prozessen über Nacht, etwa 14,5 min je Generation; um 7 Uhr startet der Nutzer den Worker neu, der Lauf
-  setzt am letzten Prüfpunkt fort (etwa Generation 30–40). Danach Meta-Test auf hier_s wie bei `hier_h100`.
-  Bezug `hier_h100`: Validierung 0,49 (prev2 0,195, prev3 0,192); Meta-Test prev 0,20 / 0,26 / 0,26 / 0,30 nach
-  20 / 50 / 100 / 200 Updates, prev2 0,05 / 0,26 / 0,28 / 0,31, xmFF 0,74, xm0F 0,84; dfa prev 0,10 / 0,22 /
-  0,47 / 0,60.
-  **Vorhersage vor dem Lauf (2026-11-26):** (1) Die Validierung steigt weiter: am Ende ≥ 0,51. (2) Das Plateau
-  steigt, bleibt aber unter dfa auf lange Sicht: Meta-Test prev nach 100 Updates ≥ 0,32 und nach 200 Updates
-  ≤ 0,50. (3) Der Kopf bleibt: xmFF ≥ 0,70 und xm0F ≥ 0,80 nach 20 Updates.
+**Frage.** Hebt eine längere Suche das Plateau des Innen-Teils auf hier_s, oder erreicht sie es nur früher?
+
+**Gemacht.** ES-Job `20261126-220116-hier_h100b` (Commit 6a05511; `--pos map --models hier_s --horizon 100
+--init hier_h100`, 60 Generationen; Worker mit 6 Prozessen, 22:01 bis 09:16, 675 min, etwa 11 min je
+Generation; ohne Neustart durchgelaufen). Meta-Test `20261127-092510-ev_h100b_hier_s` (Commit 7c89e0c; prev,
+prev2, xmFF, xm0F; Seeds 5–6, je 2 Ziehungen, k = 64). Vorhersage vor dem Lauf (wörtlich aus „Laufend / offen“):
+
+> - Phase D, Fortsetzung von `hier_h100` (Auftrag Nutzer 2026-11-26, `PHASE_D.md` Abschnitt 8, Punkt 2): Hebt
+>   eine längere Suche das Plateau des Innen-Teils auf hier_s (prev 0,26 / 0,30 nach 100 / 200 Updates), oder
+>   erreicht sie es nur früher? Lauf `hier_h100b`: `--pos map --models hier_s --horizon 100 --init hier_h100`,
+>   60 Generationen, sonst wie `hier_h100` (Start vom besten θ, Adam-Momente neu bei null). Worker mit 6
+>   Prozessen über Nacht, etwa 14,5 min je Generation; um 7 Uhr startet der Nutzer den Worker neu, der Lauf
+>   setzt am letzten Prüfpunkt fort (etwa Generation 30–40). Danach Meta-Test auf hier_s wie bei `hier_h100`.
+>   Bezug `hier_h100`: Validierung 0,49 (prev2 0,195, prev3 0,192); Meta-Test prev 0,20 / 0,26 / 0,26 / 0,30 nach
+>   20 / 50 / 100 / 200 Updates, prev2 0,05 / 0,26 / 0,28 / 0,31, xmFF 0,74, xm0F 0,84; dfa prev 0,10 / 0,22 /
+>   0,47 / 0,60.
+>   **Vorhersage vor dem Lauf (2026-11-26):** (1) Die Validierung steigt weiter: am Ende ≥ 0,51. (2) Das Plateau
+>   steigt, bleibt aber unter dfa auf lange Sicht: Meta-Test prev nach 100 Updates ≥ 0,32 und nach 200 Updates
+>   ≤ 0,50. (3) Der Kopf bleibt: xmFF ≥ 0,70 und xm0F ≥ 0,80 nach 20 Updates.
+
+**Ergebnis.** Validierung 0,476 (Generation 0) → 0,511 (Generation 50 und 60); prev2 0,186 → 0,247, prev3
+0,140 → 0,223, xm0F 0,73, xmA5 0,70, xm33 0,66. Schrittweiten p fc1 −1,71 → −1,61, fc2 −4,61 → −4,81, Kopf
+1,30 → 0,89. Meta-Test auf hier_s, Testwertung nach 20 / 50 / 100 / 200 Updates, 4 Episoden je Feld:
+
+| Fall | dfa@task | grad@task | `hier_h100` | `hier_h100b` |
+|---|---|---|---|---|
+| prev | 0,10 / 0,22 / 0,47 / 0,60 | 0,59 / 0,69 / 0,72 / 0,75 | 0,20 / 0,26 / 0,26 / 0,30 | 0,13 / 0,28 / **0,39 / 0,42** |
+| prev2 | 0,06 / 0,18 / 0,37 / 0,53 | 0,46 / 0,61 / 0,64 / 0,66 | 0,05 / 0,26 / 0,28 / 0,31 | 0,05 / **0,34 / 0,38** / 0,40 |
+| xmFF | 0,01 / 0,02 / 0,02 / 0,01 | 0,01 / 0,01 / 0,01 / 0,02 | **0,74 / 0,74 / 0,74 / 0,74** | 0,68 / 0,70 / 0,72 / 0,72 |
+| xm0F | 0,07 / 0,02 / 0,02 / 0,01 | 0,04 / 0,04 / 0,05 / 0,05 | 0,84 / 0,84 / 0,83 / 0,83 | 0,85 / 0,84 / 0,84 / 0,82 |
+
+prev nach 100 Updates je Episode 0,33 / 0,35 / 0,28 / 0,59; nach 20 Updates 0,19 / 0,07 / 0,14 / 0,12.
+
+Reproduzierbarkeit: Für dasselbe θ (bestes θ von `hier_h100`) gibt die Validierung 0,4879 (Worker, `hier_h100` Generation 60),
+0,4757 (Worker, `hier_h100b` Generation 0) und 0,4854 (lokal). Die Kopf-Aufgaben stimmen dabei bitgleich überein,
+nur die Innen-Aufgaben weichen ab (prev2 0,195 / 0,186 / 0,183, prev3 0,192 / 0,140 / 0,191). Ursache nicht
+geprüft; vermutet: kleine Rechenunterschiede, die 100 Updates Innen-Lernen auf hier_s verstärken (geprüft nur,
+dass eine Episode auf layer_s@25k mit 20 Updates im selben Prozess unabhängig von der Reihenfolge gleich ist).
+
+**Vergleich mit der Vorhersage.** (1) Getroffen, aber nicht belastbar: Validierung 0,511 (≥ 0,51); der Abstand
+liegt innerhalb der oben gemessenen Abweichung für dasselbe θ (0,012). (2) Getroffen: prev nach 100 Updates
+0,39 (≥ 0,32), nach 200 Updates 0,42 (≤ 0,50). (3) Nicht getroffen: xmFF 0,68 nach 20 Updates (Vorhersage
+≥ 0,70); xm0F 0,85 (≥ 0,80) getroffen. Bilanz: 2 von 3 getroffen.
+
+**Schluss.** (a) Das Plateau steigt: prev nach 100 Updates 0,26 → 0,39, prev2 0,28 → 0,38 (dfa 0,47 / 0,37).
+Auf prev2 ist die Regel jetzt nach 50 Updates fast doppelt so gut wie dfa (0,34 gegen 0,18) und nach 100
+gleichauf. Nach 200 Updates bleibt sie unter dfa (prev 0,42 gegen 0,60) und weit unter Backprop. (b) Den
+Gewinn bezahlt die Regel mit dem schnellen Teil (prev nach 20 Updates 0,20 → 0,13) und etwas Kopf (xmFF
+0,74 → 0,68); ES verschiebt das Lernen innerhalb des Horizonts nach hinten, wie es die Fitness (Mittel nach
+10, 20, 50, 100) erlaubt. (c) Die Validierung stieg in der zweiten Hälfte kaum noch (0,511 bei 50 und 60),
+und ihre Messgenauigkeit für die Innen-Aufgaben liegt bei etwa ±0,01; mehr Generationen versprechen wenig.
+(d) Für Vergleiche auf hier_s mit 100 Updates sind Unterschiede der Innen-Werte unter etwa 0,05 nicht sicher;
+die Ursache der Abweichung ist offen. (e) Gesamtbild für die Hierarchie: Mit Horizont 100 findet ES eine
+Innen-Regel, die bis 100 Updates mit dfa mithält oder es schlägt und dabei den Kopf gut lernt; eine schnelle
+Innen-Regel wie auf layer_s (0,66 nach 20) gibt es für hier_s in dieser Familie nicht.
+
+**Belege.** `results/teacher.jsonl` (Zeilen `hier_h100b`, 61), `results/phase_d_arch.jsonl` (+16 Zeilen, jetzt
+312). Ausführlich: `PHASE_D.md` Abschnitt 5.9.
+
+## Laufend / offen
 
 - Noch in Bits: `*_parts` (die Anpassungs-Studien servo / robot sind seit 2026-11-23 umgestellt); nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
