@@ -5291,5 +5291,19 @@ den wachen Kopf fragt, übernimmt dessen Fehler.
   `rls_direct`. (3) Die neue Regel wacht mehr: Wach-Updates an den Tagen 2–4 im Mittel mindestens doppelt so
   viele wie bei `pos_map`.
 
+- Phase F, Prädiktor über mehrere Schritte (Auftrag Nutzer 2026-11-27). Neu (Commit nach diesem Eintrag):
+  `latent_pred.py --loss roll` (der Prädiktor wird mit seinen eigenen Vorhersagen weitergefüttert wie im Traum,
+  Verlust über alle 4 Schritte, Gradient durch den ganzen Lauf), `--runs` (Läufe je Szene), `--tag`
+  (Varianten); `latent_sleep.py --pred-tag` und Quelle carry3. Entwicklung auf Startnetz 5 (Kopf liest den Würfel
+  aus dem vorhergesagten Latent nach 1 / 2 / 3 / 4 Schritten; `results/latent_pred.jsonl`): Ein-Schritt-Verlust
+  0,56 / 0,38 / 0,24 / 0,19; Rollout-Verlust 0,53 / 0,45 / 0,36 / 0,32; Rollout-Verlust mit doppelt so vielen
+  Läufen (8 je Szene, 128 000 Übergänge) 0,58 / 0,47 / 0,43 / 0,39 (echte Latente 0,73 / 0,73 / 0,69 / 0,63).
+  Gewählt: die letzte Variante (`_roll8`); Startnetz 6: 0,59 / 0,51 / 0,42 / 0,38 (alt 0,58 / 0,41 / 0,30 /
+  0,22). Lauf: dieselben 24 Episoden, Quellen carry1, carry2, carry3 mit `--pred-tag _roll8`, nach
+  `results/latent_sleep_carry8.jsonl`. Bezug alter Prädiktor: carry1 0,81 / 0,92, carry2 0,61 / 0,78 (Tag 1 / 4).
+  **Vorhersage vor dem Lauf (2026-11-27):** (1) Zwei vorgestellte Schritte tragen jetzt: carry2 an Tag 4 ≥ 0,86
+  (alt 0,78). (2) Ein Schritt bleibt gleich: carry1 an Tag 4 innerhalb ± 0,02 von 0,92. (3) Der Fehler wächst
+  weiter mit den Schritten: carry3 an Tag 4 um ≥ 0,03 unter carry2.
+
 - Noch in Bits: `*_parts` (die Anpassungs-Studien servo / robot sind seit 2026-11-23 umgestellt); nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

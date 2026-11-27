@@ -19,7 +19,7 @@ Dream latents (DREAM_N per night):
     pred_near / pred_far  dreams of the latent predictor (latent_pred.py; learned from the robot's own eye
              movements, no labels): from one of the day's latents, 1 random gaze step with |dx|, |dy| <= 2
              (near), or 2 steps with |dx|, |dy| <= 5 (far); the dream is the predicted latent after the steps
-    carry1 / carry2  dreams of the predictor as in pred_*, 1 or 2 gaze steps with |dx|, |dy| <= 5, but the label
+    carry1 / 2 / 3  dreams of the predictor as in pred_*, 1, 2 or 3 gaze steps with |dx|, |dy| <= 5, but the label
              is CARRIED along instead of asked from the waking head: the memory's red cube lies at cell c (known for
              the labelled images); after the steps it lies where the fovea geometry puts it (tasks/fovea.py: its
              sampling point seen from the moved gaze), and the label is the calibration of that step. Dreams in
@@ -44,7 +44,7 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "results" / "latent_sleep.jsonl"
 SOURCES = ["replay", "noise", "mix", "unlab", "gauss", "unlab_true"]
 PRED = {"pred_near": (1, 2), "pred_far": (2, 5)}             # dream source -> (gaze steps, largest |dx|, |dy|)
-CARRY = {"carry1": 1, "carry2": 2}                            # dream source -> gaze steps (|dx|, |dy| <= 5)
+CARRY = {"carry1": 1, "carry2": 2, "carry3": 3}              # dream source -> gaze steps (|dx|, |dy| <= 5)
 
 
 def carried(red, steps):
@@ -129,7 +129,7 @@ def dreams(src, h_day, rng, gauss, pred=None):
     return mean + torch.from_numpy(rng.standard_normal((DREAM_N, len(mean))).astype(np.float32)) @ L.T
 
 
-def episode(case, seed, draw, model_name="layer_s", days=DAYS, gate="surprise", sources=None):
+def episode(case, seed, draw, model_name="layer_s", days=DAYS, gate="surprise", sources=None, pred_tag=""):
     sources = sources or SOURCES + ["rls_direct"]
     base, maker = CASES[case][0], CASES[case][1]
     spec = spec_of(base)
@@ -143,11 +143,13 @@ def episode(case, seed, draw, model_name="layer_s", days=DAYS, gate="surprise", 
     gauss = (mean, torch.linalg.cholesky(cov))
     row = {"case": case, "seed": seed, "draw": draw, "model": model_name, "days": days, "gate": gate,
            "dream_n": DREAM_N, "eps": EPS}
+    if pred_tag:
+        row["pred_tag"] = pred_tag
     eta = default_eta("rls_rf@task")
     pred = None
     if any(s in PRED or s in CARRY for s in sources):
         from .latent_pred import load
-        pred = load(model_name, seed)
+        pred = load(model_name, seed, pred_tag)
     for src in sources:
         m = net(model_name, base, seed)
         S = Fast(m, "rls_rf@task", eta, seed * 100 + draw + 50, spec)        # hooked first: the slow module
@@ -226,10 +228,11 @@ def main():
     ap.add_argument("--days", type=int, default=DAYS)
     ap.add_argument("--gate", default="surprise", choices=["none", "surprise"])
     ap.add_argument("--sources", nargs="+", default=None, help="default: all but the predictor sources")
+    ap.add_argument("--pred-tag", default="", help="predictor variant (latent_pred.py --tag)")
     ap.add_argument("--workers", type=int, default=2)
     ap.add_argument("--out", default=str(OUT))
     a = ap.parse_args()
-    jobs = [(c, s, d, a.model, a.days, a.gate, a.sources) for c in a.cases for s in a.seeds for d in range(a.draws)]
+    jobs = [(c, s, d, a.model, a.days, a.gate, a.sources, a.pred_tag) for c in a.cases for s in a.seeds for d in range(a.draws)]
     with mp.get_context("spawn").Pool(a.workers) as pool, open(a.out, "a") as f:
         for row in pool.imap(_job, jobs):
             f.write(json.dumps(row) + "\n")

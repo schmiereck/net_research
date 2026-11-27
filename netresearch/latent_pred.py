@@ -12,7 +12,10 @@ robot's own eye movements, with no task and no labels:
            is re-sampled with the robot's fovea (tasks/fovea.py, bit-identical to the exported views) and encoded.
            (--data shape: the shape search scenes of data/robot/loopimg; the robot_gaze encoder does not see
            their bodies, so they are no use here.)
-    P      MLP [h, dx / 8, dy / 8] -> 256 -> 256 -> delta h (residual), Adam on the one-step squared error.
+    P      MLP [h, dx / 8, dy / 8] -> 256 -> 256 -> delta h (residual), Adam on the one-step squared error
+           (--loss one), or on the error of its own rollout over all T steps (--loss roll: the predictor is fed its
+           own predictions, as in a dream, and the gradient runs through the whole run).
+    --tag  name of the variant (checkpoint <model>_s<seed><tag>.pt; "" = the first predictor).
 Report on held-out scenes: one-step and T-step rollout error relative to the variance of h, against "nothing
 moves" (h_{t+k} = h_t); and whether the predicted latent keeps its MEANING: a linear probe trained on true latents
 reads the step to each of the scene's three cubes (exact cell), and the base net's own head reads the step to the
@@ -111,7 +114,8 @@ def probe_acc(W, h, bodies):
     return float((pred == bodies).all(-1).mean())
 
 
-def train(model_name="layer_s", seed=5, parts=4, epochs=40, out=OUT, data="multi"):
+def train(model_name="layer_s", seed=5, parts=4, epochs=40, out=OUT, data="multi", loss_kind="one", tag="",
+          runs_per_scene=RUNS):
     torch.manual_seed(seed)
     rng = np.random.default_rng(seed)
     if data == "multi":
@@ -121,7 +125,7 @@ def train(model_name="layer_s", seed=5, parts=4, epochs=40, out=OUT, data="multi
                        key=lambda f: int(f.split("_p")[1].split("_")[0]))[:parts]
         test = DATA / "gazeshapec_test_img.npz"
     enc = encoder(model_name, seed)
-    Vtr, Str, Btr = runs(files, rng)
+    Vtr, Str, Btr = runs(files, rng, runs_per_scene)
     Vte, Ste, Bte = runs([test], np.random.default_rng(1000 + seed), 1)
     Htr, Hte = encode(enc, Vtr), encode(enc, Vte)
     d = Htr.shape[-1]
@@ -130,7 +134,20 @@ def train(model_name="layer_s", seed=5, parts=4, epochs=40, out=OUT, data="multi
     opt = torch.optim.Adam(P.parameters(), lr=1e-3)
     h0, h1 = Htr[:, :-1].reshape(-1, d), Htr[:, 1:].reshape(-1, d)
     st = torch.from_numpy(Str.reshape(-1, 2))
+    S_all = torch.from_numpy(Str)
     for ep in range(epochs):
+        if loss_kind == "roll":                             # whole runs: rollout from the first latent
+            perm = torch.randperm(len(Htr))
+            for i in range(0, len(Htr), 64):
+                j = perm[i:i + 64]
+                h, loss = Htr[j, 0], 0.0
+                for t in range(T):
+                    h = P(h, S_all[j, t])
+                    loss = loss + (h - Htr[j, t + 1]).pow(2).sum(-1).mean()
+                opt.zero_grad()
+                (loss / T).backward()
+                opt.step()
+            continue
         perm = torch.randperm(len(h0))
         for i in range(0, len(h0), 256):
             j = perm[i:i + 256]
@@ -141,6 +158,8 @@ def train(model_name="layer_s", seed=5, parts=4, epochs=40, out=OUT, data="multi
     W = probe_fit(Htr.reshape(-1, d), Btr.reshape(-1, 3, 2))
     rep = {"model": model_name, "seed": seed, "data": data, "parts": parts if data != "multi" else None, "n_train_runs": len(Vtr), "n_test_runs": len(Vte),
            "T": T, "max_step": MAX_STEP, "epochs": epochs, "d": d}
+    if loss_kind != "one" or tag or runs_per_scene != RUNS:
+        rep.update({"loss": loss_kind, "tag": tag, "runs_per_scene": runs_per_scene})
     with torch.no_grad():
         ste = torch.from_numpy(Ste)
         h = Hte[:, 0]
@@ -159,15 +178,15 @@ def train(model_name="layer_s", seed=5, parts=4, epochs=40, out=OUT, data="multi
     rep.update({"err_pred": err_p, "err_still": err_0, "probe_true": acc_t, "probe_pred": acc_p,
                 "probe_still": acc_0, "head_true": hd_t, "head_pred": hd_p, "head_still": hd_0})
     CKPT.mkdir(parents=True, exist_ok=True)
-    torch.save({"state": P.state_dict(), "d": d, "report": rep}, CKPT / f"{model_name}_s{seed}.pt")
+    torch.save({"state": P.state_dict(), "d": d, "report": rep}, CKPT / f"{model_name}_s{seed}{tag}.pt")
     with open(out, "a") as f:
         f.write(json.dumps(rep) + "\n")
     print(json.dumps(rep))
     return P
 
 
-def load(model_name, seed):
-    ck = torch.load(CKPT / f"{model_name}_s{seed}.pt", weights_only=False)
+def load(model_name, seed, tag=""):
+    ck = torch.load(CKPT / f"{model_name}_s{seed}{tag}.pt", weights_only=False)
     P = Predictor(ck["d"])
     P.load_state_dict(ck["state"])
     return P.eval()
@@ -180,11 +199,14 @@ def main():
     ap.add_argument("--seeds", nargs="+", type=int, default=[5])
     ap.add_argument("--parts", type=int, default=4, help="--data shape: how many image parts")
     ap.add_argument("--data", choices=["multi", "shape"], default="multi")
+    ap.add_argument("--loss", choices=["one", "roll"], default="one")
+    ap.add_argument("--tag", default="")
+    ap.add_argument("--runs", type=int, default=RUNS, help="runs of T steps per scene")
     ap.add_argument("--epochs", type=int, default=40)
     ap.add_argument("--out", default=str(OUT))
     a = ap.parse_args()
     for s in a.seeds:
-        train(a.model, s, a.parts, a.epochs, a.out, a.data)
+        train(a.model, s, a.parts, a.epochs, a.out, a.data, a.loss, a.tag, a.runs)
 
 
 if __name__ == "__main__":
