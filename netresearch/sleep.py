@@ -160,13 +160,49 @@ def reset(fw):
     fw.t, fw.S_prev = 0, None
 
 
-def loop_episode(case, seed, draw, kind, rule="pos_map", model_name=MODEL, cycles=CYCLES, source="dream_mem"):
+GATES = ["none", "surprise", "surprise_ex"]
+SURPRISE_MIN = 0.1        # gate "surprise": learn only while at least this share of the day's examples is wrong
+
+
+def wrong_of(model, b, spec):
+    """Per example True if the net gets the whole answer wrong."""
+    from .adapt import exact
+    from .train import run_sequence
+    with torch.no_grad():
+        model.eval()
+        logits, _ = run_sequence(model, b["obs"])
+        model.train()
+        ok = exact(spec, logits[0][:, spec.out_slice], b["target"][0]) > 0.5
+    return (~ok) & (b["mask"][0] > 0)
+
+
+def wake_step(fw, model, b, spec, gate):
+    """One wake update under a surprise gate; -> number of examples learned on.
+    surprise     per update: the rule runs on the whole batch, but only while >= SURPRISE_MIN of it is wrong
+                 (the rule was formed on whole batches, so its working range is kept)
+    surprise_ex  per example: the rule runs only on the examples that are wrong (a sub-batch)"""
+    if gate != "none":
+        wrong = wrong_of(model, b, spec)
+        if gate == "surprise" and float(wrong.float().mean()) < SURPRISE_MIN:
+            return 0
+        if gate == "surprise_ex":
+            if not wrong.any():
+                return 0
+            b = {"obs": b["obs"][:, wrong], "target": b["target"][:, wrong], "mask": b["mask"][:, wrong]}
+    fw.step(b)
+    return int(b["mask"].sum())
+
+
+def loop_episode(case, seed, draw, kind, rule="pos_map", model_name=MODEL, cycles=CYCLES, source="dream_mem",
+                 gate="none"):
     """Wake and sleep in turn. Every cycle brings k = 64 new training examples of the same task (daily life).
     Wake: F starts at zero and learns on W + S with the found rule (T_WAKE updates). Sleep: S goes on learning
     (it is not reset) from dreams started at the day's examples, labelled by W + S + F; then F is cleared.
     So what was learned in sleep flows back into the next day: the wake rule starts from W + S.
     Controls with the same real data: `wake_only` (no sleep, F keeps learning over all days) and `grad`
-    (Adam on the fast weights, T_WAKE updates a day: plain training of a net)."""
+    (Adam on the fast weights, T_WAKE updates a day: plain training of a net).
+    gate "surprise": the wake rule (in the loop and in `wake_only`) learns only on the examples the net still
+    gets wrong; an update with none of them is skipped (PLAN_TRAINER section 4, building block 5)."""
     base, maker = CASES[case][0], CASES[case][1]
     spec = spec_of(base)
     tb = maker(draw + 10 * seed, 64)[1]                        # fixed unseen test set
@@ -186,13 +222,19 @@ def loop_episode(case, seed, draw, kind, rule="pos_map", model_name=MODEL, cycle
     row = {"case": case, "seed": seed, "draw": draw, "model": model_name, "rule": rule, "learner": kind,
            "source": source, "cycles": cycles, "t_wake": T_WAKE, "t_sleep": T_LOOP_SLEEP,
            "s_before": score_on(m, tb, spec), "wake": [], "sleep": [], "wake_only": [], "grad": []}
+    if gate != "none":
+        row.update({"gate": gate, "n_wake": [], "n_wake_only": []})
     for c, b in enumerate(days):
         reset(F)
         F.task_on = 1.0
+        nf = nw = 0
         for _ in range(T_WAKE):
-            F.step(b)
-            W.step(b)
+            nf += wake_step(F, m, b, spec, gate)
+            nw += wake_step(W, ctl_w, b, spec, gate)
             G.step(b)
+        if gate != "none":                                     # examples learned on (of T_WAKE * 64)
+            row["n_wake"].append(nf)
+            row["n_wake_only"].append(nw)
         row["wake"].append(score_on(m, tb, spec))              # W + S + F
         row["wake_only"].append(score_on(ctl_w, tb, spec))
         row["grad"].append(score_on(ctl_g, tb, spec))
@@ -239,6 +281,7 @@ def main():
     ap.add_argument("--sources", nargs="+", default=SOURCES)
     ap.add_argument("--learners", nargs="+", default=["grad"], choices=LEARNERS)
     ap.add_argument("--cycles", type=int, default=CYCLES)
+    ap.add_argument("--gates", nargs="+", default=["none"], choices=GATES)
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--out", default=str(OUT))
     a = ap.parse_args()
@@ -246,8 +289,8 @@ def main():
         check(a.model)
         return
     if a.cmd == "loop":
-        jobs = [(c, s, d, k, a.rule, a.model, a.cycles) for c in a.cases for k in a.learners
-                for s in a.seeds for d in range(a.draws)]
+        jobs = [(c, s, d, k, a.rule, a.model, a.cycles, "dream_mem", g) for g in a.gates for c in a.cases
+                for k in a.learners for s in a.seeds for d in range(a.draws)]
         fn = _loop_job
     else:
         jobs = [(c, s, d, a.rule, a.model, a.sources, a.learners) for c in a.cases for s in a.seeds

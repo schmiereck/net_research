@@ -4928,5 +4928,28 @@ Aufgabe, die nicht schon nach 3 Tagen an der Decke liegt.
 
 ## Laufend / offen
 
+- Phase F, Überraschungs-Schalter für die Wachphase im Kreislauf (Auftrag Nutzer 2026-11-27, Weg 2 aus dem
+  Eintrag davor). Neu in `sleep.py loop --gates` (Commit nach diesem Eintrag; ohne Schalter unverändert):
+  `surprise` (je Update: die Regel läuft auf dem ganzen Tages-Batch, aber nur solange ≥ 10 % der 64 Beispiele
+  falsch sind; so bleibt ihr Arbeitsbereich „ganzer Batch“ erhalten) und `surprise_ex` (je Beispiel: die Regel
+  läuft nur auf den falschen Beispielen). Der Schalter wirkt im Kreislauf und in `wake_only`, nicht in `grad`.
+  Lauf: `loop --cases lib_prev lib_prev2 lib_xmFF lib_xm0F --learners grad rls_rf --gates none surprise
+  surprise_ex`, 4 Tage, Seeds 5–6 × 3 Ziehungen. Vorab gesehen (Proben, Seed 5, Ziehung 0, Lerner rls_rf):
+  surprise_ex auf xmFF: nach dem Wachen 0,07 / 0,03 / 0,01 / 0,01 (ohne Schalter 0,60 / 0,23 / 0,71 / 0,00);
+  surprise auf xmFF: nach dem Wachen 0,54 / 0,72 / 0,00 / 0,00, nach dem Schlaf 0,52 / 0,65 / 0,30 / 0,16;
+  surprise auf prev: nach dem Wachen 0,47 / 0,01 / 0,00 / 0,01, `wake_only` 0,47 / 0,75 / 0,94 / 0,94. Am Tag
+  2 lernt die Regel auf prev alle 20 Updates (mehr als 10 % falsch) und zerstört dabei W + S. Nebenbefund: In
+  `wake_only` läuft der Zeit-Eingang t / T der Regel über die Tage weiter (bis 4 statt bis 1); das trägt
+  vermutlich zum Absinken von `wake_only` im Eintrag davor bei. Lokal und auf dem Worker weichen die Werte
+  einzelner Episoden geringfügig ab (etwa 0,7051 gegen 0,7031), wie in Phase D.
+  **Vorhersage vor dem Lauf (2026-11-27):** (1) Keiner der beiden Schalter lässt den Kreislauf besser werden:
+  mit rls_rf auf xmFF und xm0F ist W + S nach Tag 4 bei beiden Schaltern nicht besser als nach Tag 1.
+  (2) surprise_ex schadet schon am ersten Tag: nach dem Wachen an Tag 1 auf xmFF um ≥ 0,20 unter dem Lauf ohne
+  Schalter. (3) Mit surprise bleibt der Einbruch an Tag 2 auf prev mit rls_rf: nach dem Wachen an Tag 2
+  ≤ 0,20. Vermutete Ursache: Die Regel antwortet auf einen schon niedrigen Fehler zu Beginn des Tages mit
+  zerstörenden Updates (ihr globaler Modulator hängt am Verlust S und an ΔS, und sie wurde nur auf Episoden
+  geformt, die bei hohem Verlust beginnen). Ein Schalter, der nur entscheidet, *ob* gelernt wird, behebt das
+  nicht; dafür muss die Regel im Kreislauf geformt werden (Weg 1).
+
 - Noch in Bits: `*_parts` (die Anpassungs-Studien servo / robot sind seit 2026-11-23 umgestellt); nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
