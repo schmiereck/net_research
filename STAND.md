@@ -434,5 +434,7 @@ Erfahrungen, die in die Pipeline gehören:
   (xmFF 0,49 → 0,66). Nach 8 Tagen liegt er gleichauf mit direktem Training derselben Kopf-Regel auf allen
   echten Beispielen, nicht darüber; Schlaf allein verbessert S ohne neue Beschriftungen um etwa 0,10. Auf den
   Roboter-Bildern übertragen Träume im Latent-Space Blick-Kalibrierungen fast verlustfrei, solange sie nahe an
-  den Erinnerungen bleiben.
+  den Erinnerungen bleiben. Ein gelernter Latent-Prädiktor (nächster Latent nach einem Blick-Schritt) erzeugt mit
+  mitgeführter Folge des Schritts vorgestellte Erfahrungen, mit denen S nach der ersten Nacht deutlich besser ist
+  als direktes Training auf den echten Beispielen (0,81 gegen 0,65).
 - Noch nicht begonnen: Weltmodell, Reinforcement Learning.

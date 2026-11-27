@@ -1704,6 +1704,12 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
     vorhergesagten Latent zu 0,56–0,58 (echt 0,73–0,76, unbewegt 0,03). Als Traum-Quelle schlechter als Mischungen
     (0,73 gegen 0,93) und als echte unbeschriftete Blicke (0,82). Nächstes: die Beschriftung der Erinnerung mit dem
     Schritt mitführen (Traum als vorgestellte Erfahrung mit bekannter Folge); Prädiktor verbessern.
+  - **Mitgeführte Beschriftung erledigt (2026-11-27, `results/latent_sleep_carry.jsonl`):** Prädiktor-Träume mit
+    der Folge des Blick-Schritts als Beschriftung (Fovea-Geometrie, wie eine Efferenzkopie) erreichen die
+    Mischungen (0,92 gegen 0,93) und liegen nach der ersten Nacht deutlich über direktem Training auf den echten
+    Beispielen (0,81 gegen 0,65, 21 von 24 Episoden): der erste Vorteil des Schlafs über Training hinaus. Zwei
+    vorgestellte Schritte sind schlechter (0,78). Nächstes: Prädiktor über mehrere Schritte verbessern; die Folge
+    einer Handlung lernen statt aus der Geometrie nehmen; Stufe 2 live in MuJoCo.
 - Langzeittest: 20 neue Varianten nacheinander lernen und dabei das Vergessen und die Generalisierung
   verfolgen.
 

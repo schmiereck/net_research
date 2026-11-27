@@ -5209,6 +5209,66 @@ mehrere Schritte).
 
 **Belege.** `results/latent_pred.jsonl` (2 Zeilen), `results/latent_sleep_pred.jsonl` (24 Zeilen).
 
+## 2026-11-27 — Phase F, mitgeführte Beschriftung: Prädiktor-Träume mit bekannter Folge des Blick-Schritts erreichen die Mischungen, und nach der ersten Nacht liegen sie deutlich über direktem Training auf den echten Beispielen
+
+**Frage.** Taugen Prädiktor-Träume, wenn die Beschriftung der Erinnerung mit dem vorgestellten Blick-Schritt
+mitgeführt wird, statt den Traum vom wachen Kopf beschriften zu lassen?
+
+**Gemacht.** Commit vor diesem Eintrag; lokal mit 2 Prozessen (1 min, dieselben 24 Episoden). Behalten wurden
+je Nacht im Mittel 974 (carry1) und 947 (carry2) von 1024 Träumen. Vorhersage vor dem Lauf (wörtlich aus
+„Laufend / offen“):
+
+> - Phase F, mitgeführte Beschriftung für Prädiktor-Träume (Auftrag Nutzer 2026-11-27). Neu (Commit nach diesem
+>   Eintrag): Traum-Quellen carry1 / carry2 in `latent_sleep.py`: von einer Erinnerung 1 oder 2 Blick-Schritte
+>   (|dx|, |dy| ≤ 5) durch den Prädiktor; die Beschriftung kommt nicht vom wachen Kopf, sondern wird mitgeführt:
+>   Der rote Würfel der Erinnerung liegt in Zelle c (für die beschrifteten Bilder bekannt; `adapt.py` gibt sie
+>   jetzt mit), nach den Schritten dort, wo ihn die Fovea-Geometrie vom neuen Blick aus sieht; Beschriftung =
+>   Kalibrierung dieses Schritts; Träume, in denen der Würfel das Blickfeld verlässt, fallen weg (etwa 5–8 %).
+>   Geprüft an 1000 Test-Szenen mit Kamerabild: die mitgeführte Zelle stimmt mit der wahren nach 1 / 2 Schritten
+>   zu 0,98 / 0,98 überein. Die alten Quellen rechnen bitgleich weiter. Lauf: dieselben 24 Episoden, Quellen
+>   carry1, carry2, nach `results/latent_sleep_carry.jsonl`. Vorab gesehen (Probe flipx, Seed 5, Ziehung 0; W + S
+>   an Tag 1 / 4): carry1 0,78 / 0,93, carry2 0,63 / 0,72 (pred_far 0,55 / 0,82, mix 0,80 / 0,93).
+>   **Vorhersage vor dem Lauf (2026-11-27):** (1) Die mitgeführte Beschriftung behebt das Problem der
+>   Beschriftung: carry1 an Tag 4 ≥ pred_far + 0,10. (2) Mit einem Schritt erreichen Prädiktor-Träume die
+>   Mischungen: carry1 an Tag 4 innerhalb ± 0,03 von mix. (3) Der Fehler des Prädiktors wächst mit den Schritten:
+>   carry2 an Tag 4 um ≥ 0,10 unter carry1.
+
+**Ergebnis.** W + S nach jeder Nacht, Mittel über 24 Episoden:
+
+| Quelle | Tag 1 | Tag 2 | Tag 3 | Tag 4 |
+|---|---|---|---|---|
+| **carry1** (1 Schritt, Beschriftung mitgeführt) | **0,81** | 0,88 | 0,91 | 0,92 |
+| carry2 (2 Schritte, mitgeführt) | 0,61 | 0,72 | 0,76 | 0,78 |
+| *pred_far (Beschriftung vom wachen Kopf)* | 0,52 | 0,63 | 0,69 | 0,73 |
+| *mix (Stufe 1)* | 0,64 | 0,87 | 0,92 | 0,93 |
+| *rls_direct (Stufe 1)* | 0,65 | 0,89 | 0,94 | 0,96 |
+
+Gepaart (± Standardfehler, Anteil positiv): carry1 − pred_far an Tag 4 +0,19 ± 0,02 (24 von 24); carry1 − mix
+an Tag 4 −0,01 ± 0,01 (14 von 24), an Tag 1 +0,17 ± 0,02 (21 von 24); carry1 − rls_direct an Tag 4 −0,04 ± 0,01
+(3 von 24), an Tag 1 **+0,16 ± 0,02 (21 von 24)**; carry2 − carry1 an Tag 4 −0,14 ± 0,01. Je Gerät carry1 an
+Tag 4: flipx 0,92, offx 0,91, rot90 0,91, strong 0,95, swap 0,90, weak 0,94.
+
+**Vergleich mit der Vorhersage.** (1) Getroffen: +0,19. (2) Getroffen: −0,01 (± 0,03). (3) Getroffen: −0,14.
+Bilanz: 3 von 3 getroffen.
+
+**Schluss.** (a) **Die Beschriftung war das Problem, nicht der Prädiktor allein:** Mit mitgeführter Beschriftung
+steigen Prädiktor-Träume von 0,73 auf 0,92 und erreichen die Mischungen. (b) **Zum ersten Mal führt der Schlaf
+über direktes Training hinaus, und zwar am Anfang:** Nach der ersten Nacht trägt S die Kalibrierung zu 0,81,
+direktes Training auf den 64 echten Beispielen nur zu 0,65, ebenso das wache Modul und Mischungen. Der Traum
+erzeugt aus 64 Erfahrungen etwa 1000 vorgestellte Erfahrungen mit bekannter Folge: wie sähe der Würfel aus,
+wenn ich den Blick um s bewege, und wo läge er dann. Ab Tag 3 holt direktes Training mit mehr echten Beispielen
+auf und liegt an Tag 4 knapp vorn (0,96 gegen 0,92). (c) Mit zwei vorgestellten Schritten wird es schlechter
+(0,78): Der Fehler des Prädiktors wächst mit jedem Schritt; Träume sollen hier kurz bleiben. (d) **Einschränkung:**
+Die Folge des Blick-Schritts für die Beschriftung kommt aus der bekannten Geometrie der Fovea (wo der Würfel nach
+dem Schritt liegt), nicht aus einem gelernten Modell. Der Roboter kennt diese Geometrie seines eigenen Auges, in
+der Biologie entspräche das einer Efferenzkopie; gelernt ist nur der Latent-Prädiktor. Die Zelle c des Würfels
+ist nur für die beschrifteten Erinnerungen bekannt, nicht für beliebige Träume. (e) Für die Traum-Idee heißt
+das: Ein Weltmodell im Latent-Space lohnt sich vor allem dann, wenn der Traum eine *Handlung mit bekannter
+Folge* vorstellt; dann entsteht neue, richtig beschriftete Erfahrung. Ein Traum, der nur Eingaben erfindet und
+den wachen Kopf fragt, übernimmt dessen Fehler.
+
+**Belege.** `results/latent_sleep_carry.jsonl` (24 Zeilen).
+
 ## Laufend / offen
 
 - Phase F, Wach-Regel per ES im Kreislauf geformt (Auftrag Nutzer 2026-11-27, Weg 1). Neu (Commit nach
@@ -5230,21 +5290,6 @@ mehrere Schritte).
   liegt das Mittel von W + S über die Tage 1–4 um ≥ 0,05 über `pos_map`, an Tag 8 aber höchstens 0,03 über
   `rls_direct`. (3) Die neue Regel wacht mehr: Wach-Updates an den Tagen 2–4 im Mittel mindestens doppelt so
   viele wie bei `pos_map`.
-
-- Phase F, mitgeführte Beschriftung für Prädiktor-Träume (Auftrag Nutzer 2026-11-27). Neu (Commit nach diesem
-  Eintrag): Traum-Quellen carry1 / carry2 in `latent_sleep.py`: von einer Erinnerung 1 oder 2 Blick-Schritte
-  (|dx|, |dy| ≤ 5) durch den Prädiktor; die Beschriftung kommt nicht vom wachen Kopf, sondern wird mitgeführt:
-  Der rote Würfel der Erinnerung liegt in Zelle c (für die beschrifteten Bilder bekannt; `adapt.py` gibt sie
-  jetzt mit), nach den Schritten dort, wo ihn die Fovea-Geometrie vom neuen Blick aus sieht; Beschriftung =
-  Kalibrierung dieses Schritts; Träume, in denen der Würfel das Blickfeld verlässt, fallen weg (etwa 5–8 %).
-  Geprüft an 1000 Test-Szenen mit Kamerabild: die mitgeführte Zelle stimmt mit der wahren nach 1 / 2 Schritten
-  zu 0,98 / 0,98 überein. Die alten Quellen rechnen bitgleich weiter. Lauf: dieselben 24 Episoden, Quellen
-  carry1, carry2, nach `results/latent_sleep_carry.jsonl`. Vorab gesehen (Probe flipx, Seed 5, Ziehung 0; W + S
-  an Tag 1 / 4): carry1 0,78 / 0,93, carry2 0,63 / 0,72 (pred_far 0,55 / 0,82, mix 0,80 / 0,93).
-  **Vorhersage vor dem Lauf (2026-11-27):** (1) Die mitgeführte Beschriftung behebt das Problem der
-  Beschriftung: carry1 an Tag 4 ≥ pred_far + 0,10. (2) Mit einem Schritt erreichen Prädiktor-Träume die
-  Mischungen: carry1 an Tag 4 innerhalb ± 0,03 von mix. (3) Der Fehler des Prädiktors wächst mit den Schritten:
-  carry2 an Tag 4 um ≥ 0,10 unter carry1.
 
 - Noch in Bits: `*_parts` (die Anpassungs-Studien servo / robot sind seit 2026-11-23 umgestellt); nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
