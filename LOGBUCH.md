@@ -4716,5 +4716,21 @@ Innen-Regel wie auf layer_s (0,66 nach 20) gibt es für hier_s in dieser Familie
 
 ## Laufend / offen
 
+- Phase D, Ursache der Messabweichung auf hier_s (Auftrag Nutzer 2026-11-27, `PHASE_D.md` 5.9). Vorab lokal
+  geklärt (Skript außerhalb des Repos, 12 Innen-Episoden der Validierung von `hier_h100`, Horizont 100):
+  (i) Mit demselben θ sind die Episoden lokal bitgleich, unabhängig von Reihenfolge, Prozess und Pool (frischer
+  Pool, umgekehrte Reihenfolge, nacheinander im Hauptprozess mit einem Thread). (ii) Der Worker legt für jeden
+  Job eigene Prüfpunkte an; `--init` und `eval` lesen θ dort deshalb aus `results/teacher.jsonl`, wo θ auf 10⁻⁶
+  gerundet war. Diese Rundung (höchstens 5·10⁻⁷) ändert einzelne Episoden um bis zu 0,09 (Streuung der
+  Differenz etwa 0,05), das Mittel von prev2 um 0,01. Das Innen-Lernen über 100 Updates auf hier_s ist also
+  empfindlich gegen winzige Änderungen von θ. (iii) Mit exakt demselben θ weicht der Worker vom lokalen PC noch
+  ab (0,4879 gegen 0,4854); vermutlich andere Rechenwege der CPU, nicht geprüft. Neu im Code (Commit nach diesem
+  Eintrag): θ in `results/teacher.jsonl` exakt (float32) statt gerundet. Prüfung, ob der Unterschied
+  `hier_h100` → `hier_h100b` trotz der Empfindlichkeit trägt: Meta-Test beider Regeln auf hier_s mit 6 statt 2
+  Ziehungen (prev, prev2; Seeds 5–6, also 12 Episoden je Feld), in `results/phase_d_noise.jsonl`.
+  **Vorhersage vor dem Lauf (2026-11-27):** (1) Der Unterschied trägt: prev nach 100 Updates bei `hier_h100b`
+  um mindestens 0,08 über `hier_h100` (mit 4 Episoden: 0,39 gegen 0,26). (2) Die Streuung je Episode nach 100
+  Updates (Standardabweichung über die 12 Episoden) ist bei beiden Regeln ≥ 0,05.
+
 - Noch in Bits: `*_parts` (die Anpassungs-Studien servo / robot sind seit 2026-11-23 umgestellt); nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

@@ -290,8 +290,8 @@ def run(name, mode, cases, seeds, gens, pop, n_ep, sigma, lr, workers, out, seed
                             "rng": rng.bit_generator.state, "time": time.time() - t0, "horizon": horizon,
                             "init": init}, TDIR / f"{name}.pt")
             if g == gens:
-                row.update({"theta": [round(float(x), 6) for x in theta],
-                            "best": [round(float(x), 6) for x in best[1]], "best_val": best[0]})
+                row.update({"theta": [float(x) for x in theta],   # exact float32 (rounding changes inner episodes on hier_s)
+                            "best": [float(x) for x in best[1]], "best_val": best[0]})
                 f.write(json.dumps(row) + "\n")
                 break
             eps = [(cases[rng.integers(len(cases))], seeds[rng.integers(len(seeds))], int(rng.integers(10_000)))
