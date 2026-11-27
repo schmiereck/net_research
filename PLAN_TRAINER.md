@@ -1666,6 +1666,11 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
     0,43 (aus Zufall; 0,09 nach dem ersten Schritt, 0,66 nach 16) echte Basis-Sequenzen, Zufall 0,005.
     Offen danach: mehrere Aufgaben nacheinander in einem gemeinsamen S mit Kontext (erst dort wird Vergessen
     messbar), lokale Schlaf-Regel statt Adam, Auswahl der Träume nach Wertungen.
+  - **Erster Versuch erledigt (2026-11-27, LOGBUCH, `results/sleep.jsonl`):** Auf prev wandert die Fähigkeit
+    allein über Träume (auch aus Zufall) in S, und S wird besser als das wache Netz (0,77–0,83 gegen 0,68);
+    Traum-Qualität zählt wenig (Zufalls-Eingaben 0,73). Auf xmFF scheitert der Schlaf-Lerner Adam (0,20 mit
+    Träumen, 0,03 mit replay), nicht der Traum. Nächster Schritt: Schlaf-Lerner, der Kopf-Aufgaben aufnimmt
+    (rls_rf am Kopf oder die Phase-D-Regel selbst auf den Träumen), dann mehrere Aufgaben in einem S.
 - Langzeittest: 20 neue Varianten nacheinander lernen und dabei das Vergessen und die Generalisierung
   verfolgen.
 

@@ -4771,24 +4771,66 @@ Episoden sind auf etwa ±0,04 genau.
 
 **Belege.** `results/phase_d_noise.jsonl` (48 Zeilen). Ausführlich: `PHASE_D.md` Abschnitt 5.9.
 
-## Laufend / offen
+## 2026-11-27 — Phase F, erster Versuch Wach- und Schlafphase: eine innen gelernte Fähigkeit wandert allein über Träume in ein zweites Modul und wird dabei besser; eine Kopf-Fähigkeit kann der Schlaf-Lerner (Adam) gar nicht aufnehmen
 
-- Phase F, erster Versuch Wach- und Schlafphase (Auftrag Nutzer 2026-11-27, PLAN_TRAINER Phase F): Lässt sich
-  eine im Wachen schnell gelernte Fähigkeit (schnelle Gewichte F, Regel `pos_map`, 20 Updates, k = 64) im
-  Schlaf in ein zweites Modul S übertragen, nur aus Träumen, die das wache Netz beschriftet, sodass F danach
-  wegfallen kann? `netresearch/sleep.py` (Commit nach diesem Eintrag): layer_s@25k, Fälle lib_prev und lib_xmFF,
-  Seeds 5–6 × 3 Ziehungen (6 Episoden je Fall), Schlaf 200 Adam-Schritte zu je 64 Traum-Eingaben auf S
-  (Gate „task“ wie in Phase D), gemessen W + S auf ungesehenen Sequenzen. Quellen: replay (die 64
-  Trainings-Eingaben), dream_mem (Rollouts des Basis-Netzes aus den 64 Eingaben, 16 Schritte), dream_rand
-  (Rollouts aus Zufall), noise (Zufalls-Tripel), real (frische Basis-Sequenzen); je 1024 Eingaben außer
-  replay. Vorab gesehen: `check` (Basis-Netz sagt die nächste Zahl zu 0,94 richtig; Traum-Fenster echte
-  Basis-Sequenzen: dream_mem 0,75, dream_rand 0,43, noise 0,005) und eine Probe-Episode (lib_prev, Seed 5,
-  Ziehung 0): wach 0,67; nach dem Schlaf replay 0,93, dream_mem 0,76, dream_rand 0,74, noise 0,71, real 0,75.
-  Einschränkung: Weil S nur bei Gate „task“ wirkt, ist Vergessen der Basis-Aufgabe hier nicht messbar.
-  **Vorhersage vor dem Lauf (2026-11-27):** (1) Die Fähigkeit wandert ohne gespeicherte Daten in S: dream_rand
-  nach dem Schlaf im Mittel ≥ wach − 0,05, auf beiden Fällen. (2) replay ist auf prev die beste Quelle
-  (≥ 0,85; dort sind die Beschriftungen fast die wahren, und der Schlaf ist Backprop auf gespeicherten Daten).
-  (3) Das Weltmodell zählt: Auf mindestens einem Fall ist noise um ≥ 0,05 schlechter als dream_mem.
+**Frage.** Lässt sich eine im Wachen schnell gelernte Fähigkeit im Schlaf allein aus Träumen, die das wache
+Netz beschriftet, in ein zweites Modul S übertragen, sodass die schnellen Gewichte danach wegfallen können?
+
+**Gemacht.** Job `20261127-105819-sleep_f1` (Commit e8d7b84; `sleep.py run --cases lib_prev lib_xmFF --seeds
+5 6 --draws 3`, 2 min). Vorhersage vor dem Lauf (wörtlich aus „Laufend / offen“):
+
+> - Phase F, erster Versuch Wach- und Schlafphase (Auftrag Nutzer 2026-11-27, PLAN_TRAINER Phase F): Lässt sich
+>   eine im Wachen schnell gelernte Fähigkeit (schnelle Gewichte F, Regel `pos_map`, 20 Updates, k = 64) im
+>   Schlaf in ein zweites Modul S übertragen, nur aus Träumen, die das wache Netz beschriftet, sodass F danach
+>   wegfallen kann? `netresearch/sleep.py` (Commit nach diesem Eintrag): layer_s@25k, Fälle lib_prev und lib_xmFF,
+>   Seeds 5–6 × 3 Ziehungen (6 Episoden je Fall), Schlaf 200 Adam-Schritte zu je 64 Traum-Eingaben auf S
+>   (Gate „task“ wie in Phase D), gemessen W + S auf ungesehenen Sequenzen. Quellen: replay (die 64
+>   Trainings-Eingaben), dream_mem (Rollouts des Basis-Netzes aus den 64 Eingaben, 16 Schritte), dream_rand
+>   (Rollouts aus Zufall), noise (Zufalls-Tripel), real (frische Basis-Sequenzen); je 1024 Eingaben außer
+>   replay. Vorab gesehen: `check` (Basis-Netz sagt die nächste Zahl zu 0,94 richtig; Traum-Fenster echte
+>   Basis-Sequenzen: dream_mem 0,75, dream_rand 0,43, noise 0,005) und eine Probe-Episode (lib_prev, Seed 5,
+>   Ziehung 0): wach 0,67; nach dem Schlaf replay 0,93, dream_mem 0,76, dream_rand 0,74, noise 0,71, real 0,75.
+>   Einschränkung: Weil S nur bei Gate „task“ wirkt, ist Vergessen der Basis-Aufgabe hier nicht messbar.
+>   **Vorhersage vor dem Lauf (2026-11-27):** (1) Die Fähigkeit wandert ohne gespeicherte Daten in S: dream_rand
+>   nach dem Schlaf im Mittel ≥ wach − 0,05, auf beiden Fällen. (2) replay ist auf prev die beste Quelle
+>   (≥ 0,85; dort sind die Beschriftungen fast die wahren, und der Schlaf ist Backprop auf gespeicherten Daten).
+>   (3) Das Weltmodell zählt: Auf mindestens einem Fall ist noise um ≥ 0,05 schlechter als dream_mem.
+
+**Ergebnis.** layer_s@25k, 6 Episoden je Fall; vor dem Lernen 0,00. Testwertung von W + S (F weg) nach dem
+Schlaf, Mittel; „Ende − wach“ gepaart je Episode, ± Standardfehler:
+
+| Quelle | echte Sequenzen | prev nach 20 / 50 / 100 / 200 Schlaf-Schritten | prev Ende − wach | xmFF nach 20 / 50 / 100 / 200 | xmFF Ende − wach |
+|---|---|---|---|---|---|
+| (wach, W + F) | | 0,68 | | 0,58 | |
+| replay | 1,00 | 0,76 / 0,90 / 0,93 / **0,95** | +0,27 ± 0,03 | 0,01 / 0,03 / 0,03 / 0,03 | −0,55 ± 0,03 |
+| dream_mem | 0,73 | 0,81 / 0,82 / 0,81 / 0,78 | +0,10 ± 0,01 | 0,01 / 0,02 / 0,05 / 0,20 | −0,38 ± 0,02 |
+| dream_rand | 0,44 | 0,79 / 0,83 / 0,80 / 0,77 | +0,09 ± 0,01 | 0,01 / 0,01 / 0,04 / 0,19 | −0,40 ± 0,02 |
+| noise | 0,00 | 0,78 / 0,82 / 0,79 / 0,73 | +0,05 ± 0,01 | 0,01 / 0,01 / 0,01 / 0,09 | −0,50 ± 0,03 |
+| real | 1,00 | 0,78 / 0,81 / 0,79 / 0,76 | +0,08 ± 0,01 | 0,01 / 0,01 / 0,06 / 0,20 | −0,38 ± 0,03 |
+
+**Vergleich mit der Vorhersage.** (1) Nicht getroffen: Auf prev liegt dream_rand 0,09 *über* dem wachen Netz,
+auf xmFF aber 0,40 darunter. (2) Getroffen: replay auf prev 0,95 (≥ 0,85), die beste Quelle. (3) Getroffen auf
+xmFF: noise 0,09 gegen dream_mem 0,20 (auf prev nur 0,05 Abstand: 0,73 gegen 0,78, knapp unter der Schwelle).
+Bilanz: 2 von 3 getroffen.
+
+**Schluss.** (a) **Für die Innen-Aufgabe prev trägt die Idee:** Die Fähigkeit wandert ganz ohne gespeicherte
+Daten in S (dream_rand: Startwerte aus Zufall), und S ist danach besser als das wache Netz, das die Träume
+beschriftet hat (0,77–0,83 gegen 0,68; nach 200 Schritten bei den Rollouts in allen 6 Episoden darüber, +0,07 bis +0,15). Der Schüler übertrifft den Lehrer: Er lernt aus
+vielen beschrifteten Eingaben eine glattere Abbildung, als die 20 schnellen Updates gefunden haben. Nach etwa
+50 Schlaf-Schritten liegt das Maximum (0,82–0,83), danach nähert sich S den Fehlern des Lehrers (0,77 nach
+200). (b) **Traum-Qualität zählt nur wenig:** Rollouts aus Erinnerung oder Zufall und frische echte Sequenzen
+sind auf prev gleich (0,76–0,78); reine Zufalls-Eingaben etwas schlechter (0,73). Für die Aufgabe „vorletzte
+Zahl kopieren“ hängt die Antwort kaum davon ab, ob die Eingabe eine echte Sequenz ist. (c) **replay ist kein
+Traum:** Auf den 64 Trainings-Eingaben beschriftet das wache Netz fast richtig, der Schlaf ist dann Backprop auf
+gespeicherten Daten (0,95, wie grad@task nach 200 Updates). (d) **Auf der Kopf-Aufgabe xmFF scheitert der
+Schlaf-Lerner, nicht der Traum:** Adam auf den schnellen Gewichten lernt xmFF auch mit Daten kaum (grad@task
+im Meta-Test 0,01; hier replay 0,03). Mit 1024 Traum-Eingaben kommt er nach 200 Schritten auf 0,20 und steigt
+noch. Der Schlaf braucht also einen Lerner, der Kopf-Aufgaben aufnehmen kann (etwa rls_rf oder die Regel aus
+Phase D selbst auf den Träumen). (e) Nicht gemessen: Vergessen (S wirkt nur bei Gate „task“).
+
+**Belege.** `results/sleep.jsonl` (12 Zeilen; je Episode Kurven aller Quellen und Anteil echter Sequenzen).
+
+## Laufend / offen
 
 - Noch in Bits: `*_parts` (die Anpassungs-Studien servo / robot sind seit 2026-11-23 umgestellt); nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

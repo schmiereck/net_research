@@ -424,4 +424,8 @@ Erfahrungen, die in die Pipeline gehören:
   nach 20, dfa 0,10), dann aber bei 0,26–0,30 stehen bleibt (dfa erreicht 0,60 nach 200). Eine Fortsetzung
   hebt das auf 0,39 nach 100 Updates (dfa 0,47) und verliert dafür den schnellen Teil (2026-11-27).
   Ausführlich: `PHASE_D.md`.
+- Wach- und Schlafphase (Phase F) begonnen 2026-11-27: Eine wach mit schnellen Gewichten gelernte
+  Innen-Fähigkeit (prev) wandert im Schlaf allein über Träume des Vorhersage-Netzes, beschriftet vom wachen
+  Netz, in ein zweites Modul und wird dabei besser (0,77–0,83 gegen 0,68); auf der Kopf-Aufgabe xmFF
+  scheitert der Schlaf-Lerner (Adam), nicht der Traum.
 - Noch nicht begonnen: Weltmodell, Reinforcement Learning.
