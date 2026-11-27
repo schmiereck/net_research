@@ -5326,6 +5326,29 @@ Träume, die nach jedem Schritt durch Mischung mit nahen Erinnerungen „geerdet
 Startnetz 5 mit 4 und 8 Läufen, Rollout-Verlust Startnetz 6 mit 8 Läufen), `results/latent_sleep_carry8.jsonl`
 (24 Zeilen).
 
+## 2026-11-27 — Korrektur: die „mitgeführte Beschriftung“ der beiden Einträge davor war eine Orakel-Beschriftung; der Vorteil über direktes Training ist nicht belegt
+
+**Was falsch war.** In den Quellen carry1 / carry2 / carry3 (`latent_sleep.py`, Einträge „mitgeführte
+Beschriftung“ und „Prädiktor über mehrere Schritte“) wurde die Zelle des Würfels nach dem vorgestellten
+Blick-Schritt aus der Fovea-Geometrie berechnet, und darauf dann die *wahre* Kalibrier-Funktion der Aufgabe
+angewendet (`DEVICES[device]`). Die Beschriftung eines Traums kam damit aus der Aufgabe selbst, die das
+System erst lernen soll. Der Roboter kennt diese Funktion nicht; er kennt nur die Beschriftungen seiner 64
+Erinnerungen des Tages. Bemerkt beim Entwurf des nächsten Versuchs (Folge der Handlung lernen), nicht durch
+eine Kontrolle.
+
+**Was davon gilt.** Gültig bleiben: der Bau und die Messung des Latent-Prädiktors (`results/latent_pred.jsonl`;
+keine Beschriftung beteiligt), die Verbesserung durch den Rollout-Verlust, und die Aussage, dass Prädiktor-Latente
+als Eingaben für S taugen, *wenn* ihre Beschriftung stimmt (carry1 0,93 an Tag 4, mit Orakel-Beschriftung). Nicht
+gültig ist die Deutung „der Schlaf führt über direktes Training hinaus“ (0,84 gegen 0,65 nach der ersten Nacht):
+S hatte dort etwa 1000 Beispiele mit Beschriftungen aus der wahren Aufgabe, direktes Training nur 64. Das ist
+eine Obergrenze für Träume mit perfekter Beschriftung, kein Gewinn des Schlafs. Die Quellen bleiben im Code, als
+Orakel-Kontrolle gekennzeichnet.
+
+**Folge.** Legitim beschriftete Prädiktor-Träume brauchen drei Dinge, die das System selbst hat oder lernt:
+(i) wo der Würfel in der Erinnerung liegt (der Kopf des Grundnetzes liest ihn), (ii) wohin er nach dem Schritt
+wandert (Geometrie des eigenen Auges, oder aus Augenbewegungen gelernt), (iii) welche Beschriftung zu einer
+Würfel-Lage gehört (aus den 64 beschrifteten Erinnerungen des Tages gelernt). Das prüft der nächste Versuch.
+
 ## Laufend / offen
 
 - Phase F, Wach-Regel per ES im Kreislauf geformt (Auftrag Nutzer 2026-11-27, Weg 1). Neu (Commit nach

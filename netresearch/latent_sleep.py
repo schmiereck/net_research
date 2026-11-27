@@ -19,7 +19,7 @@ Dream latents (DREAM_N per night):
     pred_near / pred_far  dreams of the latent predictor (latent_pred.py; learned from the robot's own eye
              movements, no labels): from one of the day's latents, 1 random gaze step with |dx|, |dy| <= 2
              (near), or 2 steps with |dx|, |dy| <= 5 (far); the dream is the predicted latent after the steps
-    carry1 / 2 / 3  dreams of the predictor as in pred_*, 1, 2 or 3 gaze steps with |dx|, |dy| <= 5, but the label
+    carry1 / 2 / 3  ORACLE CONTROL (labels use the true calibration of the task): dreams of the predictor, 1-3 steps with |dx|, |dy| <= 5, but the label
              is CARRIED along instead of asked from the waking head: the memory's red cube lies at cell c (known for
              the labelled images); after the steps it lies where the fovea geometry puts it (tasks/fovea.py: its
              sampling point seen from the moved gaze), and the label is the calibration of that step. Dreams in
