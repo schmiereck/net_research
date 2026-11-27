@@ -1683,6 +1683,11 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
     Kreislauf auf den Kopf-Aufgaben von Tag zu Tag besser (xmFF 0,49 → 0,66, xm0F 0,66 → 0,77; einmal wach
     0,58 / 0,76). Schalter je Beispiel bricht die Regel; innen kein Gewinn. Offen: die faire Kontrolle rls_rf
     direkt auf allen echten Beispielen, und ein Kreislauf nur aus Schlaf, um den Beitrag des Wachens zu trennen.
+  - **Faire Kontrollen erledigt (2026-11-27, LOGBUCH, `results/sleep_ctl.jsonl`):** Nach 8 Tagen liegt der
+    Kreislauf gleichauf mit rls_rf direkt auf allen echten Beispielen (xmFF 0,75 / 0,74, xm0F 0,76 / 0,74), nicht
+    darüber. Schlaf allein, ohne neue Beschriftungen, hebt S in allen 24 Episoden um etwa 0,10
+    (Selbst-Destillation). Das Wachen trägt auf xmFF +0,16 bei, auf xm0F nichts. Nächster Schritt für einen
+    echten Vorteil: die Wach-Regel per ES im Kreislauf formen (Fitness = W + S nach mehreren Tagen).
 - Langzeittest: 20 neue Varianten nacheinander lernen und dabei das Vergessen und die Generalisierung
   verfolgen.
 

@@ -5006,22 +5006,73 @@ der Kreislauf etwas bringt, was Training nicht bringt.
 
 **Belege.** `results/sleep_gate.jsonl` (144 Zeilen).
 
-## Laufend / offen
+## 2026-11-27 — Phase F, faire Kontrollen für den Kreislauf: der Kreislauf erreicht das Niveau von direktem Training mit der besten Kopf-Regel, übertrifft es aber nicht; Schlaf allein verbessert S ohne neue Beschriftungen
 
-- Phase F, faire Kontrollen für den Kreislauf (Auftrag Nutzer 2026-11-27): Führt der Kreislauf über reines
-  Training hinaus, und was trägt das Wachen an den späteren Tagen bei? Neu in `sleep.py loop --controls`
-  (Commit nach diesem Eintrag; der Kreislauf selbst rechnet bitgleich weiter, geprüft an einer Episode):
-  `rls_direct` (rls_rf am Kopf direkt auf den echten Beispielen jedes Tages, 20 Updates je Tag, auf einem
-  eigenen Netz: gewöhnliches Training mit der besten Kopf-Regel) und `sleep_only` (Kreislauf mit Wachphase nur
-  an Tag 1, danach nur Schlaf auf Träumen aus den Beispielen des Tages, beschriftet von W + S). Lauf: `loop
-  --cases lib_xmFF lib_xm0F --learners rls_rf --gates surprise --controls --cycles 8 --seeds 5 6 --draws 6`
-  (12 Episoden je Fall, 8 Tage). Vorab gesehen (Probe xmFF, Seed 5, Ziehung 0, 4 Tage): Kreislauf nach dem
-  Schlaf 0,52 / 0,65 / 0,30 / 0,16, `sleep_only` 0,52 / 0,58 / 0,59 / 0,62, `rls_direct` 0,58 / 0,68 /
-  0,71 / 0,73.
-  **Vorhersage vor dem Lauf (2026-11-27):** (1) Reines Training mit rls_rf ist mindestens so gut wie der
-  Kreislauf: `rls_direct` an Tag 8 ≥ Kreislauf (W + S) an Tag 8 auf beiden Fällen. (2) Schlaf allein verbessert:
-  `sleep_only` Tag 8 − Tag 1 ≥ +0,05 auf beiden Fällen. (3) Das Wachen an den späteren Tagen trägt wenig bei:
-  |Kreislauf − `sleep_only`| an Tag 8 ≤ 0,05 im Mittel auf beiden Fällen.
+**Frage.** Führt der Kreislauf aus Wachen und Schlafen über reines Training hinaus, und was trägt das Wachen an
+den späteren Tagen bei?
+
+**Gemacht.** Commit 5c0f915. Job `20261127-114719-sleep_ctl1` (12 Prozesse, 3 min; xmFF und xm0F, rls_rf als
+Schlaf-Lerner, Schalter je Update, 8 Tage, Seeds 5–6 × 6 Ziehungen = 12 Episoden je Fall). xm0F gehört zu den
+Meta-Train-Aufgaben von `pos_map` (Startnetze 5–6 sind dafür ungesehen), xmFF nicht. Vorhersage vor dem Lauf
+(wörtlich aus „Laufend / offen“):
+
+> - Phase F, faire Kontrollen für den Kreislauf (Auftrag Nutzer 2026-11-27): Führt der Kreislauf über reines
+>   Training hinaus, und was trägt das Wachen an den späteren Tagen bei? Neu in `sleep.py loop --controls`
+>   (Commit nach diesem Eintrag; der Kreislauf selbst rechnet bitgleich weiter, geprüft an einer Episode):
+>   `rls_direct` (rls_rf am Kopf direkt auf den echten Beispielen jedes Tages, 20 Updates je Tag, auf einem
+>   eigenen Netz: gewöhnliches Training mit der besten Kopf-Regel) und `sleep_only` (Kreislauf mit Wachphase nur
+>   an Tag 1, danach nur Schlaf auf Träumen aus den Beispielen des Tages, beschriftet von W + S). Lauf: `loop
+>   --cases lib_xmFF lib_xm0F --learners rls_rf --gates surprise --controls --cycles 8 --seeds 5 6 --draws 6`
+>   (12 Episoden je Fall, 8 Tage). Vorab gesehen (Probe xmFF, Seed 5, Ziehung 0, 4 Tage): Kreislauf nach dem
+>   Schlaf 0,52 / 0,65 / 0,30 / 0,16, `sleep_only` 0,52 / 0,58 / 0,59 / 0,62, `rls_direct` 0,58 / 0,68 /
+>   0,71 / 0,73.
+>   **Vorhersage vor dem Lauf (2026-11-27):** (1) Reines Training mit rls_rf ist mindestens so gut wie der
+>   Kreislauf: `rls_direct` an Tag 8 ≥ Kreislauf (W + S) an Tag 8 auf beiden Fällen. (2) Schlaf allein verbessert:
+>   `sleep_only` Tag 8 − Tag 1 ≥ +0,05 auf beiden Fällen. (3) Das Wachen an den späteren Tagen trägt wenig bei:
+>   |Kreislauf − `sleep_only`| an Tag 8 ≤ 0,05 im Mittel auf beiden Fällen.
+
+**Ergebnis.** layer_s@25k, Testwertung nach Tag 1 … 8, Mittel über 12 Episoden:
+
+| Fall | Verfahren | Tag 1 / 2 / 3 / 4 / 5 / 6 / 7 / 8 |
+|---|---|---|
+| xmFF | Kreislauf (W + S nach dem Schlaf) | 0,49 / 0,60 / 0,64 / 0,68 / 0,71 / 0,74 / 0,74 / **0,75** |
+| | `sleep_only` | 0,49 / 0,51 / 0,53 / 0,54 / 0,56 / 0,58 / 0,59 / 0,59 |
+| | `rls_direct` | 0,55 / 0,62 / 0,67 / 0,70 / 0,73 / 0,74 / 0,74 / 0,74 |
+| | `wake_only` (mit Schalter) | 0,50 / 0,54 / 0,52 / 0,53 / 0,44 / 0,36 / 0,25 / 0,18 |
+| | `grad` | 0,01 → 0,08 |
+| xm0F | Kreislauf | 0,66 / 0,71 / 0,71 / 0,74 / 0,76 / 0,74 / 0,76 / **0,76** |
+| | `sleep_only` | 0,66 / 0,68 / 0,70 / 0,72 / 0,73 / 0,74 / 0,75 / 0,76 |
+| | `rls_direct` | 0,62 / 0,64 / 0,68 / 0,71 / 0,73 / 0,73 / 0,74 / 0,74 |
+| | `wake_only` (mit Schalter) | 0,71 / 0,74 / 0,78 / 0,60 / 0,55 / 0,42 / 0,36 / 0,22 |
+| | `grad` | 0,04 → 0,09 |
+
+Gepaart je Episode (± Standardfehler): Tag 8, `rls_direct` − Kreislauf: xmFF −0,01 ± 0,01 (2 von 12 positiv),
+xm0F −0,01 ± 0,05 (2 von 12). `sleep_only` Tag 8 − Tag 1: xmFF +0,11 ± 0,01, xm0F +0,10 ± 0,01 (je 12 von 12).
+Kreislauf − `sleep_only` an Tag 8: xmFF +0,16 ± 0,03 (12 von 12), xm0F −0,00 ± 0,04. Wach-Updates je Tag im
+Kreislauf: xmFF 2–6, xm0F 2–5 (von 20).
+
+**Vergleich mit der Vorhersage.** (1) Nicht getroffen, knapp: `rls_direct` liegt an Tag 8 nicht über dem
+Kreislauf, sondern gleichauf (0,74 gegen 0,75 und 0,74 gegen 0,76; Unterschied innerhalb eines
+Standardfehlers). (2) Getroffen: Schlaf allein +0,11 und +0,10, in allen 24 Episoden. (3) Nicht getroffen: Auf
+xmFF trägt das Wachen +0,16 bei (auf xm0F nichts). Bilanz: 1 von 3 getroffen.
+
+**Schluss.** (a) **Der Kreislauf erreicht direktes Training, übertrifft es nicht.** Nach 8 Tagen liegen Kreislauf
+und `rls_direct` gleich. Der Kreislauf nutzt die echten Beispiele dabei nur in 2–6 Wach-Updates je Tag und
+speichert sie nicht; `rls_direct` passt 20 Updates je Tag direkt an die echten Beschriftungen an. Ein Vorteil
+„über reines Training hinaus“ ist damit nicht gezeigt. (b) **Schlaf allein verbessert S ohne neue Information
+über die Aufgabe:** Nach Tag 1 sieht `sleep_only` keine einzige neue Beschriftung, nur Traum-Eingaben aus den
+Beispielen des Tages, beschriftet von sich selbst; trotzdem steigt S in allen 24 Episoden um etwa 0,10. Das ist
+Selbst-Destillation: Das Netz glättet seine eigene Abbildung auf neuen, plausiblen Eingaben. Ob das an rls_rf
+liegt (mehr Datenpunkte machen den Fit ruhiger) oder allgemein gilt, ist offen. (c) **Was das Wachen beiträgt,
+hängt von der Aufgabe ab:** auf xmFF +0,16, auf xm0F nichts. (d) Ohne Schlaf zerfällt die Wach-Regel über die
+Tage (`wake_only` 0,50 → 0,18); im Kreislauf bleibt das Wachen stabil, weil F jede Nacht geleert wird.
+(e) Für einen echten Vorteil des Kreislaufs müsste das Wachen mehr leisten als „ein paar Updates mit einer auf
+Lernen von null geformten Regel“: Die Wach-Regel müsste im Kreislauf selbst geformt werden (ES mit Fitness =
+W + S nach mehreren Tagen), oder die Aufgabe müsste etwas verlangen, was direktes Training nicht kann.
+
+**Belege.** `results/sleep_ctl.jsonl` (24 Zeilen).
+
+## Laufend / offen
 
 - Noch in Bits: `*_parts` (die Anpassungs-Studien servo / robot sind seit 2026-11-23 umgestellt); nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

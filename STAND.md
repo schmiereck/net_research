@@ -431,5 +431,6 @@ Erfahrungen, die in die Pipeline gehören:
   auch Kopf-Fähigkeiten. Ein Kreislauf über mehrere Tage verbessert sich aber nicht: Die Wach-Regel aus
   Phase D stört ein Netz, das die Aufgabe schon kann. Mit einem Überraschungs-Schalter (die Wach-Regel lernt
   nur, solange genug Beispiele falsch sind) wird der Kreislauf auf Kopf-Aufgaben von Tag zu Tag besser
-  (xmFF 0,49 → 0,66); ob besser als direktes Training mit derselben Kopf-Regel, ist noch offen.
+  (xmFF 0,49 → 0,66). Nach 8 Tagen liegt er gleichauf mit direktem Training derselben Kopf-Regel auf allen
+  echten Beispielen, nicht darüber; Schlaf allein verbessert S ohne neue Beschriftungen um etwa 0,10.
 - Noch nicht begonnen: Weltmodell, Reinforcement Learning.
