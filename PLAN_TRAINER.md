@@ -1618,7 +1618,9 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
     steigt noch.
   - **Fortsetzung erledigt (2026-11-27, `PHASE_D.md` 5.9):** Plateau steigt (prev 0,39 nach 100 Updates, dfa
     0,47; prev2 0,34 nach 50, dfa 0,18), schneller Teil geht zurück (0,13 nach 20), Validierung flach ab
-    Generation 50; für Innen-Aufgaben auf hier_s nicht genau reproduzierbar (±0,01). Nächste Kandidaten
+    Generation 50. Messabweichung geklärt (2026-11-27): gerundetes θ auf dem Worker, das Innen-Lernen auf
+    hier_s reagiert stark auf winzige Änderungen von θ; mit 12 Episoden trägt der Gewinn knapp (+0,08 nach
+    100 Updates); θ jetzt exakt gespeichert, Meta-Tests auf hier_s brauchen ≥ 12 Episoden. Nächste Kandidaten
     (`PHASE_D.md` Abschnitt 8): Lauf von null, Horizont 200, Mechanismus des anti-hebbischen Schubs, ferne
     Aufgaben, Gate aus der Bibliothek.
 

@@ -419,6 +419,26 @@ Generation 50 flach. Meta-Test auf hier_s, Testwertung nach 20 / 50 / 100 / 200 
   dass eine Episode auf layer_s@25k mit 20 Updates im selben Prozess unabhängig von der Reihenfolge gleich ist). Unterschiede der Innen-Werte
   unter etwa 0,05 sind auf hier_s mit 100 Updates nicht sicher.
 
+**Ursache der Abweichung und Nachmessung mit 12 Episoden** (2026-11-27): Auf dem Worker lasen `--init` und `eval`
+θ aus `results/teacher.jsonl`, wo es auf 10⁻⁶ gerundet war (jeder Job hat eigene Prüfpunkte). Schon diese
+Rundung ändert einzelne Innen-Episoden auf hier_s mit 100 Updates um bis zu 0,09; lokal ist alles bitgleich.
+θ wird seit Commit 6079f25 exakt gespeichert. Die Regel ist auf hier_s also empfindlich gegen winzige Änderungen
+von θ; der Meta-Test braucht dort mehr Episoden. Mit 12 Episoden je Feld:
+
+| Fall, Regel | nach 20 | nach 50 | nach 100 | nach 200 | Streuung je Episode nach 100 |
+|---|---|---|---|---|---|
+| prev, `hier_h100` | 0,15 | 0,27 | 0,30 | 0,31 | 0,08 |
+| prev, `hier_h100b` | 0,10 | 0,32 | 0,38 | 0,40 | 0,14 |
+| prev2, `hier_h100` | 0,08 | 0,26 | 0,27 | 0,28 | 0,08 |
+| prev2, `hier_h100b` | 0,11 | 0,30 | 0,36 | 0,38 | 0,10 |
+
+Gepaarter Unterschied `hier_h100b` − `hier_h100` (gleiche Startnetze und Ziehungen, 12 Paare): prev nach 20
+Updates −0,05 ± 0,02 (4 von 12 positiv), nach 100 +0,08 ± 0,04 (8 von 12), nach 200 +0,09 ± 0,05 (7 von 12);
+prev2 nach 100 +0,09 ± 0,04 (9 von 12), nach 200 +0,09 ± 0,05 (7 von 12) (± Standardfehler).
+
+Der Gewinn der Fortsetzung im Inneren trägt (+0,08 bis +0,09 nach 100 Updates, etwa 2 Standardfehler), ist
+aber kleiner als mit 4 Episoden gemessen; der Verlust nach 20 Updates ebenso.
+
 ## 6. Diskussion
 
 1. **Meta-Lernen findet eine lokale Regel, die Backprop im kurzen Lernen erreicht.** Mit 64 Beispielen und 20
@@ -460,8 +480,10 @@ Generation 50 flach. Meta-Test auf hier_s, Testwertung nach 20 / 50 / 100 / 200 
   Vergessen) ist nicht geprüft.
 - Ferne Aufgaben (diff, plus / minus) lernt keine gefundene Regel.
 - Der Mechanismus des anti-hebbischen Schubs ist beschrieben, aber nicht erklärt.
-- Die Validierung ist für Innen-Aufgaben auf hier_s mit 100 Updates nicht genau reproduzierbar (dasselbe θ:
-  0,476–0,488; 5.9); Ursache offen.
+- Auf hier_s mit 100 Updates reagieren Innen-Episoden stark auf winzige Änderungen von θ (Rundung auf 10⁻⁶:
+  einzelne Episoden bis 0,09; 5.9). Meta-Tests mit 4 Episoden sind dort auf etwa ±0,04 genau; ältere θ in
+  `results/teacher.jsonl` sind gerundet (seit Commit 6079f25 exakt). Worker und lokaler PC weichen bei
+  exakt gleichem θ noch leicht ab (nicht geprüft).
 - θ für die Übertragung aus `results/teacher.jsonl` (auf 10⁻⁶ gerundet; Abweichung zum Checkpoint ≤ 5·10⁻⁷).
 
 ## 8. Offene Fragen und nächste Schritte
@@ -485,12 +507,13 @@ Generation 50 flach. Meta-Test auf hier_s, Testwertung nach 20 / 50 / 100 / 200 
 
 | Was | Datei / Commit |
 |---|---|
-| Code | `netresearch/teacher.py` (D.1 df4998b; `--pos` ac1392b; `--model`, `--names` 7973cf9; `--seed`, `--models`, `--pos role` 6b2161b; Fortsetzen nach Unterbrechung d0357f2; `--pos call` bf3355c; `--horizon`, `--init` df7ebce), `netresearch/fastweights.py`, `netresearch/adapt.py` (Fälle `lib_<name>`) |
+| Code | `netresearch/teacher.py` (D.1 df4998b; `--pos` ac1392b; `--model`, `--names` 7973cf9; `--seed`, `--models`, `--pos role` 6b2161b; Fortsetzen nach Unterbrechung d0357f2; `--pos call` bf3355c; `--horizon`, `--init` df7ebce; θ exakt gespeichert 6079f25), `netresearch/fastweights.py`, `netresearch/adapt.py` (Fälle `lib_<name>`) |
 | D.0 Leiter | `results/phase_d_ladder.jsonl` (360 Zeilen), Job `20261123-184213-d0_ladder` |
 | ES-Läufe | `results/teacher.jsonl` (eine Zeile je Generation; letzte Zeile mit θ und bestem θ): `d2_eta`, `d3_full`, `pos_map`, `pos_blind`, `pos_split`, `pos_map_s1`, `arch_map`, `arch_role`, `hier_map`, `hier_call`, `hier_h100`, `hier_h100b` |
 | Meta-Test | `results/phase_d_test.jsonl` (116 Zeilen) |
 | Übertragung | `results/phase_d_transfer.jsonl` (640 Zeilen) |
 | Zweite Saat, zwei Architekturen, Hierarchie | `results/phase_d_arch.jsonl` (312 Zeilen) |
+| Messabweichung hier_s | `results/phase_d_noise.jsonl` (48 Zeilen) |
 | Startnetze | `data/base_nets/numseq/{layer_s@25k,layer_s,hier_s}_s{0,1,2,5,6}.pt` |
 
 Befehle:

@@ -4714,23 +4714,64 @@ Innen-Regel wie auf layer_s (0,66 nach 20) gibt es für hier_s in dieser Familie
 **Belege.** `results/teacher.jsonl` (Zeilen `hier_h100b`, 61), `results/phase_d_arch.jsonl` (+16 Zeilen, jetzt
 312). Ausführlich: `PHASE_D.md` Abschnitt 5.9.
 
-## Laufend / offen
+## 2026-11-27 — Phase D, Ursache der Messabweichung auf hier_s: gerundetes θ auf dem Worker und ein Innen-Lernen, das auf winzige Änderungen von θ stark reagiert; mit 12 Episoden trägt der Gewinn der Fortsetzung knapp
 
-- Phase D, Ursache der Messabweichung auf hier_s (Auftrag Nutzer 2026-11-27, `PHASE_D.md` 5.9). Vorab lokal
-  geklärt (Skript außerhalb des Repos, 12 Innen-Episoden der Validierung von `hier_h100`, Horizont 100):
-  (i) Mit demselben θ sind die Episoden lokal bitgleich, unabhängig von Reihenfolge, Prozess und Pool (frischer
-  Pool, umgekehrte Reihenfolge, nacheinander im Hauptprozess mit einem Thread). (ii) Der Worker legt für jeden
-  Job eigene Prüfpunkte an; `--init` und `eval` lesen θ dort deshalb aus `results/teacher.jsonl`, wo θ auf 10⁻⁶
-  gerundet war. Diese Rundung (höchstens 5·10⁻⁷) ändert einzelne Episoden um bis zu 0,09 (Streuung der
-  Differenz etwa 0,05), das Mittel von prev2 um 0,01. Das Innen-Lernen über 100 Updates auf hier_s ist also
-  empfindlich gegen winzige Änderungen von θ. (iii) Mit exakt demselben θ weicht der Worker vom lokalen PC noch
-  ab (0,4879 gegen 0,4854); vermutlich andere Rechenwege der CPU, nicht geprüft. Neu im Code (Commit nach diesem
-  Eintrag): θ in `results/teacher.jsonl` exakt (float32) statt gerundet. Prüfung, ob der Unterschied
-  `hier_h100` → `hier_h100b` trotz der Empfindlichkeit trägt: Meta-Test beider Regeln auf hier_s mit 6 statt 2
-  Ziehungen (prev, prev2; Seeds 5–6, also 12 Episoden je Feld), in `results/phase_d_noise.jsonl`.
-  **Vorhersage vor dem Lauf (2026-11-27):** (1) Der Unterschied trägt: prev nach 100 Updates bei `hier_h100b`
-  um mindestens 0,08 über `hier_h100` (mit 4 Episoden: 0,39 gegen 0,26). (2) Die Streuung je Episode nach 100
-  Updates (Standardabweichung über die 12 Episoden) ist bei beiden Regeln ≥ 0,05.
+**Frage.** Warum gibt die Validierung für dasselbe θ auf hier_s verschiedene Werte, und trägt der Unterschied
+zwischen `hier_h100` und `hier_h100b` trotzdem?
+
+**Gemacht.** Lokale Prüfung (Skript außerhalb des Repos), Korrektur im Code (Commit 6079f25), Meta-Test beider
+Regeln mit 6 Ziehungen: Job `20261127-101513-ev_noise_h100` (prev, prev2; Seeds 5–6; k = 64; 12 Episoden je
+Feld, die 4 Episoden des bisherigen Meta-Tests eingeschlossen). Vorhersage und Vorab-Befund vor dem Lauf
+(wörtlich aus „Laufend / offen“):
+
+> - Phase D, Ursache der Messabweichung auf hier_s (Auftrag Nutzer 2026-11-27, `PHASE_D.md` 5.9). Vorab lokal
+>   geklärt (Skript außerhalb des Repos, 12 Innen-Episoden der Validierung von `hier_h100`, Horizont 100):
+>   (i) Mit demselben θ sind die Episoden lokal bitgleich, unabhängig von Reihenfolge, Prozess und Pool (frischer
+>   Pool, umgekehrte Reihenfolge, nacheinander im Hauptprozess mit einem Thread). (ii) Der Worker legt für jeden
+>   Job eigene Prüfpunkte an; `--init` und `eval` lesen θ dort deshalb aus `results/teacher.jsonl`, wo θ auf 10⁻⁶
+>   gerundet war. Diese Rundung (höchstens 5·10⁻⁷) ändert einzelne Episoden um bis zu 0,09 (Streuung der
+>   Differenz etwa 0,05), das Mittel von prev2 um 0,01. Das Innen-Lernen über 100 Updates auf hier_s ist also
+>   empfindlich gegen winzige Änderungen von θ. (iii) Mit exakt demselben θ weicht der Worker vom lokalen PC noch
+>   ab (0,4879 gegen 0,4854); vermutlich andere Rechenwege der CPU, nicht geprüft. Neu im Code (Commit nach diesem
+>   Eintrag): θ in `results/teacher.jsonl` exakt (float32) statt gerundet. Prüfung, ob der Unterschied
+>   `hier_h100` → `hier_h100b` trotz der Empfindlichkeit trägt: Meta-Test beider Regeln auf hier_s mit 6 statt 2
+>   Ziehungen (prev, prev2; Seeds 5–6, also 12 Episoden je Feld), in `results/phase_d_noise.jsonl`.
+>   **Vorhersage vor dem Lauf (2026-11-27):** (1) Der Unterschied trägt: prev nach 100 Updates bei `hier_h100b`
+>   um mindestens 0,08 über `hier_h100` (mit 4 Episoden: 0,39 gegen 0,26). (2) Die Streuung je Episode nach 100
+>   Updates (Standardabweichung über die 12 Episoden) ist bei beiden Regeln ≥ 0,05.
+
+**Ergebnis.** Meta-Test auf hier_s, 12 Episoden je Feld (Mittel):
+
+| Fall, Regel | nach 20 | nach 50 | nach 100 | nach 200 | Streuung je Episode nach 100 |
+|---|---|---|---|---|---|
+| prev, `hier_h100` | 0,15 | 0,27 | 0,30 | 0,31 | 0,08 |
+| prev, `hier_h100b` | 0,10 | 0,32 | 0,38 | 0,40 | 0,14 |
+| prev2, `hier_h100` | 0,08 | 0,26 | 0,27 | 0,28 | 0,08 |
+| prev2, `hier_h100b` | 0,11 | 0,30 | 0,36 | 0,38 | 0,10 |
+
+Gepaarter Unterschied `hier_h100b` − `hier_h100` (gleiche Startnetze und Ziehungen, 12 Paare): prev nach 20
+Updates −0,05 ± 0,02 (4 von 12 positiv), nach 100 +0,08 ± 0,04 (8 von 12), nach 200 +0,09 ± 0,05 (7 von 12);
+prev2 nach 100 +0,09 ± 0,04 (9 von 12), nach 200 +0,09 ± 0,05 (7 von 12) (± Standardfehler).
+
+**Vergleich mit der Vorhersage.** (1) Getroffen, knapp: prev nach 100 Updates +0,08 (0,38 gegen 0,30; mit 4
+Episoden waren es 0,39 gegen 0,26). (2) Getroffen: Streuung je Episode nach 100 Updates 0,08 und 0,14 (≥ 0,05).
+Bilanz: 2 von 2 getroffen.
+
+**Schluss.** (a) Ursache der Abweichung: Auf dem Worker hat jeder Job eigene Prüfpunkte, `--init` und `eval`
+lasen θ deshalb aus `results/teacher.jsonl`, wo es auf 10⁻⁶ gerundet war. Das Innen-Lernen über 100 Updates
+auf hier_s reagiert auf so kleine Änderungen von θ mit Änderungen einzelner Episoden um bis zu 0,09. Lokal ist
+alles bitgleich (Reihenfolge, Prozess, Pool). Dazu kommt ein kleiner Unterschied zwischen Worker und lokalem
+PC bei exakt gleichem θ (Ursache nicht geprüft). θ wird jetzt exakt gespeichert; ältere Zeilen bleiben
+gerundet. (b) Die Empfindlichkeit ist eine Eigenschaft der Regel auf hier_s, nicht nur ein Rechenfehler: Wer
+mit 4 Episoden misst, misst auf etwa ±0,04 genau. Für hier_s mit langen Episoden braucht der Meta-Test
+mindestens 12 Episoden. (c) Der Gewinn der Fortsetzung im Inneren trägt, aber kleiner als mit 4 Episoden
+gemessen: +0,08 bis +0,09 nach 100 Updates bei etwa 2 Standardfehlern; der Verlust nach 20 Updates (−0,05) ist
+ebenso deutlich. (d) Die Aussagen von `PHASE_D.md` 5.9 bleiben in der Richtung gültig; die Zahlen dort mit 4
+Episoden sind auf etwa ±0,04 genau.
+
+**Belege.** `results/phase_d_noise.jsonl` (48 Zeilen). Ausführlich: `PHASE_D.md` Abschnitt 5.9.
+
+## Laufend / offen
 
 - Noch in Bits: `*_parts` (die Anpassungs-Studien servo / robot sind seit 2026-11-23 umgestellt); nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
