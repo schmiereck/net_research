@@ -31,6 +31,13 @@ Dream latents (DREAM_N per night):
              least-squares map cell -> step ("lin", trimmed: steps wrap around at -8 / 7) or the nearest memory
              ("knn"). With the geometry, dreams in which the cube leaves the field of view are dropped.
     unlab_lin  control without imagination: latents of the day's unlabelled images, labelled by (i) + (iii lin).
+    unlab_all_lin  with --holdout: as unlab_lin, but the unlabelled images come from the WHOLE field (real experience
+             of the held-out places; an upper bound for what dreams there could give).
+Held-out places (--holdout): the robot meets the task only with the red cube in the RIGHT half of the fovea
+(dx >= 0): the day's labelled images and its unlabelled images are drawn from there; the test is split into the
+seen half and the held-out left half (dx < 0). Dreams can carry the cube there by an imagined gaze step. The world
+knowledge learned before (encoder, latent predictor, consequence model, all task-free from eye movements over the
+whole field) is not restricted.
 Controls: `unlab_true` (sleep on the unlabelled latents with their TRUE labels: what the dream labels cost) and
 `rls_direct` (rls_rf at the head trained directly on every day's labelled images, kept over the days).
 """
@@ -50,10 +57,10 @@ from .tasks.servo import decode_step
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "results" / "latent_sleep.jsonl"
 SOURCES = ["replay", "noise", "mix", "unlab", "gauss", "unlab_true"]
-PRED = {"pred_near": (1, 2), "pred_far": (2, 5)}             # dream source -> (gaze steps, largest |dx|, |dy|)
+PRED = {"pred_near": (1, 2), "pred_far": (2, 5), "pred1": (1, 5)}             # dream source -> (gaze steps, largest |dx|, |dy|)
 CARRY = {"carry1": 1, "carry2": 2, "carry3": 3}              # dream source -> gaze steps (|dx|, |dy| <= 5)
 LEGIT = {"learn1_lin": ("learn", "lin"), "learn1_knn": ("learn", "knn"), "geo1_lin": ("geo", "lin"),
-         "unlab_lin": (None, "lin")}
+         "unlab_lin": (None, "lin"), "unlab_all_lin": ("all", "lin")}
 CENTRAL = 8     # dreams kept where the cells lie within +-CENTRAL (8 = the whole field; 5 halves the coverage)
 
 
@@ -158,14 +165,43 @@ def dreams(src, h_day, rng, gauss, pred=None):
     return mean + torch.from_numpy(rng.standard_normal((DREAM_N, len(mean))).astype(np.float32)) @ L.T
 
 
+def subset(b, keep):
+    k = torch.from_numpy(np.asarray(keep))
+    out = {"obs": b["obs"][:, k], "target": b["target"][:, k], "mask": b["mask"][:, k]}
+    if "red" in b:
+        out["red"] = np.asarray(b["red"])[np.asarray(keep)]
+    return out
+
+
 def episode(case, seed, draw, model_name="layer_s", days=DAYS, gate="surprise", sources=None, pred_tag="",
-            conseq_tag="_all"):
+            conseq_tag="_all", holdout=False):
     sources = sources or SOURCES + ["rls_direct"]
     base, maker = CASES[case][0], CASES[case][1]
     spec = spec_of(base)
     device = case.split("robot_eye_")[-1]
     tb = maker(draw + 10 * seed, K)[1]
-    day_b = [maker(draw + 10 * seed + 1000 * c, K)[0] for c in range(days)]
+    if holdout:                                             # the task is met only with the cube at dx >= 0
+        day_b = []
+        for c in range(days):
+            bb = maker(draw + 10 * seed + 1000 * c, 4 * K)[0]
+            day_b.append(subset(bb, np.flatnonzero(np.asarray(bb["red"])[:, 0] >= 0)[:K]))
+        tb_seen = subset(tb, np.asarray(tb["red"])[:, 0] >= 0)
+        tb_held = subset(tb, np.asarray(tb["red"])[:, 0] < 0)
+    else:
+        day_b = [maker(draw + 10 * seed + 1000 * c, K)[0] for c in range(days)]
+
+    def unl(day, n):
+        if not holdout:
+            return unlabelled(seed, draw, day, n)
+        obs, cells = unlabelled(seed, draw, day, 3 * n)
+        i = np.flatnonzero(cells[:, 0] >= 0)[:n]
+        return obs[:, torch.from_numpy(i)], cells[i]
+
+    def score(m, cur):
+        cur["sleep"].append(score_on(m, tb, spec))
+        if holdout:
+            cur.setdefault("seen", []).append(score_on(m, tb_seen, spec))
+            cur.setdefault("held", []).append(score_on(m, tb_held, spec))
     probe = Fast(net(model_name, base, seed), "rls_rf@task", default_eta("rls_rf@task"), 0, spec)
     hb = probe.head_inputs(unlabelled(seed, draw, 99, 2048)[0])             # base latents -> fitted Gaussian
     mean = hb.mean(0)
@@ -175,6 +211,8 @@ def episode(case, seed, draw, model_name="layer_s", days=DAYS, gate="surprise", 
            "dream_n": DREAM_N, "eps": EPS}
     if pred_tag:
         row["pred_tag"] = pred_tag
+    if holdout:
+        row["holdout"] = "dx<0"
     if any(s in LEGIT for s in sources):
         row["conseq_tag"] = conseq_tag
     eta = default_eta("rls_rf@task")
@@ -183,7 +221,7 @@ def episode(case, seed, draw, model_name="layer_s", days=DAYS, gate="surprise", 
         from .latent_pred import load_conseq
         conseq = load_conseq(model_name, seed, conseq_tag)
     pred = None
-    if any(s in PRED or s in CARRY or (s in LEGIT and LEGIT[s][0]) for s in sources):
+    if any(s in PRED or s in CARRY or (s in LEGIT and LEGIT[s][0] in ("learn", "geo")) for s in sources):
         from .latent_pred import load
         pred = load(model_name, seed, pred_tag)
     for src in sources:
@@ -196,7 +234,7 @@ def episode(case, seed, draw, model_name="layer_s", days=DAYS, gate="surprise", 
         for c, b in enumerate(day_b):
             if src == "rls_direct":                                          # plain training, kept over days
                 S._rls(b)
-                cur["sleep"].append(score_on(m, tb, spec))
+                score(m, cur)
                 continue
             F.F["head"].zero_()
             F.F["_Q"].zero_()
@@ -220,8 +258,8 @@ def episode(case, seed, draw, model_name="layer_s", days=DAYS, gate="surprise", 
                     c_mem = decode_step(probe.model.head(h_day)[:, spec.out_slice].numpy(), spec)   # (i) read
                 y_mem = decode_step(b["target"][0].numpy(), spec, logits=False)
                 g = cell_label_map(c_mem, y_mem, gk)                                          # (iii)
-                if fk is None:                                                                # no imagination
-                    z = probe.head_inputs(unlabelled(seed, draw, c, DREAM_N)[0])
+                if fk in (None, "all"):                                                       # no imagination
+                    z = probe.head_inputs((unl(c, DREAM_N) if fk is None else unlabelled(seed, draw, c, DREAM_N))[0])
                     with torch.no_grad():
                         cz = decode_step(probe.model.head(z)[:, spec.out_slice].numpy(), spec)
                     keep = np.abs(cz).max(-1) <= CENTRAL
@@ -254,7 +292,7 @@ def episode(case, seed, draw, model_name="layer_s", days=DAYS, gate="surprise", 
                 z, carry_y = z[torch.from_numpy(ok)], torch.from_numpy(step_target(dx, dy, spec.pop))[torch.from_numpy(ok)]
                 cur.setdefault("n_dreams", []).append(int(ok.sum()))
             elif src in ("unlab", "unlab_true"):
-                obs_u, cells = unlabelled(seed, draw, c, DREAM_N)
+                obs_u, cells = unl(c, DREAM_N)
                 z = probe.head_inputs(obs_u)
             else:
                 z = dreams(src, h_day, rng, gauss, pred)
@@ -270,7 +308,7 @@ def episode(case, seed, draw, model_name="layer_s", days=DAYS, gate="surprise", 
                 F.task_on = 0.0                                              # asleep: F off, S learns
                 for i in range(0, len(z), BATCH):
                     rls(S, m, z[i:i + BATCH], y[i:i + BATCH], spec)
-            cur["sleep"].append(score_on(m, tb, spec))                       # W + S
+            score(m, cur)                                                    # W + S
         row[src] = cur
     return row
 
@@ -292,10 +330,11 @@ def main():
     ap.add_argument("--gate", default="surprise", choices=["none", "surprise"])
     ap.add_argument("--sources", nargs="+", default=None, help="default: all but the predictor sources")
     ap.add_argument("--pred-tag", default="", help="predictor variant (latent_pred.py --tag)")
+    ap.add_argument("--holdout", action="store_true", help="task met only with the cube at dx >= 0 (see above)")
     ap.add_argument("--workers", type=int, default=2)
     ap.add_argument("--out", default=str(OUT))
     a = ap.parse_args()
-    jobs = [(c, s, d, a.model, a.days, a.gate, a.sources, a.pred_tag) for c in a.cases for s in a.seeds for d in range(a.draws)]
+    jobs = [(c, s, d, a.model, a.days, a.gate, a.sources, a.pred_tag, "_all", a.holdout) for c in a.cases for s in a.seeds for d in range(a.draws)]
     with mp.get_context("spawn").Pool(a.workers) as pool, open(a.out, "a") as f:
         for row in pool.imap(_job, jobs):
             f.write(json.dumps(row) + "\n")

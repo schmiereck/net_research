@@ -5447,5 +5447,24 @@ wie der Test.
   `rls_direct`. (3) Die neue Regel wacht mehr: Wach-Updates an den Tagen 2–4 im Mittel mindestens doppelt so
   viele wie bei `pos_map`.
 
+- Phase F, Test mit zurückgehaltenen Lagen (Auftrag Nutzer 2026-11-27): Können Träume Erfahrung ersetzen, die
+  fehlt? Neu (Commit nach diesem Eintrag): `latent_sleep.py --holdout`: Der Roboter begegnet der Aufgabe nur mit
+  dem roten Würfel in der rechten Hälfte der Fovea (dx ≥ 0); die 64 beschrifteten und die unbeschrifteten Bilder
+  jedes Tages stammen von dort. Der Test wird geteilt in die gesehene Hälfte und die zurückgehaltene linke
+  (dx < 0). Das vorher und ohne Aufgabe gelernte Weltwissen (Encoder, Latent-Prädiktor `_roll8`, Folge-Modell
+  `_all`, aus Augenbewegungen über das ganze Feld) ist nicht beschränkt. Quellen: rls_direct, mix, unlab_lin
+  (ohne Vorstellung), learn1_lin und geo1_lin (Prädiktor-Träume, legitim beschriftet; ein vorgestellter
+  Blick-Schritt kann den Würfel in die linke Hälfte tragen), pred1 (Prädiktor-Träume, ein Schritt ≤ 5,
+  beschriftet vom wachen Kopf) und als Obergrenze unlab_all_lin (unbeschriftete echte Bilder aus dem ganzen Feld,
+  also echte Erfahrung der zurückgehaltenen Lagen). Ohne `--holdout` rechnen alle Quellen bitgleich weiter
+  (geprüft). Lauf: 24 Episoden, nach `results/latent_sleep_holdout.jsonl`. Vorab gesehen (Probe Seed 5, Ziehung
+  0, flipx / swap; zurückgehaltene Hälfte an Tag 4): rls_direct 0,04 / 0,04, mix 0,03 / 0,04, unlab_lin 0,01 /
+  0,02, learn1_lin 0,72 / 0,69, geo1_lin 0,71 / 0,69, pred1 0,00 / 0,02; gesehene Hälfte 0,90–0,99.
+  **Vorhersage vor dem Lauf (2026-11-27):** (1) Träume ersetzen fehlende Erfahrung: in der zurückgehaltenen Hälfte
+  an Tag 4 learn1_lin im Mittel ≥ 0,50, rls_direct, mix und unlab_lin je ≤ 0,10. (2) Vom wachen Kopf beschriftete
+  Träume helfen dort nicht: pred1 ≤ 0,10. (3) In der gesehenen Hälfte kostet es wenig: learn1_lin an Tag 4
+  höchstens 0,05 unter rls_direct. (4) Die Obergrenze aus echter Erfahrung liegt über den Träumen: unlab_all_lin
+  in der zurückgehaltenen Hälfte ≥ learn1_lin + 0,10. Bei weak versagen alle Quellen mit affiner Abbildung weiter.
+
 - Noch in Bits: `*_parts` (die Anpassungs-Studien servo / robot sind seit 2026-11-23 umgestellt); nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
