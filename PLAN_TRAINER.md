@@ -1671,6 +1671,13 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
     Traum-Qualität zählt wenig (Zufalls-Eingaben 0,73). Auf xmFF scheitert der Schlaf-Lerner Adam (0,20 mit
     Träumen, 0,03 mit replay), nicht der Traum. Nächster Schritt: Schlaf-Lerner, der Kopf-Aufgaben aufnimmt
     (rls_rf am Kopf oder die Phase-D-Regel selbst auf den Träumen), dann mehrere Aufgaben in einem S.
+  - **Schlaf-Lerner für den Kopf und Kreislauf erledigt (2026-11-27, LOGBUCH, `results/sleep_learners.jsonl`,
+    `results/sleep_loop.jsonl`):** rls_rf nimmt Kopf-Fähigkeiten aus Träumen ohne Backprop auf (nach 20
+    Schritten xmFF 0,63, xm0F 0,76, wach 0,58 / 0,76); die Phase-D-Regel taugt nicht als Schlaf-Lerner. Der
+    Kreislauf über 4 Tage verbessert sich nicht: Die Wach-Regel zerstört, was S schon kann (auf Lernen von null
+    geformt, normierter Fehler-Eingang) und ist über 20 Updates hinaus instabil. Nächster Schritt: die
+    Wach-Regel im Kreislauf formen (ES-Episoden ab W + S) oder mit einem Überraschungs-Schalter versehen; dazu
+    eine Aufgabe, die nicht nach 3 Tagen an der Decke liegt.
 - Langzeittest: 20 neue Varianten nacheinander lernen und dabei das Vergessen und die Generalisierung
   verfolgen.
 

@@ -427,5 +427,7 @@ Erfahrungen, die in die Pipeline gehören:
 - Wach- und Schlafphase (Phase F) begonnen 2026-11-27: Eine wach mit schnellen Gewichten gelernte
   Innen-Fähigkeit (prev) wandert im Schlaf allein über Träume des Vorhersage-Netzes, beschriftet vom wachen
   Netz, in ein zweites Modul und wird dabei besser (0,77–0,83 gegen 0,68); auf der Kopf-Aufgabe xmFF
-  scheitert der Schlaf-Lerner (Adam), nicht der Traum.
+  scheitert der Schlaf-Lerner (Adam), nicht der Traum. Mit rls_rf als Schlaf-Lerner (ohne Backprop) wandern
+  auch Kopf-Fähigkeiten. Ein Kreislauf über mehrere Tage verbessert sich aber nicht: Die Wach-Regel aus
+  Phase D stört ein Netz, das die Aufgabe schon kann.
 - Noch nicht begonnen: Weltmodell, Reinforcement Learning.

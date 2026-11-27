@@ -4830,30 +4830,103 @@ Phase D selbst auf den Träumen). (e) Nicht gemessen: Vergessen (S wirkt nur bei
 
 **Belege.** `results/sleep.jsonl` (12 Zeilen; je Episode Kurven aller Quellen und Anteil echter Sequenzen).
 
-## Laufend / offen
+## 2026-11-27 — Phase F, Schlaf-Lerner für Kopf-Aufgaben und Kreislauf: rls_rf nimmt Kopf-Fähigkeiten im Schlaf ohne Backprop auf; der Kreislauf aus Wachen und Schlafen verbessert sich aber nicht, weil die Wach-Regel ein Netz stört, das die Aufgabe schon kann
 
-- Phase F, Schlaf-Lerner für Kopf-Aufgaben und Kreislauf aus Wachen und Schlafen (Auftrag Nutzer 2026-11-27).
-  Neu in `sleep.py` (Commit nach diesem Eintrag; der erste Versuch rechnet bitgleich weiter): `--learners`
-  grad (Adam wie bisher), rls_rf (rekursive kleinste Quadrate am Kopf mit festen Zufalls-Merkmalen, ohne
-  Backprop) und rule (die Regel `pos_map` selbst auf den Träumen, ohne Backprop); `loop`: 4 Tage, jeder Tag
-  bringt 64 neue Trainings-Beispiele derselben Aufgabe; wach lernt F von null auf W + S (20 Updates), im
-  Schlaf lernt S weiter (nicht zurückgesetzt) auf Träumen aus den Beispielen des Tages (dream_mem, 1024
-  Eingaben, 100 Schritte), beschriftet von W + S + F; danach ist F leer. Was im Schlaf gelernt wurde, fließt so
-  am nächsten Tag zurück: Die Wach-Regel startet von W + S. Kontrollen mit denselben echten Daten:
-  `wake_only` (kein Schlaf, F lernt über alle Tage weiter) und `grad` (Adam auf den schnellen Gewichten, 20
-  Updates je Tag, also gewöhnliches Training). Läufe: (A) `run --cases lib_prev lib_xmFF lib_xm0F --sources
-  replay dream_mem dream_rand real --learners grad rls_rf rule`, (B) `loop --cases lib_prev lib_xmFF lib_xm0F
-  --learners grad rls_rf`; je Seeds 5–6 × 3 Ziehungen, layer_s@25k. Vorab gesehen (Probe lib_xmFF, Seed 5,
-  Ziehung 0): wach 0,60; Schlaf auf dream_mem nach 20 / 200 Schritten: grad 0,00 / 0,18, rls_rf 0,70 / 0,59,
-  rule 0,25 / 0,01. Kreislauf mit rls_rf: nach dem Wachen 0,60 / 0,23 / 0,71 / 0,00, nach dem Schlaf 0,64 /
-  0,41 / 0,54 / 0,33 (Tage 1–4); wake_only 0,60 / 0,72 / 0,69 / 0,70; grad 0,01–0,04.
-  **Vorhersage vor dem Lauf (2026-11-27):** (A1) rls_rf nimmt Kopf-Aufgaben im Schlaf auf: auf xmFF und xm0F
-  mit dream_mem nach 20 Schlaf-Schritten im Mittel ≥ wach − 0,05. (A2) Die Regel `pos_map` als Schlaf-Lerner
-  scheitert: auf xmFF und xm0F nach 200 Schritten ≤ 0,30. (A3) Auf prev (innen) ist rls_rf (nur Kopf) um
-  ≥ 0,10 schlechter als grad. (B1) Der Kreislauf verbessert sich nicht von Tag zu Tag: mit rls_rf auf xmFF ist
-  W + S nach Tag 4 nicht besser als nach Tag 1. Vermutete Ursache: Die Wach-Regel ist auf Lernen von null
-  geformt und stört ein Netz, das die Aufgabe schon kann (ihr Fehler-Eingang ist auf die Größe des Fehlers
-  normiert). (B2) Mit grad auf prev liegt W + S nach Tag 4 über `wake_only`, aber unter `grad`.
+**Frage.** (A) Welcher Schlaf-Lerner nimmt Kopf-Aufgaben aus Träumen auf? (B) Fließt, was im Schlaf gelernt
+wurde, im Kreislauf über mehrere Tage zurück ins Wachen, und entsteht daraus eine Verbesserung über
+gewöhnliches Training hinaus?
+
+**Gemacht.** Commit c15998c. Jobs `20261127-111256-sleep_f2` (A) und `20261127-111249-sleep_loop1` (B), je
+2 min. Beim Holen fiel ein Fehler in `jobs fetch` auf: Der Abgleich gegen schon vorhandene Zeilen kannte die
+Ziehung nicht und hätte Zeilen von (A), die sich nur darin von denen des ersten Versuchs unterscheiden,
+verworfen (12 von 18). Behoben (Schlüssel jetzt mit Ziehung und Lerner; für andere Module unverändert, weil
+dort diese Felder fehlen), (A) in eine eigene Datei geholt. Die Phase-D-Dateien sind nicht betroffen (dort
+kamen keine Zeilen gleicher Regel, gleichen Falls und gleichen Startnetzes zweimal vor). Ein erster Auftrag
+für (A) mit doppeltem `run` wurde vor dem Start aus der Warteschlange genommen. Vorhersage vor dem Lauf
+(wörtlich aus „Laufend / offen“):
+
+> - Phase F, Schlaf-Lerner für Kopf-Aufgaben und Kreislauf aus Wachen und Schlafen (Auftrag Nutzer 2026-11-27).
+>   Neu in `sleep.py` (Commit nach diesem Eintrag; der erste Versuch rechnet bitgleich weiter): `--learners`
+>   grad (Adam wie bisher), rls_rf (rekursive kleinste Quadrate am Kopf mit festen Zufalls-Merkmalen, ohne
+>   Backprop) und rule (die Regel `pos_map` selbst auf den Träumen, ohne Backprop); `loop`: 4 Tage, jeder Tag
+>   bringt 64 neue Trainings-Beispiele derselben Aufgabe; wach lernt F von null auf W + S (20 Updates), im
+>   Schlaf lernt S weiter (nicht zurückgesetzt) auf Träumen aus den Beispielen des Tages (dream_mem, 1024
+>   Eingaben, 100 Schritte), beschriftet von W + S + F; danach ist F leer. Was im Schlaf gelernt wurde, fließt so
+>   am nächsten Tag zurück: Die Wach-Regel startet von W + S. Kontrollen mit denselben echten Daten:
+>   `wake_only` (kein Schlaf, F lernt über alle Tage weiter) und `grad` (Adam auf den schnellen Gewichten, 20
+>   Updates je Tag, also gewöhnliches Training). Läufe: (A) `run --cases lib_prev lib_xmFF lib_xm0F --sources
+>   replay dream_mem dream_rand real --learners grad rls_rf rule`, (B) `loop --cases lib_prev lib_xmFF lib_xm0F
+>   --learners grad rls_rf`; je Seeds 5–6 × 3 Ziehungen, layer_s@25k. Vorab gesehen (Probe lib_xmFF, Seed 5,
+>   Ziehung 0): wach 0,60; Schlaf auf dream_mem nach 20 / 200 Schritten: grad 0,00 / 0,18, rls_rf 0,70 / 0,59,
+>   rule 0,25 / 0,01. Kreislauf mit rls_rf: nach dem Wachen 0,60 / 0,23 / 0,71 / 0,00, nach dem Schlaf 0,64 /
+>   0,41 / 0,54 / 0,33 (Tage 1–4); wake_only 0,60 / 0,72 / 0,69 / 0,70; grad 0,01–0,04.
+>   **Vorhersage vor dem Lauf (2026-11-27):** (A1) rls_rf nimmt Kopf-Aufgaben im Schlaf auf: auf xmFF und xm0F
+>   mit dream_mem nach 20 Schlaf-Schritten im Mittel ≥ wach − 0,05. (A2) Die Regel `pos_map` als Schlaf-Lerner
+>   scheitert: auf xmFF und xm0F nach 200 Schritten ≤ 0,30. (A3) Auf prev (innen) ist rls_rf (nur Kopf) um
+>   ≥ 0,10 schlechter als grad. (B1) Der Kreislauf verbessert sich nicht von Tag zu Tag: mit rls_rf auf xmFF ist
+>   W + S nach Tag 4 nicht besser als nach Tag 1. Vermutete Ursache: Die Wach-Regel ist auf Lernen von null
+>   geformt und stört ein Netz, das die Aufgabe schon kann (ihr Fehler-Eingang ist auf die Größe des Fehlers
+>   normiert). (B2) Mit grad auf prev liegt W + S nach Tag 4 über `wake_only`, aber unter `grad`.
+
+**Ergebnis (A).** layer_s@25k, 6 Episoden je Fall; Testwertung von W + S nach 20 / 200 Schlaf-Schritten:
+
+| Fall (wach) | Lerner | replay | dream_mem | dream_rand | real |
+|---|---|---|---|---|---|
+| prev (0,68) | grad | 0,76 / 0,95 | **0,79 / 0,77** | 0,77 / 0,77 | 0,80 / 0,75 |
+| | rls_rf | 0,24 / 0,24 | 0,72 / 0,59 | 0,69 / 0,55 | 0,71 / 0,58 |
+| | rule | 0,36 / 0,46 | 0,54 / 0,47 | 0,66 / 0,67 | 0,65 / 0,48 |
+| xmFF (0,58) | grad | 0,01 / 0,03 | 0,01 / 0,22 | 0,01 / 0,19 | 0,01 / 0,22 |
+| | rls_rf | 0,54 / 0,54 | **0,63 / 0,50** | 0,62 / 0,49 | 0,65 / 0,52 |
+| | rule | 0,47 / 0,48 | 0,28 / 0,00 | 0,19 / 0,00 | 0,24 / 0,00 |
+| xm0F (0,76) | grad | 0,04 / 0,05 | 0,04 / 0,41 | 0,04 / 0,32 | 0,05 / 0,43 |
+| | rls_rf | 0,62 / 0,62 | **0,76 / 0,64** | 0,73 / 0,60 | 0,77 / 0,67 |
+| | rule | 0,69 / 0,69 | 0,20 / 0,00 | 0,19 / 0,00 | 0,16 / 0,00 |
+
+Gepaart je Episode, rls_rf mit dream_mem nach 20 Schritten minus wach: xmFF +0,04 ± 0,01, xm0F −0,01 ± 0,00.
+
+**Ergebnis (B).** Kreislauf über 4 Tage (je 64 neue Beispiele), Testwertung nach Tag 1 / 2 / 3 / 4, 6 Episoden
+je Zeile; die Kontrollen sind je Fall dieselben:
+
+| Fall, Schlaf-Lerner | nach dem Wachen (W + S + F) | nach dem Schlaf (W + S) | `wake_only` | `grad` |
+|---|---|---|---|---|
+| prev, grad | 0,68 / 0,95 / 0,98 / 0,99 | 0,80 / 0,97 / 0,99 / 1,00 | 0,68 / 0,92 / 0,97 / 0,98 | 0,81 / 0,95 / 0,99 / 1,00 |
+| prev, rls_rf | 0,68 / 0,38 / 0,15 / 0,14 | 0,66 / 0,53 / 0,37 / 0,32 | | |
+| xmFF, grad | 0,58 / 0,00 / 0,00 / 0,00 | 0,05 / 0,00 / 0,00 / 0,00 | 0,58 / 0,59 / 0,52 / 0,41 | 0,01 / 0,02 / 0,03 / 0,04 |
+| xmFF, rls_rf | 0,58 / 0,49 / 0,43 / 0,10 | 0,57 / 0,51 / 0,49 / 0,38 | | |
+| xm0F, grad | 0,76 / 0,01 / 0,00 / 0,00 | 0,25 / 0,01 / 0,00 / 0,00 | 0,76 / 0,66 / 0,49 / 0,44 | 0,04 / 0,05 / 0,06 / 0,07 |
+| xm0F, rls_rf | 0,76 / 0,36 / 0,28 / 0,49 | 0,70 / 0,53 / 0,38 / 0,43 | | |
+
+**Vergleich mit der Vorhersage.** (A1) Getroffen: rls_rf mit dream_mem nach 20 Schritten xmFF 0,63 (wach 0,58),
+xm0F 0,76 (wach 0,76). (A2) Getroffen: die Regel als Schlaf-Lerner auf Träumen nach 200 Schritten 0,00 auf
+xmFF und xm0F (auf replay dagegen 0,48 / 0,69). (A3) Getroffen am Ende des Schlafs (prev dream_mem: rls_rf 0,59
+gegen grad 0,77), nach 20 Schritten nur 0,07 Abstand (0,72 gegen 0,79). (B1) Getroffen: rls_rf auf xmFF nach
+Tag 4 0,38, nach Tag 1 0,57. (B2) Getroffen, aber an der Decke: prev mit grad nach Tag 4 1,00 gegen `wake_only`
+0,98 (+0,015 ± 0,005) und `grad` 1,00 (−0,003). Bilanz: 5 von 5 getroffen; (A3) und (B2) nur knapp oder ohne
+Aussagekraft.
+
+**Schluss.** (a) **rls_rf ist ein Schlaf-Lerner für Kopf-Aufgaben, und zwar ohne Backprop:** Nach 20
+Schlaf-Schritten trägt S die Kopf-Fähigkeit so gut wie das wache Netz (xmFF leicht darüber). Danach sinkt er
+langsam (0,50 / 0,64 nach 200): Je länger er die Beschriftungen des Lehrers anpasst, desto mehr übernimmt er
+dessen Fehler. Anders als grad auf prev übertrifft er seinen Lehrer nicht. (b) Traum-Quellen wie im ersten
+Versuch nahezu gleichwertig; replay ist für rls_rf schlechter (64 Eingaben, ein Fit). (c) Die Regel aus Phase D
+taugt nicht als Schlaf-Lerner auf Träumen: Auf Kopf-Aufgaben bricht sie nach 20 Schritten zusammen, nur auf
+den 64 echten Eingaben hält sie. (d) **Der Kreislauf schließt sich noch nicht.** Was im Schlaf gelernt wurde,
+fließt zwar zurück (die Wach-Regel startet von W + S), aber die Wach-Regel *zerstört* es: nach dem zweiten
+Wachen fällt W + S + F unter W + S des Vortags (prev / rls_rf: nach Schlaf 1 0,66, nach Wachen 2 0,38; xm0F / grad: 0,25 → 0,01). Die Regel ist
+auf Lernen von null geformt; ihr Fehler-Eingang ist auf die Größe des Fehlers normiert, sodass sie auch bei
+kleinem Fehler volle Schritte macht. Dazu kommt, dass auch `wake_only` auf den Kopf-Aufgaben über die Tage
+sinkt (xmFF 0,58 → 0,41, xm0F 0,76 → 0,44): Die Regel ist über ihren Horizont von 20 Updates hinaus nicht
+stabil. (e) Auf prev mit grad steigt alles bis an die Decke (1,00); dort ist kein Vorteil des Kreislaufs
+gegenüber gewöhnlichem Training messbar. (f) Folgerung für den Kreislauf: Die Wach-Regel muss *im Kreislauf*
+geformt werden (ES-Episoden, die von W + S starten, also mit einer schon teilweise gelösten Aufgabe), oder
+sie braucht einen Schalter „nur bei Überraschung lernen“ (PLAN_TRAINER Abschnitt 4, Baustein 5). Erst dann
+kann sich zeigen, ob der Kreislauf über gewöhnliches Training hinausführt; dafür braucht es außerdem eine
+Aufgabe, die nicht schon nach 3 Tagen an der Decke liegt.
+
+**Belege.** `results/sleep_learners.jsonl` (18 Zeilen), `results/sleep_loop.jsonl` (36 Zeilen);
+`netresearch/jobs.py` (Schlüssel beim Holen).
+
+## Laufend / offen
 
 - Noch in Bits: `*_parts` (die Anpassungs-Studien servo / robot sind seit 2026-11-23 umgestellt); nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
