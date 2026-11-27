@@ -250,6 +250,27 @@ def case_robot(target, variant, k, pop=True):
     return make(k, "train"), make(N_TEST, "test")
 
 
+def case_robot_eye(device, variant, k, pop=True):
+    """A calibration of the gaze command on the robot images (as library.py suite robot, eye_<device>): the step to
+    the red cube as a servo device of tasks/servo.py would need it. Train: k images of the training file, test:
+    N_TEST unseen images (as case_robot)."""
+    from .tasks.robot import DATA
+    from .tasks.servo import DEVICES
+    from .train import to_t
+    rng = np.random.default_rng(zlib.crc32(("eye_" + device).encode()) + 7919 * variant)
+
+    def make(n, split):
+        d = np.load(DATA / f"gazemulti_{split}.npz")
+        i = rng.permutation(len(d["obs"]))[:n]
+        c = d["cells"][i].astype(np.int64)
+        dx, dy = DEVICES[device](c[:, 0], c[:, 1])
+        return to_t({"obs": (d["obs"][i].astype(np.float32) / 255.0)[None],
+                     "target": step_target(dx, dy, pop)[None], "mask": np.ones((1, n), np.float32)})
+    return make(k, "train"), make(N_TEST, "test")
+
+
+for _d in SERVO_CASES:
+    CASES["robot_eye_" + _d] = ("robot_gaze", lambda v, k, _d=_d: case_robot_eye(_d, v, k), KS, 2)
 for _t in ("green", "blue"):
     CASES["robot_" + _t] = ("robot_gaze", lambda v, k, _t=_t: case_robot(_t, v, k), KS, 2)
     CASES["robot_" + _t + "_bits"] = ("robot_gaze_bits", lambda v, k, _t=_t: case_robot(_t, v, k, False), KS, 2)
