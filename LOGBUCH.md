@@ -4832,5 +4832,28 @@ Phase D selbst auf den Träumen). (e) Nicht gemessen: Vergessen (S wirkt nur bei
 
 ## Laufend / offen
 
+- Phase F, Schlaf-Lerner für Kopf-Aufgaben und Kreislauf aus Wachen und Schlafen (Auftrag Nutzer 2026-11-27).
+  Neu in `sleep.py` (Commit nach diesem Eintrag; der erste Versuch rechnet bitgleich weiter): `--learners`
+  grad (Adam wie bisher), rls_rf (rekursive kleinste Quadrate am Kopf mit festen Zufalls-Merkmalen, ohne
+  Backprop) und rule (die Regel `pos_map` selbst auf den Träumen, ohne Backprop); `loop`: 4 Tage, jeder Tag
+  bringt 64 neue Trainings-Beispiele derselben Aufgabe; wach lernt F von null auf W + S (20 Updates), im
+  Schlaf lernt S weiter (nicht zurückgesetzt) auf Träumen aus den Beispielen des Tages (dream_mem, 1024
+  Eingaben, 100 Schritte), beschriftet von W + S + F; danach ist F leer. Was im Schlaf gelernt wurde, fließt so
+  am nächsten Tag zurück: Die Wach-Regel startet von W + S. Kontrollen mit denselben echten Daten:
+  `wake_only` (kein Schlaf, F lernt über alle Tage weiter) und `grad` (Adam auf den schnellen Gewichten, 20
+  Updates je Tag, also gewöhnliches Training). Läufe: (A) `run --cases lib_prev lib_xmFF lib_xm0F --sources
+  replay dream_mem dream_rand real --learners grad rls_rf rule`, (B) `loop --cases lib_prev lib_xmFF lib_xm0F
+  --learners grad rls_rf`; je Seeds 5–6 × 3 Ziehungen, layer_s@25k. Vorab gesehen (Probe lib_xmFF, Seed 5,
+  Ziehung 0): wach 0,60; Schlaf auf dream_mem nach 20 / 200 Schritten: grad 0,00 / 0,18, rls_rf 0,70 / 0,59,
+  rule 0,25 / 0,01. Kreislauf mit rls_rf: nach dem Wachen 0,60 / 0,23 / 0,71 / 0,00, nach dem Schlaf 0,64 /
+  0,41 / 0,54 / 0,33 (Tage 1–4); wake_only 0,60 / 0,72 / 0,69 / 0,70; grad 0,01–0,04.
+  **Vorhersage vor dem Lauf (2026-11-27):** (A1) rls_rf nimmt Kopf-Aufgaben im Schlaf auf: auf xmFF und xm0F
+  mit dream_mem nach 20 Schlaf-Schritten im Mittel ≥ wach − 0,05. (A2) Die Regel `pos_map` als Schlaf-Lerner
+  scheitert: auf xmFF und xm0F nach 200 Schritten ≤ 0,30. (A3) Auf prev (innen) ist rls_rf (nur Kopf) um
+  ≥ 0,10 schlechter als grad. (B1) Der Kreislauf verbessert sich nicht von Tag zu Tag: mit rls_rf auf xmFF ist
+  W + S nach Tag 4 nicht besser als nach Tag 1. Vermutete Ursache: Die Wach-Regel ist auf Lernen von null
+  geformt und stört ein Netz, das die Aufgabe schon kann (ihr Fehler-Eingang ist auf die Größe des Fehlers
+  normiert). (B2) Mit grad auf prev liegt W + S nach Tag 4 über `wake_only`, aber unter `grad`.
+
 - Noch in Bits: `*_parts` (die Anpassungs-Studien servo / robot sind seit 2026-11-23 umgestellt); nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
