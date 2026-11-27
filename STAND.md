@@ -438,5 +438,6 @@ Erfahrungen, die in die Pipeline gehören:
   brauchbar vorher; seine Träume tragen die Fähigkeit, wenn ihre Beschriftung stimmt. Die Folge eines Blick-Schritts
   lässt sich aus den eigenen Augenbewegungen lernen (so gut wie die Geometrie). Legitim beschriftete Träume
   schlagen direktes Training nur nach der ersten Nacht; echte unbeschriftete Bilder mit derselben Beschriftung
-  sind besser.
+  sind besser. Wo Erfahrung fehlt, leisten Träume aber, was nichts anderes leistet: In einer nie gesehenen Hälfte
+  des Blickfelds tragen sie die Kalibrierung zu 0,52 (ohne vorgestellte Blick-Schritte 0,03).
 - Noch nicht begonnen: Weltmodell, Reinforcement Learning.

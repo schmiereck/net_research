@@ -1725,6 +1725,13 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
     sind besser (0,84). Der Gewinn kommt aus der Zerlegung, nicht aus dem Träumen, und die affine Annahme bricht
     bei weak (0,20). Offen: ein Aufbau, in dem echte Erfahrung fehlt (nie gesehene Lagen), denn nur dort könnten
     Träume mehr leisten als unbeschriftete echte Bilder.
+  - **Zurückgehaltene Lagen erledigt (2026-11-27, `results/latent_sleep_holdout.jsonl`):** Die Aufgabe nur mit dem
+    Würfel in der rechten Hälfte der Fovea; in der nie gesehenen linken Hälfte kommen direktes Training, Mischungen
+    und echte unbeschriftete Bilder auf 0,03, legitim beschriftete Prädiktor-Träume auf 0,52 (ohne weak 0,62; echte
+    Erfahrung dieser Lagen 0,74). Erstes Ergebnis, in dem Träume etwas leisten, was Training und Erfahrung nicht
+    leisten. Voraussetzungen: aufgabenfrei gelerntes Weltwissen über das ganze Feld und eine übertragbare
+    Beschriftung (hier affine Abbildung, versagt bei weak). Vom wachen Kopf beschriftete Träume helfen nicht (0,02).
+    Nächstes: übertragbare Abbildung ohne affine Annahme; Stufe 2 live in MuJoCo.
 - Langzeittest: 20 neue Varianten nacheinander lernen und dabei das Vergessen und die Generalisierung
   verfolgen.
 

@@ -5425,6 +5425,72 @@ wie der Test.
 **Belege.** `results/latent_pred.jsonl` (Folge-Modelle: 2 Zeilen nur zentral, 2 Zeilen ganzes Feld),
 `results/latent_sleep_legit.jsonl` (24 Zeilen).
 
+## 2026-11-27 — Phase F, zurückgehaltene Lagen: Träume ersetzen fehlende Erfahrung – in der nie gesehenen Hälfte des Blickfelds 0,52 statt 0,03, wenn das Weltwissen aufgabenfrei über das ganze Feld gelernt ist und die Beschriftung sich übertragen lässt
+
+**Frage.** Können Träume Erfahrung ersetzen, die fehlt: Lagen des Würfels, in denen der Roboter der Aufgabe nie
+begegnet ist?
+
+**Gemacht.** Commit vor diesem Eintrag; lokal mit 2 Prozessen (4 min, 24 Episoden). Vorhersage vor dem Lauf
+(wörtlich aus „Laufend / offen“):
+
+> - Phase F, Test mit zurückgehaltenen Lagen (Auftrag Nutzer 2026-11-27): Können Träume Erfahrung ersetzen, die
+>   fehlt? Neu (Commit nach diesem Eintrag): `latent_sleep.py --holdout`: Der Roboter begegnet der Aufgabe nur mit
+>   dem roten Würfel in der rechten Hälfte der Fovea (dx ≥ 0); die 64 beschrifteten und die unbeschrifteten Bilder
+>   jedes Tages stammen von dort. Der Test wird geteilt in die gesehene Hälfte und die zurückgehaltene linke
+>   (dx < 0). Das vorher und ohne Aufgabe gelernte Weltwissen (Encoder, Latent-Prädiktor `_roll8`, Folge-Modell
+>   `_all`, aus Augenbewegungen über das ganze Feld) ist nicht beschränkt. Quellen: rls_direct, mix, unlab_lin
+>   (ohne Vorstellung), learn1_lin und geo1_lin (Prädiktor-Träume, legitim beschriftet; ein vorgestellter
+>   Blick-Schritt kann den Würfel in die linke Hälfte tragen), pred1 (Prädiktor-Träume, ein Schritt ≤ 5,
+>   beschriftet vom wachen Kopf) und als Obergrenze unlab_all_lin (unbeschriftete echte Bilder aus dem ganzen Feld,
+>   also echte Erfahrung der zurückgehaltenen Lagen). Ohne `--holdout` rechnen alle Quellen bitgleich weiter
+>   (geprüft). Lauf: 24 Episoden, nach `results/latent_sleep_holdout.jsonl`. Vorab gesehen (Probe Seed 5, Ziehung
+>   0, flipx / swap; zurückgehaltene Hälfte an Tag 4): rls_direct 0,04 / 0,04, mix 0,03 / 0,04, unlab_lin 0,01 /
+>   0,02, learn1_lin 0,72 / 0,69, geo1_lin 0,71 / 0,69, pred1 0,00 / 0,02; gesehene Hälfte 0,90–0,99.
+>   **Vorhersage vor dem Lauf (2026-11-27):** (1) Träume ersetzen fehlende Erfahrung: in der zurückgehaltenen Hälfte
+>   an Tag 4 learn1_lin im Mittel ≥ 0,50, rls_direct, mix und unlab_lin je ≤ 0,10. (2) Vom wachen Kopf beschriftete
+>   Träume helfen dort nicht: pred1 ≤ 0,10. (3) In der gesehenen Hälfte kostet es wenig: learn1_lin an Tag 4
+>   höchstens 0,05 unter rls_direct. (4) Die Obergrenze aus echter Erfahrung liegt über den Träumen: unlab_all_lin
+>   in der zurückgehaltenen Hälfte ≥ learn1_lin + 0,10. Bei weak versagen alle Quellen mit affiner Abbildung weiter.
+
+**Ergebnis.** W + S, Mittel über 24 Episoden (rechts ohne die 4 Episoden von weak):
+
+| Quelle | zurückgehalten Tag 1 / 4 | gesehen Tag 1 / 4 | zurückgehalten Tag 4 ohne weak | gesehen Tag 4 ohne weak |
+|---|---|---|---|---|
+| rls_direct (direktes Training) | 0,03 / 0,03 | 0,85 / 0,97 | 0,04 | 0,97 |
+| mix | 0,03 / 0,03 | 0,83 / 0,95 | 0,03 | 0,95 |
+| unlab_lin (ohne Vorstellung) | 0,05 / 0,03 | 0,85 / 0,86 | 0,03 | 0,98 |
+| **learn1_lin** (Traum, gelernte Folge) | **0,42 / 0,52** | 0,73 / 0,81 | **0,62** | 0,93 |
+| geo1_lin (Traum, Geometrie) | 0,44 / 0,53 | 0,72 / 0,79 | 0,64 | 0,91 |
+| pred1 (Traum, vom wachen Kopf beschriftet) | 0,01 / 0,02 | 0,69 / 0,87 | 0,01 | 0,87 |
+| *unlab_all_lin (Obergrenze: echte Erfahrung der Lagen)* | 0,74 / 0,74 | 0,85 / 0,85 | 0,87 | 0,98 |
+
+Gepaart an Tag 4 (± Standardfehler, Anteil positiv): learn1_lin − rls_direct zurückgehalten +0,49 ± 0,05 (23 von
+24), gesehen −0,16 ± 0,06 (0 von 24); unlab_all_lin − learn1_lin zurückgehalten +0,21 ± 0,03; learn1_lin −
+geo1_lin −0,01 ± 0,00. Zurückgehalten an Tag 4 je Gerät (learn1_lin / Obergrenze unlab_all_lin): flipx 0,66 /
+0,93, offx 0,61 / 0,99, rot90 0,64 / 0,91, strong 0,52 / 0,53, swap 0,67 / 0,99, weak 0,04 / 0,09.
+
+**Vergleich mit der Vorhersage.** (1) Getroffen: learn1_lin 0,52 (≥ 0,50); rls_direct 0,03, mix 0,03, unlab_lin
+0,03 (≤ 0,10). (2) Getroffen: pred1 0,02. (3) Nicht getroffen: gesehen 0,16 unter rls_direct (ohne weak 0,04).
+(4) Getroffen: die Obergrenze liegt 0,21 darüber. Bilanz: 3 von 4 getroffen.
+
+**Schluss.** (a) **Zum ersten Mal leisten Träume etwas, was weder direktes Training noch echte unbeschriftete
+Erfahrung leistet:** In der Hälfte des Blickfelds, in der der Roboter der Aufgabe nie begegnet ist, kommen alle
+Verfahren ohne Vorstellung auf 0,03; Träume, die den Würfel mit einem vorgestellten Blick-Schritt dorthin tragen,
+auf 0,52 (ohne weak 0,62), etwa 70 % dessen, was echte unbeschriftete Erfahrung dieser Lagen bringen würde.
+(b) **Was dafür nötig ist:** ein Weltwissen, das vorher und ohne Aufgabe über das ganze Feld gelernt wurde
+(Latent-Prädiktor und Folge-Modell aus Augenbewegungen), und eine Beschriftung, die sich auf neue Lagen
+übertragen lässt. Hier ist das die affine Abbildung Lage → Kommando; sie ist eine Annahme über die Form der
+Aufgabe und versagt bei weak (0,04, auch die Obergrenze nur 0,09) und teilweise bei strong (0,52, Obergrenze
+0,53). (c) **Vom wachen Kopf beschriftete Träume helfen nicht:** Er hat die zurückgehaltenen Lagen nie gelernt
+und beschriftet sie falsch (0,02). Die Beschriftung muss aus Struktur kommen (Wahrnehmung der Lage + Folge der
+Handlung + übertragbare Abbildung), nicht aus dem, was das wache Modul schon kann. (d) Der Preis in der
+gesehenen Hälfte ist klein ohne weak (0,93 gegen 0,97), mit weak groß. (e) Gelernte Folge und Geometrie sind
+wieder gleichwertig. (f) Für die Traum-Idee: Der Nutzen des Träumens liegt im Übertragen auf Situationen, die
+noch nicht erlebt wurden; dort ist er hier deutlich. Offen: eine übertragbare Abbildung ohne die affine Annahme
+(etwa gelernt über viele Aufgaben), und ob das live im Roboter trägt.
+
+**Belege.** `results/latent_sleep_holdout.jsonl` (24 Zeilen).
+
 ## Laufend / offen
 
 - Phase F, Wach-Regel per ES im Kreislauf geformt (Auftrag Nutzer 2026-11-27, Weg 1). Neu (Commit nach
@@ -5446,25 +5512,6 @@ wie der Test.
   liegt das Mittel von W + S über die Tage 1–4 um ≥ 0,05 über `pos_map`, an Tag 8 aber höchstens 0,03 über
   `rls_direct`. (3) Die neue Regel wacht mehr: Wach-Updates an den Tagen 2–4 im Mittel mindestens doppelt so
   viele wie bei `pos_map`.
-
-- Phase F, Test mit zurückgehaltenen Lagen (Auftrag Nutzer 2026-11-27): Können Träume Erfahrung ersetzen, die
-  fehlt? Neu (Commit nach diesem Eintrag): `latent_sleep.py --holdout`: Der Roboter begegnet der Aufgabe nur mit
-  dem roten Würfel in der rechten Hälfte der Fovea (dx ≥ 0); die 64 beschrifteten und die unbeschrifteten Bilder
-  jedes Tages stammen von dort. Der Test wird geteilt in die gesehene Hälfte und die zurückgehaltene linke
-  (dx < 0). Das vorher und ohne Aufgabe gelernte Weltwissen (Encoder, Latent-Prädiktor `_roll8`, Folge-Modell
-  `_all`, aus Augenbewegungen über das ganze Feld) ist nicht beschränkt. Quellen: rls_direct, mix, unlab_lin
-  (ohne Vorstellung), learn1_lin und geo1_lin (Prädiktor-Träume, legitim beschriftet; ein vorgestellter
-  Blick-Schritt kann den Würfel in die linke Hälfte tragen), pred1 (Prädiktor-Träume, ein Schritt ≤ 5,
-  beschriftet vom wachen Kopf) und als Obergrenze unlab_all_lin (unbeschriftete echte Bilder aus dem ganzen Feld,
-  also echte Erfahrung der zurückgehaltenen Lagen). Ohne `--holdout` rechnen alle Quellen bitgleich weiter
-  (geprüft). Lauf: 24 Episoden, nach `results/latent_sleep_holdout.jsonl`. Vorab gesehen (Probe Seed 5, Ziehung
-  0, flipx / swap; zurückgehaltene Hälfte an Tag 4): rls_direct 0,04 / 0,04, mix 0,03 / 0,04, unlab_lin 0,01 /
-  0,02, learn1_lin 0,72 / 0,69, geo1_lin 0,71 / 0,69, pred1 0,00 / 0,02; gesehene Hälfte 0,90–0,99.
-  **Vorhersage vor dem Lauf (2026-11-27):** (1) Träume ersetzen fehlende Erfahrung: in der zurückgehaltenen Hälfte
-  an Tag 4 learn1_lin im Mittel ≥ 0,50, rls_direct, mix und unlab_lin je ≤ 0,10. (2) Vom wachen Kopf beschriftete
-  Träume helfen dort nicht: pred1 ≤ 0,10. (3) In der gesehenen Hälfte kostet es wenig: learn1_lin an Tag 4
-  höchstens 0,05 unter rls_direct. (4) Die Obergrenze aus echter Erfahrung liegt über den Träumen: unlab_all_lin
-  in der zurückgehaltenen Hälfte ≥ learn1_lin + 0,10. Bei weak versagen alle Quellen mit affiner Abbildung weiter.
 
 - Noch in Bits: `*_parts` (die Anpassungs-Studien servo / robot sind seit 2026-11-23 umgestellt); nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
