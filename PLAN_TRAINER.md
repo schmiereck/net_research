@@ -1732,6 +1732,12 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
     leisten. Voraussetzungen: aufgabenfrei gelerntes Weltwissen über das ganze Feld und eine übertragbare
     Beschriftung (hier affine Abbildung, versagt bei weak). Vom wachen Kopf beschriftete Träume helfen nicht (0,02).
     Nächstes: übertragbare Abbildung ohne affine Annahme; Stufe 2 live in MuJoCo.
+  - **Abbildung ohne affine Annahme (2026-11-27, `netresearch/label_map.py`, `results/latent_sleep_holdout2.jsonl`):**
+    Hypothesen-Suche über eine Familie von Kalibrierungen (linear mit Versatz, Rundung, Begrenzung): Träume in der
+    nie gesehenen Hälfte 0,71 (weak 0,86, strong 0,84), gesehen 0,94; die Suche kennt aber die Art der Aufgabe.
+    Ein über viele zufällige Kalibrierungen gelernter Tabellen-Ergänzer (Test-Geräte ausgeschlossen) ist der
+    gesuchte allgemeine Weg, nach 45 min Training noch schwach (Träume 0,29). Nächstes: Ergänzer länger trainieren
+    (Worker), Prädiktor genauer (Lücke 0,71 → 0,97 zur echten Erfahrung), Stufe 2 live in MuJoCo.
 - Langzeittest: 20 neue Varianten nacheinander lernen und dabei das Vergessen und die Generalisierung
   verfolgen.
 

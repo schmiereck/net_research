@@ -5491,6 +5491,73 @@ noch nicht erlebt wurden; dort ist er hier deutlich. Offen: eine übertragbare A
 
 **Belege.** `results/latent_sleep_holdout.jsonl` (24 Zeilen).
 
+## 2026-11-27 — Phase F, übertragbare Abbildung ohne affine Annahme: eine Hypothesen-Suche über eine Familie von Kalibrierungen hebt die Träume in der nie gesehenen Hälfte auf 0,71 (weak 0,86); ein über viele Aufgaben gelernter Ergänzer ist dafür noch zu schwach
+
+**Frage.** Lässt sich die Abbildung Lage → Kommando ohne die affine Annahme so lernen, dass sie auf nie gesehene
+Lagen überträgt, und was bringt das den Träumen?
+
+**Gemacht.** Commit vor diesem Eintrag; Ergänzer lokal 45 min trainiert, Schlaf-Lauf lokal mit 2 Prozessen
+(2 min, 24 Episoden). Vorhersage und Entwicklung vor dem Lauf (wörtlich aus „Laufend / offen“):
+
+> - Phase F, übertragbare Abbildung ohne affine Annahme (Auftrag Nutzer 2026-11-27). Neu (Commit nach diesem
+>   Eintrag): `netresearch/label_map.py` mit zwei Wegen zur Abbildung Lage → Kommando aus den 64 Erinnerungen
+>   (alle in der rechten Hälfte): (a) gelernt über viele Aufgaben: ein Tabellen-Ergänzer (Mengen-Encoder der
+>   bekannten Zellen → Aufgaben-Kennung, Decoder Zelle + Kennung → Kommando), trainiert auf zufälligen
+>   Kalibrierungen einer Familie (je Achse linear mit Versatz, Rundung, Begrenzung, Schritte umgewickelt;
+>   Erinnerungen nur rechts, Verlust auf allen Zellen); die sechs Test-Geräte sind als Tabellen vom Training
+>   ausgeschlossen; 4000 Schritte zu 256 frischen Aufgaben, lokal 45 min, Verlust noch fallend (1,10). Eine Variante
+>   mit One-hot-Eingaben lernte in 600 Schritten langsamer (verworfen). (b) Hypothesen-Suche: je Achse die
+>   Kalibrierung dieser Familie (36 860 verschiedene Tabellen), die zu den Erinnerungen passt (wenigste
+>   Fehler, dann die einfachste); die Test-Geräte sind Mitglieder der Familie, die Suche kennt also die *Art* der
+>   Aufgabe. Trefferquote der Tabelle in der zurückgehaltenen Hälfte bei richtig gelesenen Lagen (20 Ziehungen
+>   der Erinnerungen; Ergänzer / Suche / affin): flipx 0,36 / 0,88 / 0,88, swap 0,37 / 1,00 / 1,00, rot90 0,34 /
+>   0,88 / 0,88, strong 0,33 / 1,00 / 0,58, weak 0,41 / 1,00 / 0,03, offx 0,42 / 1,00 / 1,00 (flipx und rot90:
+>   bei −8 wickelt der Schritt um, das kennt die Familie nicht). Quellen learn1_meta, learn1_fam, unlab_all_fam in
+>   `latent_sleep.py`. Lauf: `--holdout`, 24 Episoden, Quellen learn1_fam, learn1_meta, unlab_all_fam, nach
+>   `results/latent_sleep_holdout2.jsonl`; Bezug learn1_lin (zurückgehalten 0,52, weak 0,04). Vorab gesehen
+>   (Probe Seed 5, Ziehung 0; zurückgehalten / gesehen an Tag 4): weak learn1_lin 0,00 / 0,16, learn1_fam 0,83 /
+>   0,97, learn1_meta 0,39 / 0,58; flipx 0,72 / 0,93, 0,72 / 0,93, 0,35 / 0,46.
+>   **Vorhersage vor dem Lauf (2026-11-27):** (1) Die Hypothesen-Suche behebt weak und strong: learn1_fam in der
+>   zurückgehaltenen Hälfte an Tag 4 ≥ learn1_lin + 0,10 im Mittel, auf weak ≥ 0,60. (2) Der gelernte Ergänzer
+>   ist noch zu schwach: learn1_meta zurückgehalten unter learn1_lin, aber über 0,10. (3) Auch in der gesehenen
+>   Hälfte kostet der Ergänzer: learn1_meta gesehen ≤ 0,70.
+
+**Ergebnis.** W + S mit zurückgehaltener linker Hälfte, Mittel über 24 Episoden:
+
+| Quelle (Abbildung) | zurückgehalten Tag 1 / 4 | gesehen Tag 1 / 4 |
+|---|---|---|
+| *rls_direct (Bezug)* | 0,03 / 0,03 | 0,85 / 0,97 |
+| learn1_lin (affin, Bezug) | 0,42 / 0,52 | 0,73 / 0,81 |
+| **learn1_fam** (Hypothesen-Suche) | 0,57 / **0,71** | 0,85 / 0,94 |
+| learn1_meta (gelernter Ergänzer) | 0,24 / 0,29 | 0,49 / 0,61 |
+| *unlab_all_lin (Obergrenze, affin)* | 0,74 / 0,74 | 0,85 / 0,85 |
+| *unlab_all_fam (Obergrenze, Suche)* | 0,96 / 0,97 | 0,98 / 0,98 |
+
+Zurückgehalten an Tag 4 je Gerät (learn1_lin / learn1_fam / learn1_meta): flipx 0,66 / 0,66 / 0,28, offx 0,61 /
+0,61 / 0,28, rot90 0,64 / 0,64 / 0,25, strong 0,52 / 0,84 / 0,28, swap 0,67 / 0,67 / 0,27, weak 0,04 / 0,86 / 0,38.
+Gepaart (± Standardfehler): learn1_fam − learn1_lin zurückgehalten +0,19 ± 0,06 (gewonnen nur auf strong und
+weak, sonst gleich); learn1_meta − learn1_lin −0,24 ± 0,06; learn1_fam − rls_direct gesehen −0,04 ± 0,01.
+
+**Vergleich mit der Vorhersage.** (1) Getroffen: +0,19, weak 0,86. (2) Getroffen: learn1_meta 0,29 (unter
+learn1_lin, über 0,10). (3) Getroffen: learn1_meta gesehen 0,61. Bilanz: 3 von 3 getroffen.
+
+**Schluss.** (a) **Mit der Hypothesen-Suche tragen Träume die Kalibrierung in die nie gesehene Hälfte auf
+allen sechs Geräten** (0,61–0,86, im Mittel 0,71; ohne Vorstellung 0,03); in der gesehenen Hälfte kostet es
+0,04 gegenüber direktem Training. (b) **Aber die Suche kennt die Art der Aufgabe:** Die Familie (linear mit
+Versatz, Rundung, Begrenzung) enthält die Test-Geräte. Das ist Vorwissen über Kalibrierungen, kein gelerntes
+Wissen. (c) **Der über viele Aufgaben gelernte Ergänzer** (dieselbe Familie, Test-Geräte ausgeschlossen) ist
+der eigentlich gesuchte Weg, aber nach 45 min Training noch schwach (Tabelle zurückgehalten 0,33–0,42; Träume
+0,29). Er ist der einzige ohne affine Annahme, der auf weak etwas überträgt, wo die affine Abbildung versagt
+(0,38 gegen 0,04). Ob er mit mehr Training die Suche erreicht, ist offen; der Verlust fiel bis zuletzt.
+(d) Die Lücke zur Obergrenze bleibt der Prädiktor: Mit echten unbeschrifteten Bildern der zurückgehaltenen
+Lagen und derselben Suche kämen 0,97 heraus, mit Prädiktor-Träumen 0,71. (e) Gesamtbild: Träume übertragen eine
+Fähigkeit auf nie erlebte Lagen, wenn drei Dinge zusammenkommen: ein aufgabenfrei gelerntes Weltmodell (Latent
+und Folge der Handlung), eine Wahrnehmung der aufgabenrelevanten Größe, und eine Abbildung, die sich
+überträgt – letztere hier noch aus Vorwissen über die Art der Aufgabe.
+
+**Belege.** `results/label_map.jsonl` (1 Zeile: Ergänzer nach 4000 Schritten mit Tabellen-Treffern je Gerät),
+`results/latent_sleep_holdout2.jsonl` (24 Zeilen).
+
 ## Laufend / offen
 
 - Phase F, Wach-Regel per ES im Kreislauf geformt (Auftrag Nutzer 2026-11-27, Weg 1). Neu (Commit nach
@@ -5512,29 +5579,6 @@ noch nicht erlebt wurden; dort ist er hier deutlich. Offen: eine übertragbare A
   liegt das Mittel von W + S über die Tage 1–4 um ≥ 0,05 über `pos_map`, an Tag 8 aber höchstens 0,03 über
   `rls_direct`. (3) Die neue Regel wacht mehr: Wach-Updates an den Tagen 2–4 im Mittel mindestens doppelt so
   viele wie bei `pos_map`.
-
-- Phase F, übertragbare Abbildung ohne affine Annahme (Auftrag Nutzer 2026-11-27). Neu (Commit nach diesem
-  Eintrag): `netresearch/label_map.py` mit zwei Wegen zur Abbildung Lage → Kommando aus den 64 Erinnerungen
-  (alle in der rechten Hälfte): (a) gelernt über viele Aufgaben: ein Tabellen-Ergänzer (Mengen-Encoder der
-  bekannten Zellen → Aufgaben-Kennung, Decoder Zelle + Kennung → Kommando), trainiert auf zufälligen
-  Kalibrierungen einer Familie (je Achse linear mit Versatz, Rundung, Begrenzung, Schritte umgewickelt;
-  Erinnerungen nur rechts, Verlust auf allen Zellen); die sechs Test-Geräte sind als Tabellen vom Training
-  ausgeschlossen; 4000 Schritte zu 256 frischen Aufgaben, lokal 45 min, Verlust noch fallend (1,10). Eine Variante
-  mit One-hot-Eingaben lernte in 600 Schritten langsamer (verworfen). (b) Hypothesen-Suche: je Achse die
-  Kalibrierung dieser Familie (36 860 verschiedene Tabellen), die zu den Erinnerungen passt (wenigste
-  Fehler, dann die einfachste); die Test-Geräte sind Mitglieder der Familie, die Suche kennt also die *Art* der
-  Aufgabe. Trefferquote der Tabelle in der zurückgehaltenen Hälfte bei richtig gelesenen Lagen (20 Ziehungen
-  der Erinnerungen; Ergänzer / Suche / affin): flipx 0,36 / 0,88 / 0,88, swap 0,37 / 1,00 / 1,00, rot90 0,34 /
-  0,88 / 0,88, strong 0,33 / 1,00 / 0,58, weak 0,41 / 1,00 / 0,03, offx 0,42 / 1,00 / 1,00 (flipx und rot90:
-  bei −8 wickelt der Schritt um, das kennt die Familie nicht). Quellen learn1_meta, learn1_fam, unlab_all_fam in
-  `latent_sleep.py`. Lauf: `--holdout`, 24 Episoden, Quellen learn1_fam, learn1_meta, unlab_all_fam, nach
-  `results/latent_sleep_holdout2.jsonl`; Bezug learn1_lin (zurückgehalten 0,52, weak 0,04). Vorab gesehen
-  (Probe Seed 5, Ziehung 0; zurückgehalten / gesehen an Tag 4): weak learn1_lin 0,00 / 0,16, learn1_fam 0,83 /
-  0,97, learn1_meta 0,39 / 0,58; flipx 0,72 / 0,93, 0,72 / 0,93, 0,35 / 0,46.
-  **Vorhersage vor dem Lauf (2026-11-27):** (1) Die Hypothesen-Suche behebt weak und strong: learn1_fam in der
-  zurückgehaltenen Hälfte an Tag 4 ≥ learn1_lin + 0,10 im Mittel, auf weak ≥ 0,60. (2) Der gelernte Ergänzer
-  ist noch zu schwach: learn1_meta zurückgehalten unter learn1_lin, aber über 0,10. (3) Auch in der gesehenen
-  Hälfte kostet der Ergänzer: learn1_meta gesehen ≤ 0,70.
 
 - Noch in Bits: `*_parts` (die Anpassungs-Studien servo / robot sind seit 2026-11-23 umgestellt); nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
