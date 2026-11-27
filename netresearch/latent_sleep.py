@@ -16,10 +16,11 @@ Dream latents (DREAM_N per night):
     unlab    latents of DREAM_N unlabelled images the robot saw that day (other images of the training file)
     gauss    samples of a Gaussian fitted once to the latents of the base images (a generative model of the
              latent space, stored with the net)
+    pred_near / pred_far  dreams of the latent predictor (latent_pred.py; learned from the robot's own eye
+             movements, no labels): from one of the day's latents, 1 random gaze step with |dx|, |dy| <= 2
+             (near), or 2 steps with |dx|, |dy| <= 5 (far); the dream is the predicted latent after the steps
 Controls: `unlab_true` (sleep on the unlabelled latents with their TRUE labels: what the dream labels cost) and
 `rls_direct` (rls_rf at the head trained directly on every day's labelled images, kept over the days).
-A learned latent PREDICTOR (next latent from the current one and the gaze step) would be the next dream source;
-it needs sequence data and is not built yet.
 """
 import argparse
 import copy
@@ -37,6 +38,7 @@ from .tasks.servo import decode_step
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "results" / "latent_sleep.jsonl"
 SOURCES = ["replay", "noise", "mix", "unlab", "gauss", "unlab_true"]
+PRED = {"pred_near": (1, 2), "pred_far": (2, 5)}             # dream source -> (gaze steps, largest |dx|, |dy|)
 DAYS, K, DREAM_N, BATCH, EPS, SURPRISE_MIN = 4, 64, 1024, 64, 0.5, 0.1
 _nets = {}
 
@@ -81,7 +83,15 @@ def unlabelled(seed, draw, day, n):
     return torch.from_numpy(d["obs"][i].astype(np.float32) / 255.0)[None], d["cells"][i].astype(np.int64)
 
 
-def dreams(src, h_day, rng, gauss):
+def dreams(src, h_day, rng, gauss, pred=None):
+    if src in PRED:
+        n_steps, big = PRED[src]
+        i = torch.from_numpy(rng.integers(0, len(h_day), DREAM_N))
+        z = h_day[i]
+        with torch.no_grad():
+            for _ in range(n_steps):
+                z = pred(z, torch.from_numpy(rng.integers(-big, big + 1, (DREAM_N, 2)).astype(np.float32)))
+        return z
     if src == "replay":
         return h_day
     if src == "noise":
@@ -96,7 +106,8 @@ def dreams(src, h_day, rng, gauss):
     return mean + torch.from_numpy(rng.standard_normal((DREAM_N, len(mean))).astype(np.float32)) @ L.T
 
 
-def episode(case, seed, draw, model_name="layer_s", days=DAYS, gate="surprise"):
+def episode(case, seed, draw, model_name="layer_s", days=DAYS, gate="surprise", sources=None):
+    sources = sources or SOURCES + ["rls_direct"]
     base, maker = CASES[case][0], CASES[case][1]
     spec = spec_of(base)
     device = case.split("robot_eye_")[-1]
@@ -110,7 +121,11 @@ def episode(case, seed, draw, model_name="layer_s", days=DAYS, gate="surprise"):
     row = {"case": case, "seed": seed, "draw": draw, "model": model_name, "days": days, "gate": gate,
            "dream_n": DREAM_N, "eps": EPS}
     eta = default_eta("rls_rf@task")
-    for src in SOURCES + ["rls_direct"]:
+    pred = None
+    if any(s in PRED for s in sources):
+        from .latent_pred import load
+        pred = load(model_name, seed)
+    for src in sources:
         m = net(model_name, base, seed)
         S = Fast(m, "rls_rf@task", eta, seed * 100 + draw + 50, spec)        # hooked first: the slow module
         F = Fast(m, "rls_rf@task", eta, seed * 100 + draw, spec)
@@ -141,7 +156,7 @@ def episode(case, seed, draw, model_name="layer_s", days=DAYS, gate="surprise"):
                 obs_u, cells = unlabelled(seed, draw, c, DREAM_N)
                 z = probe.head_inputs(obs_u)
             else:
-                z = dreams(src, h_day, rng, gauss)
+                z = dreams(src, h_day, rng, gauss, pred)
             with torch.no_grad():
                 if src == "unlab_true":
                     from .tasks.servo import DEVICES
@@ -172,16 +187,17 @@ def main():
     ap.add_argument("--draws", type=int, default=2)
     ap.add_argument("--days", type=int, default=DAYS)
     ap.add_argument("--gate", default="surprise", choices=["none", "surprise"])
+    ap.add_argument("--sources", nargs="+", default=None, help="default: all but the predictor sources")
     ap.add_argument("--workers", type=int, default=2)
     ap.add_argument("--out", default=str(OUT))
     a = ap.parse_args()
-    jobs = [(c, s, d, a.model, a.days, a.gate) for c in a.cases for s in a.seeds for d in range(a.draws)]
+    jobs = [(c, s, d, a.model, a.days, a.gate, a.sources) for c in a.cases for s in a.seeds for d in range(a.draws)]
     with mp.get_context("spawn").Pool(a.workers) as pool, open(a.out, "a") as f:
         for row in pool.imap(_job, jobs):
             f.write(json.dumps(row) + "\n")
             f.flush()
             print(row["case"], row["seed"], row["draw"],
-                  {s: row[s]["sleep"] for s in SOURCES + ["rls_direct"]}, "wake", row["replay"]["wake"], flush=True)
+                  {s: row[s]["sleep"] for s in row if isinstance(row[s], dict)}, flush=True)
 
 
 if __name__ == "__main__":
