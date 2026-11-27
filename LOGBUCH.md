@@ -5580,5 +5580,22 @@ und Folge der Handlung), eine Wahrnehmung der aufgabenrelevanten Größe, und ei
   `rls_direct`. (3) Die neue Regel wacht mehr: Wach-Updates an den Tagen 2–4 im Mittel mindestens doppelt so
   viele wie bei `pos_map`.
 
+- Phase F, genauerer Latent-Prädiktor (Auftrag Nutzer 2026-11-27). Neu (Commit nach diesem Eintrag):
+  `latent_pred.py --hid` (Breite), `--head-w` (Kopf-Konsistenz: der eingefrorene Kopf soll aus dem vorhergesagten
+  Latent dasselbe lesen wie aus dem echten, zusätzlicher Verlust auf seinen Ausgaben), `--scenes` (Training auf den
+  ersten n Szenen; Voreinstellung 4000, wie bisher); 12 000 Würfel-Szenen mit Kamerabild exportiert (dieselben
+  wie `gazemulti_train.npz`). Entwicklung auf Startnetz 5 (Kopf liest den Würfel aus dem vorhergesagten Latent
+  nach 1 / 2 / 3 / 4 Schritten; Bezug `_roll8` 0,58 / 0,47 / 0,43 / 0,39; `results/latent_pred.jsonl`): Breite 512
+  0,63 / 0,52 / 0,42 / 0,38; Kopf-Konsistenz 0,59 / 0,52 / 0,42 / 0,36; beides (`_h512hw1`, gewählt) 0,64 / 0,54 /
+  0,47 / 0,44; beides auf 12 000 Szenen mit 4 Läufen je Szene 0,61 / 0,52 / 0,42 / 0,38 (mehr Szenen helfen nicht).
+  Startnetz 6 mit `_h512hw1`: 0,60 / 0,48 / 0,45 / 0,41 (`_roll8` 0,59 / 0,51 / 0,42 / 0,38). Lauf: `--holdout`,
+  24 Episoden, Quelle learn1_fam mit `--pred-tag _h512hw1`, nach `results/latent_sleep_holdout3.jsonl`; Bezug
+  learn1_fam mit `_roll8`: zurückgehalten 0,71, gesehen 0,94. Vorab gesehen (Probe Seed 5, Ziehung 0,
+  zurückgehalten an Tag 4): flipx 0,79 (`_roll8` 0,72), weak 0,93 (0,83).
+  **Vorhersage vor dem Lauf (2026-11-27):** (1) Der genauere Prädiktor hebt die Träume in der zurückgehaltenen
+  Hälfte: learn1_fam an Tag 4 ≥ 0,74 (Bezug 0,71). (2) Der Gewinn liegt vor allem auf Startnetz 5 (dort ist der
+  Prädiktor deutlich besser geworden, auf 6 kaum): Gewinn auf 5 ≥ Gewinn auf 6 + 0,03. (3) Die gesehene Hälfte
+  bleibt: innerhalb ± 0,02 von 0,94.
+
 - Noch in Bits: `*_parts` (die Anpassungs-Studien servo / robot sind seit 2026-11-23 umgestellt); nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

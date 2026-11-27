@@ -45,9 +45,9 @@ T, MAX_STEP, RUNS, HID = 4, 5, 4, 256
 
 
 class Predictor(nn.Module):
-    def __init__(self, d):
+    def __init__(self, d, hid=HID):
         super().__init__()
-        self.net = nn.Sequential(nn.Linear(d + 2, HID), nn.GELU(), nn.Linear(HID, HID), nn.GELU(), nn.Linear(HID, d))
+        self.net = nn.Sequential(nn.Linear(d + 2, hid), nn.GELU(), nn.Linear(hid, hid), nn.GELU(), nn.Linear(hid, d))
 
     def forward(self, h, step):
         return h + self.net(torch.cat([h, step / 8.0], -1))
@@ -58,13 +58,13 @@ def encoder(model_name, seed):
     return Fast(m, "rls_rf@task", default_eta("rls_rf@task"), 0, None)   # only for head_inputs (frozen latents)
 
 
-def runs(files, rng, runs_per_scene=RUNS, with_view=False):
+def runs(files, rng, runs_per_scene=RUNS, with_view=False, n_scenes=None):
     """-> views uint8 [N, T + 1, 3, 16, 16], steps [N, T, 2], body steps [N, T + 1, 3, 2] (true step to each body
     from that gaze)."""
     V, S, Bd, IV = [], [], [], []
     for f in files:
         with np.load(f) as z:                               # read every array once (an npz decompresses on access)
-            imgs, gazes, poss = z["img"], z["gaze"], z["pos"]
+            imgs, gazes, poss = z["img"][:n_scenes], z["gaze"][:n_scenes], z["pos"][:n_scenes]
         for i in range(len(imgs)):
             sat = fv.integral(imgs[i])
             for _ in range(runs_per_scene):
@@ -122,7 +122,7 @@ def probe_acc(W, h, bodies):
 
 
 def train(model_name="layer_s", seed=5, parts=4, epochs=40, out=OUT, data="multi", loss_kind="one", tag="",
-          runs_per_scene=RUNS):
+          runs_per_scene=RUNS, hid=HID, head_w=0.0, n_scenes=None):
     torch.manual_seed(seed)
     rng = np.random.default_rng(seed)
     if data == "multi":
@@ -132,12 +132,17 @@ def train(model_name="layer_s", seed=5, parts=4, epochs=40, out=OUT, data="multi
                        key=lambda f: int(f.split("_p")[1].split("_")[0]))[:parts]
         test = DATA / "gazeshapec_test_img.npz"
     enc = encoder(model_name, seed)
-    Vtr, Str, Btr = runs(files, rng, runs_per_scene)
+    Vtr, Str, Btr = runs(files, rng, runs_per_scene, n_scenes=n_scenes or 4000)
     Vte, Ste, Bte = runs([test], np.random.default_rng(1000 + seed), 1)
     Htr, Hte = encode(enc, Vtr), encode(enc, Vte)
     d = Htr.shape[-1]
     var = float(Htr.reshape(-1, d).var(0).sum())
-    P = Predictor(d)
+    P = Predictor(d, hid)
+    from .adapt import spec_of
+    sl = spec_of("robot_gaze").out_slice
+    head = enc.model.head                                   # frozen base head: what it reads must survive the step
+    with torch.no_grad():
+        Ltr = head(Htr.reshape(-1, d))[:, sl].view(Htr.shape[0], Htr.shape[1], -1)
     opt = torch.optim.Adam(P.parameters(), lr=1e-3)
     h0, h1 = Htr[:, :-1].reshape(-1, d), Htr[:, 1:].reshape(-1, d)
     st = torch.from_numpy(Str.reshape(-1, 2))
@@ -151,6 +156,8 @@ def train(model_name="layer_s", seed=5, parts=4, epochs=40, out=OUT, data="multi
                 for t in range(T):
                     h = P(h, S_all[j, t])
                     loss = loss + (h - Htr[j, t + 1]).pow(2).sum(-1).mean()
+                    if head_w:                                      # head consistency: same reading as the true latent
+                        loss = loss + head_w * (head(h)[:, sl] - Ltr[j, t + 1]).pow(2).sum(-1).mean()
                 opt.zero_grad()
                 (loss / T).backward()
                 opt.step()
@@ -167,6 +174,8 @@ def train(model_name="layer_s", seed=5, parts=4, epochs=40, out=OUT, data="multi
            "T": T, "max_step": MAX_STEP, "epochs": epochs, "d": d}
     if loss_kind != "one" or tag or runs_per_scene != RUNS:
         rep.update({"loss": loss_kind, "tag": tag, "runs_per_scene": runs_per_scene})
+    if hid != HID or head_w or (n_scenes or 4000) != 4000:
+        rep.update({"hid": hid, "head_w": head_w, "n_scenes": n_scenes or 4000})
     with torch.no_grad():
         ste = torch.from_numpy(Ste)
         h = Hte[:, 0]
@@ -185,7 +194,7 @@ def train(model_name="layer_s", seed=5, parts=4, epochs=40, out=OUT, data="multi
     rep.update({"err_pred": err_p, "err_still": err_0, "probe_true": acc_t, "probe_pred": acc_p,
                 "probe_still": acc_0, "head_true": hd_t, "head_pred": hd_p, "head_still": hd_0})
     CKPT.mkdir(parents=True, exist_ok=True)
-    torch.save({"state": P.state_dict(), "d": d, "report": rep}, CKPT / f"{model_name}_s{seed}{tag}.pt")
+    torch.save({"state": P.state_dict(), "d": d, "hid": hid, "report": rep}, CKPT / f"{model_name}_s{seed}{tag}.pt")
     with open(out, "a") as f:
         f.write(json.dumps(rep) + "\n")
     print(json.dumps(rep))
@@ -194,7 +203,7 @@ def train(model_name="layer_s", seed=5, parts=4, epochs=40, out=OUT, data="multi
 
 def load(model_name, seed, tag=""):
     ck = torch.load(CKPT / f"{model_name}_s{seed}{tag}.pt", weights_only=False)
-    P = Predictor(ck["d"])
+    P = Predictor(ck["d"], ck.get("hid", HID))
     P.load_state_dict(ck["state"])
     return P.eval()
 
@@ -209,6 +218,9 @@ def main():
     ap.add_argument("--loss", choices=["one", "roll"], default="one")
     ap.add_argument("--tag", default="")
     ap.add_argument("--central", type=int, default=CENTRAL, help="conseq: learn from read cells within +-central")
+    ap.add_argument("--hid", type=int, default=HID)
+    ap.add_argument("--scenes", type=int, default=4000, help="train: first n scenes of gazemulti_train_img")
+    ap.add_argument("--head-w", type=float, default=0.0, help="weight of the head-consistency loss (roll)")
     ap.add_argument("--runs", type=int, default=RUNS, help="runs of T steps per scene")
     ap.add_argument("--epochs", type=int, default=40)
     ap.add_argument("--out", default=str(OUT))
@@ -217,7 +229,7 @@ def main():
         if a.cmd == "conseq":
             train_conseq(a.model, s, a.epochs, a.out, a.runs, a.central, a.tag)
         else:
-            train(a.model, s, a.parts, a.epochs, a.out, a.data, a.loss, a.tag, a.runs)
+            train(a.model, s, a.parts, a.epochs, a.out, a.data, a.loss, a.tag, a.runs, a.hid, a.head_w, a.scenes)
 
 
 
@@ -258,7 +270,7 @@ CENTRAL = 5     # the consequence model learns from steps whose READ cells lie w
 def train_conseq(model_name="layer_s", seed=5, epochs=30, out=OUT, runs_per_scene=RUNS, central=CENTRAL, tag=""):
     torch.manual_seed(seed)
     enc = encoder(model_name, seed)
-    Vtr, Str, Btr = runs([DATA / "gazemulti_train_img.npz"], np.random.default_rng(seed), runs_per_scene)
+    Vtr, Str, Btr = runs([DATA / "gazemulti_train_img.npz"], np.random.default_rng(seed), runs_per_scene, n_scenes=4000)
     Vte, Ste, Bte, IVte = runs([DATA / "gazemulti_test_img.npz"], np.random.default_rng(1000 + seed), 1, True)
     Htr, Hte = encode(enc, Vtr), encode(enc, Vte)
     n, t1, d = Htr.shape
