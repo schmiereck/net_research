@@ -24,6 +24,13 @@ Dream latents (DREAM_N per night):
              the labelled images); after the steps it lies where the fovea geometry puts it (tasks/fovea.py: its
              sampling point seen from the moved gaze), and the label is the calibration of that step. Dreams in
              which the cube leaves the field of view are dropped.
+    learn1_lin / learn1_knn / geo1_lin  LEGITIMATELY labelled predictor dreams (one gaze step, |dx|, |dy| <= 5): what
+             the system has or learns itself: (i) the red cube's cell c in a memory, as the base net's head READS it;
+             (ii) its cell after the step, from the learned consequence model (latent_pred.py conseq; "learn") or the
+             eye's geometry ("geo"); (iii) the label of a cell, from the day's 64 labelled memories: an affine
+             least-squares map cell -> step ("lin", trimmed: steps wrap around at -8 / 7) or the nearest memory
+             ("knn"). With the geometry, dreams in which the cube leaves the field of view are dropped.
+    unlab_lin  control without imagination: latents of the day's unlabelled images, labelled by (i) + (iii lin).
 Controls: `unlab_true` (sleep on the unlabelled latents with their TRUE labels: what the dream labels cost) and
 `rls_direct` (rls_rf at the head trained directly on every day's labelled images, kept over the days).
 """
@@ -45,6 +52,28 @@ OUT = ROOT / "results" / "latent_sleep.jsonl"
 SOURCES = ["replay", "noise", "mix", "unlab", "gauss", "unlab_true"]
 PRED = {"pred_near": (1, 2), "pred_far": (2, 5)}             # dream source -> (gaze steps, largest |dx|, |dy|)
 CARRY = {"carry1": 1, "carry2": 2, "carry3": 3}              # dream source -> gaze steps (|dx|, |dy| <= 5)
+LEGIT = {"learn1_lin": ("learn", "lin"), "learn1_knn": ("learn", "knn"), "geo1_lin": ("geo", "lin"),
+         "unlab_lin": (None, "lin")}
+CENTRAL = 8     # dreams kept where the cells lie within +-CENTRAL (8 = the whole field; 5 halves the coverage)
+
+
+def cell_label_map(c, y, kind):
+    """The label of a cube cell, learned from the day's memories (c: read cells [n, 2], y: label steps [n, 2])."""
+    if kind == "knn":
+        def g(q):
+            d = ((q[:, None, :] - c[None, :, :]) ** 2).sum(-1)
+            return y[d.argmin(1)]
+        return g
+    X = np.concatenate([c, np.ones((len(c), 1))], 1).astype(np.float64)
+    keep = np.ones(len(c), bool)
+    for _ in range(3):                                      # trimmed least squares: steps wrap around at -8 / 7
+        A = np.linalg.lstsq(X[keep], y[keep].astype(np.float64), rcond=None)[0]   # (a flip of -8 is -8), and
+        keep = np.abs(X @ A - y).max(-1) <= 1.5                                    # a misread memory is an outlier
+
+    def g(q):
+        out = np.concatenate([q, np.ones((len(q), 1))], 1) @ A
+        return np.clip(np.round(out), -8, 7).astype(np.int64)
+    return g
 
 
 def carried(red, steps):
@@ -129,7 +158,8 @@ def dreams(src, h_day, rng, gauss, pred=None):
     return mean + torch.from_numpy(rng.standard_normal((DREAM_N, len(mean))).astype(np.float32)) @ L.T
 
 
-def episode(case, seed, draw, model_name="layer_s", days=DAYS, gate="surprise", sources=None, pred_tag=""):
+def episode(case, seed, draw, model_name="layer_s", days=DAYS, gate="surprise", sources=None, pred_tag="",
+            conseq_tag="_all"):
     sources = sources or SOURCES + ["rls_direct"]
     base, maker = CASES[case][0], CASES[case][1]
     spec = spec_of(base)
@@ -145,9 +175,15 @@ def episode(case, seed, draw, model_name="layer_s", days=DAYS, gate="surprise", 
            "dream_n": DREAM_N, "eps": EPS}
     if pred_tag:
         row["pred_tag"] = pred_tag
+    if any(s in LEGIT for s in sources):
+        row["conseq_tag"] = conseq_tag
     eta = default_eta("rls_rf@task")
+    conseq = None
+    if any(LEGIT.get(s, (None,))[0] == "learn" for s in sources):
+        from .latent_pred import load_conseq
+        conseq = load_conseq(model_name, seed, conseq_tag)
     pred = None
-    if any(s in PRED or s in CARRY for s in sources):
+    if any(s in PRED or s in CARRY or (s in LEGIT and LEGIT[s][0]) for s in sources):
         from .latent_pred import load
         pred = load(model_name, seed, pred_tag)
     for src in sources:
@@ -178,7 +214,34 @@ def episode(case, seed, draw, model_name="layer_s", days=DAYS, gate="surprise", 
             cur["wake"].append(score_on(m, tb, spec))                        # W + S + F
             h_day = probe.head_inputs(b["obs"])
             carry_y = None
-            if src in CARRY:
+            if src in LEGIT:
+                fk, gk = LEGIT[src]
+                with torch.no_grad():
+                    c_mem = decode_step(probe.model.head(h_day)[:, spec.out_slice].numpy(), spec)   # (i) read
+                y_mem = decode_step(b["target"][0].numpy(), spec, logits=False)
+                g = cell_label_map(c_mem, y_mem, gk)                                          # (iii)
+                if fk is None:                                                                # no imagination
+                    z = probe.head_inputs(unlabelled(seed, draw, c, DREAM_N)[0])
+                    with torch.no_grad():
+                        cz = decode_step(probe.model.head(z)[:, spec.out_slice].numpy(), spec)
+                    keep = np.abs(cz).max(-1) <= CENTRAL
+                    lab = g(cz)
+                else:
+                    i = rng.integers(0, len(h_day), DREAM_N)
+                    st = rng.integers(-5, 6, (DREAM_N, 2))
+                    with torch.no_grad():
+                        z = pred(h_day[torch.from_numpy(i)], torch.from_numpy(st.astype(np.float32)))
+                    c0 = c_mem[i]
+                    if fk == "learn":                                                         # (ii)
+                        c1, inv = conseq.cell(c0, st), np.ones(len(c0), bool)
+                    else:
+                        c1, inv = carried(c0, st[:, None])
+                    keep = inv & (np.abs(c0).max(-1) <= CENTRAL) & (np.abs(c1).max(-1) <= CENTRAL)
+                    lab = g(c1)
+                k_ = torch.from_numpy(keep)
+                z, carry_y = z[k_], torch.from_numpy(step_target(lab[:, 0], lab[:, 1], spec.pop))[k_]
+                cur.setdefault("n_dreams", []).append(int(keep.sum()))
+            elif src in CARRY:
                 from .tasks.servo import DEVICES
                 i = rng.integers(0, len(h_day), DREAM_N)
                 st = rng.integers(-5, 6, (DREAM_N, CARRY[src], 2))

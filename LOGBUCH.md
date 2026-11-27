@@ -5371,5 +5371,30 @@ Würfel-Lage gehört (aus den 64 beschrifteten Erinnerungen des Tages gelernt). 
   `rls_direct`. (3) Die neue Regel wacht mehr: Wach-Updates an den Tagen 2–4 im Mittel mindestens doppelt so
   viele wie bei `pos_map`.
 
+- Phase F, Folge der Handlung lernen und legitim beschriftete Träume (Auftrag Nutzer 2026-11-27, nach der
+  Korrektur). Neu (Commit nach diesem Eintrag): `latent_pred.py conseq`: ein Folge-Modell (Zelle des roten
+  Würfels vorher, Blick-Schritt) → Zelle nachher, gelernt nur aus dem, was der Kopf des Grundnetzes vor und
+  nach den eigenen Augenbewegungen *liest* (keine Beschriftung, keine Geometrie); `latent_sleep.py` Quellen
+  learn1_lin (Prädiktor-Traum, ein Schritt; Beschriftung aus (i) gelesener Zelle der Erinnerung, (ii) gelernter
+  Folge, (iii) aus den 64 Erinnerungen des Tages gelernter Abbildung Zelle → Beschriftung, affin mit getrimmten
+  kleinsten Quadraten), geo1_lin (wie learn1_lin, (ii) aus der Geometrie des eigenen Auges) und unlab_lin
+  (Kontrolle ohne Vorstellung: unbeschriftete echte Bilder des Tages, beschriftet über (i) + (iii)).
+  Entwicklung (Startnetz 5, `results/latent_pred.jsonl`; Treffer der Zelle nach dem Schritt, wo der Würfel vor
+  und nach dem Schritt im Blickfeld liegt; Kopf liest den Würfel dort zu 0,80, im Zentrum ±4 zu 0,98, außen zu
+  0,74): Folge-Modell mit Zahlen-Eingaben, nur zentrale Lesungen: Zentrum 0,67 (Geometrie 0,91; c − s 0,57);
+  viermal mehr Daten 0,69; One-hot-Eingaben (Versatz jeder zweiten Hex-Zeile) 0,84; One-hot auf dem ganzen
+  Blickfeld (gewählt, `_all`) Zentrum 0,82, ganzes Feld aus gelesener Zelle 0,60 (Geometrie 0,73). Die affine
+  Abbildung brauchte Trimmen (ohne: 0,17 Treffer auf den eigenen Erinnerungen, weil Schritte bei −8 / 7
+  umwickeln); nächste Erinnerung statt affin (knn) war in Proben schlecht (0,14–0,38) und ist nicht im Lauf;
+  Träume nur im Zentrum ±5 halbierten die Abdeckung (Proben 0,13–0,57). Startnetz 6 entsprechend (Zentrum 0,85,
+  ganzes Feld 0,61). Lauf: 24 Episoden, Quellen learn1_lin, geo1_lin, unlab_lin, Prädiktor `_roll8`, nach
+  `results/latent_sleep_legit.jsonl`. Vorab gesehen (Probe Seed 5, Ziehung 0; W + S an Tag 1 / 4): flipx
+  learn1_lin 0,76 / 0,93, geo1_lin 0,79 / 0,91, unlab_lin 0,96 / 0,96; strong 0,87 / 0,96, 0,93 / 0,95, 0,99 / 0,96.
+  **Vorhersage vor dem Lauf (2026-11-27):** (1) Legitim beschriftete Prädiktor-Träume liegen nach der ersten
+  Nacht über direktem Training: learn1_lin an Tag 1 ≥ rls_direct an Tag 1 + 0,05 (0,65). (2) Gelernte Folge
+  und Geometrie sind gleichwertig: |learn1_lin − geo1_lin| an Tag 4 ≤ 0,03. (3) Ohne Vorstellung geht es
+  mindestens so gut: unlab_lin an Tag 4 ≥ learn1_lin an Tag 4; der Gewinn kommt dann aus der Zerlegung
+  (Wahrnehmung der Würfel-Lage + kleine gelernte Abbildung), nicht aus dem Träumen.
+
 - Noch in Bits: `*_parts` (die Anpassungs-Studien servo / robot sind seit 2026-11-23 umgestellt); nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

@@ -15,6 +15,8 @@ robot's own eye movements, with no task and no labels:
     P      MLP [h, dx / 8, dy / 8] -> 256 -> 256 -> delta h (residual), Adam on the one-step squared error
            (--loss one), or on the error of its own rollout over all T steps (--loss roll: the predictor is fed its
            own predictions, as in a dream, and the gradient runs through the whole run).
+    conseq  (command) the CONSEQUENCE model: where the red cube will be after a gaze step, learned from what the
+           base head reads before and after the robot's own eye movements (no labels, no geometry).
     --tag  name of the variant (checkpoint <model>_s<seed><tag>.pt; "" = the first predictor).
 Report on held-out scenes: one-step and T-step rollout error relative to the variance of h, against "nothing
 moves" (h_{t+k} = h_t); and whether the predicted latent keeps its MEANING: a linear probe trained on true latents
@@ -56,10 +58,10 @@ def encoder(model_name, seed):
     return Fast(m, "rls_rf@task", default_eta("rls_rf@task"), 0, None)   # only for head_inputs (frozen latents)
 
 
-def runs(files, rng, runs_per_scene=RUNS):
+def runs(files, rng, runs_per_scene=RUNS, with_view=False):
     """-> views uint8 [N, T + 1, 3, 16, 16], steps [N, T, 2], body steps [N, T + 1, 3, 2] (true step to each body
     from that gaze)."""
-    V, S, Bd = [], [], []
+    V, S, Bd, IV = [], [], [], []
     for f in files:
         with np.load(f) as z:                               # read every array once (an npz decompresses on access)
             imgs, gazes, poss = z["img"], z["gaze"], z["pos"]
@@ -68,6 +70,7 @@ def runs(files, rng, runs_per_scene=RUNS):
             for _ in range(runs_per_scene):
                 g = np.asarray(gazes[i], float)
                 views, steps, bodies = [fv.sample(sat, g)], [], [[fv.nearest_cell(g, p)[:2] for p in poss[i]]]
+                inview = [fv.nearest_cell(g, poss[i][0])[2] <= 2 * fv.K]
                 for _ in range(T):
                     while True:
                         s = rng.integers(-MAX_STEP, MAX_STEP + 1, 2)
@@ -78,9 +81,13 @@ def runs(files, rng, runs_per_scene=RUNS):
                     steps.append(s)
                     views.append(fv.sample(sat, g))
                     bodies.append([fv.nearest_cell(g, p)[:2] for p in poss[i]])
+                    inview.append(fv.nearest_cell(g, poss[i][0])[2] <= 2 * fv.K)
                 V.append(views)
                 S.append(steps)
                 Bd.append(bodies)
+                IV.append(inview)
+    if with_view:                                           # also: is the red cube in the field of view
+        return np.array(V), np.array(S, np.float32), np.array(Bd, np.int64), np.array(IV)
     return np.array(V), np.array(S, np.float32), np.array(Bd, np.int64)
 
 
@@ -194,19 +201,116 @@ def load(model_name, seed, tag=""):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["train"])
+    ap.add_argument("cmd", choices=["train", "conseq"])
     ap.add_argument("--model", default="layer_s")
     ap.add_argument("--seeds", nargs="+", type=int, default=[5])
     ap.add_argument("--parts", type=int, default=4, help="--data shape: how many image parts")
     ap.add_argument("--data", choices=["multi", "shape"], default="multi")
     ap.add_argument("--loss", choices=["one", "roll"], default="one")
     ap.add_argument("--tag", default="")
+    ap.add_argument("--central", type=int, default=CENTRAL, help="conseq: learn from read cells within +-central")
     ap.add_argument("--runs", type=int, default=RUNS, help="runs of T steps per scene")
     ap.add_argument("--epochs", type=int, default=40)
     ap.add_argument("--out", default=str(OUT))
     a = ap.parse_args()
     for s in a.seeds:
-        train(a.model, s, a.parts, a.epochs, a.out, a.data, a.loss, a.tag, a.runs)
+        if a.cmd == "conseq":
+            train_conseq(a.model, s, a.epochs, a.out, a.runs, a.central, a.tag)
+        else:
+            train(a.model, s, a.parts, a.epochs, a.out, a.data, a.loss, a.tag, a.runs)
+
+
+
+# ------------------------------------------------------------------- consequence of a gaze step (learned)
+class Consequence(nn.Module):
+    """Where the red cube will be after a gaze step: (cell before, step) -> cell after (16 classes per axis).
+    Learned from the robot's own eye movements; inputs and targets are what the base net's head READS before and
+    after the step (no labels, no geometry)."""
+
+    def __init__(self):
+        super().__init__()                                  # inputs one-hot: cell and step per axis (the hex rows
+        self.net = nn.Sequential(nn.Linear(64, 128), nn.GELU(), nn.Linear(128, 128), nn.GELU(), nn.Linear(128, 32))
+
+    def forward(self, c, step):                             # shift every second row: parity matters, not size)
+        oh = lambda v: nn.functional.one_hot((v.long() + 8).clamp(0, 15), 16).float().flatten(1)
+        return self.net(torch.cat([oh(c), oh(step)], -1)).view(-1, 2, 16)
+
+    def cell(self, c, step):
+        """-> predicted cells [n, 2] (ints -8..7) for numpy cells and steps."""
+        with torch.no_grad():
+            lg = self(torch.from_numpy(np.asarray(c, np.float32)), torch.from_numpy(np.asarray(step, np.float32)))
+        return lg.argmax(-1).numpy().astype(np.int64) - 8
+
+
+def read_cells(enc, h):
+    """The base head's reading of the red cube's cell from latents h -> [n, 2]."""
+    from .adapt import spec_of
+    from .tasks.servo import decode_step
+    spec = spec_of("robot_gaze")
+    with torch.no_grad():
+        return decode_step(enc.model.head(h)[:, spec.out_slice].numpy(), spec)
+
+
+CENTRAL = 5     # the consequence model learns from steps whose READ cells lie within +-CENTRAL (the head reads there
+#                 at 0.98, in the periphery at 0.74); dreams keep the cube there too
+
+
+def train_conseq(model_name="layer_s", seed=5, epochs=30, out=OUT, runs_per_scene=RUNS, central=CENTRAL, tag=""):
+    torch.manual_seed(seed)
+    enc = encoder(model_name, seed)
+    Vtr, Str, Btr = runs([DATA / "gazemulti_train_img.npz"], np.random.default_rng(seed), runs_per_scene)
+    Vte, Ste, Bte, IVte = runs([DATA / "gazemulti_test_img.npz"], np.random.default_rng(1000 + seed), 1, True)
+    Htr, Hte = encode(enc, Vtr), encode(enc, Vte)
+    n, t1, d = Htr.shape
+    ctr = read_cells(enc, Htr.reshape(-1, d)).reshape(n, t1, 2)
+    a0, a1 = ctr[:, :-1].reshape(-1, 2), ctr[:, 1:].reshape(-1, 2)
+    keep = (np.abs(a0).max(-1) <= central) & (np.abs(a1).max(-1) <= central)   # chosen by what the robot reads
+    c0 = torch.from_numpy(a0[keep].astype(np.float32))
+    c1 = torch.from_numpy(a1[keep] + 8)
+    st = torch.from_numpy(Str.reshape(-1, 2)[keep])
+    C = Consequence()
+    opt = torch.optim.Adam(C.parameters(), lr=1e-3)
+    for ep in range(epochs):
+        perm = torch.randperm(len(c0))
+        for i in range(0, len(c0), 256):
+            j = perm[i:i + 256]
+            loss = nn.functional.cross_entropy(C(c0[j], st[j]).reshape(-1, 16), c1[j].reshape(-1))
+            opt.zero_grad()
+            loss.backward()
+            opt.step()
+    from .latent_sleep import carried
+    te_true0, te_true1 = Bte[:, :-1, 0].reshape(-1, 2), Bte[:, 1:, 0].reshape(-1, 2)
+    ste = Ste.reshape(-1, 2)
+    m, t1e, _ = Hte.shape
+    cte = read_cells(enc, Hte.reshape(-1, d)).reshape(m, t1e, 2)
+    geo, _ = carried(te_true0, ste[:, None])
+    ok = (IVte[:, :-1] & IVte[:, 1:]).reshape(-1)           # judged where the cube is in view before and after
+    cen = ok & (np.abs(te_true0).max(-1) <= CENTRAL) & (np.abs(te_true1).max(-1) <= CENTRAL)
+    rep = {"what": "consequence", "model": model_name, "seed": seed, "epochs": epochs, "runs_per_scene": runs_per_scene,
+           "central": CENTRAL, "train_central": central, "tag": tag, "share_central": round(float(cen.mean()), 4),
+           "central_learned_from_true_cell": round(float((C.cell(te_true0, ste) == te_true1).all(-1)[cen].mean()), 4),
+           "central_geometry_from_true_cell": round(float((geo == te_true1).all(-1)[cen].mean()), 4),
+           "central_c_minus_step": round(float(((te_true0 - ste) == te_true1).all(-1)[cen].mean()), 4),
+           "n_train_steps": int(len(c0)),
+           "read_acc": round(float((cte == Bte[:, :, 0]).all(-1).mean()), 4),
+           "learned_from_true_cell": round(float((C.cell(te_true0, ste) == te_true1).all(-1)[ok].mean()), 4),
+           "learned_from_read_cell": round(float((C.cell(cte[:, :-1].reshape(-1, 2), ste) == te_true1).all(-1)[ok].mean()), 4),
+           "geometry_from_true_cell": round(float((geo == te_true1).all(-1)[ok].mean()), 4),
+           "geometry_from_read_cell": round(float((carried(cte[:, :-1].reshape(-1, 2), ste[:, None])[0]
+                                                   == te_true1).all(-1)[ok].mean()), 4),
+           "share_in_view": round(float(ok.mean()), 4)}
+    CKPT.mkdir(parents=True, exist_ok=True)
+    torch.save({"state": C.state_dict(), "report": rep}, CKPT / f"{model_name}_s{seed}_conseq{tag}.pt")
+    with open(out, "a") as f:
+        f.write(json.dumps(rep) + "\n")
+    print(json.dumps(rep))
+    return C
+
+
+def load_conseq(model_name, seed, tag=""):
+    C = Consequence()
+    C.load_state_dict(torch.load(CKPT / f"{model_name}_s{seed}_conseq{tag}.pt", weights_only=False)["state"])
+    return C.eval()
 
 
 if __name__ == "__main__":
