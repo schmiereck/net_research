@@ -1678,6 +1678,11 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
     geformt, normierter Fehler-Eingang) und ist über 20 Updates hinaus instabil. Nächster Schritt: die
     Wach-Regel im Kreislauf formen (ES-Episoden ab W + S) oder mit einem Überraschungs-Schalter versehen; dazu
     eine Aufgabe, die nicht nach 3 Tagen an der Decke liegt.
+  - **Überraschungs-Schalter erledigt (2026-11-27, LOGBUCH, `results/sleep_gate.jsonl`):** Mit Schalter je Update
+    (Wach-Regel läuft nur, solange ≥ 10 % der Tages-Beispiele falsch sind) und rls_rf als Schlaf-Lerner wird der
+    Kreislauf auf den Kopf-Aufgaben von Tag zu Tag besser (xmFF 0,49 → 0,66, xm0F 0,66 → 0,77; einmal wach
+    0,58 / 0,76). Schalter je Beispiel bricht die Regel; innen kein Gewinn. Offen: die faire Kontrolle rls_rf
+    direkt auf allen echten Beispielen, und ein Kreislauf nur aus Schlaf, um den Beitrag des Wachens zu trennen.
 - Langzeittest: 20 neue Varianten nacheinander lernen und dabei das Vergessen und die Generalisierung
   verfolgen.
 

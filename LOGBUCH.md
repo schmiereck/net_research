@@ -4926,30 +4926,87 @@ Aufgabe, die nicht schon nach 3 Tagen an der Decke liegt.
 **Belege.** `results/sleep_learners.jsonl` (18 Zeilen), `results/sleep_loop.jsonl` (36 Zeilen);
 `netresearch/jobs.py` (Schlüssel beim Holen).
 
-## Laufend / offen
+## 2026-11-27 — Phase F, Überraschungs-Schalter im Kreislauf: mit Schalter je Update und rls_rf als Schlaf-Lerner wird der Kreislauf auf den Kopf-Aufgaben zum ersten Mal von Tag zu Tag besser; auf den Innen-Aufgaben hilft kein Schalter
 
-- Phase F, Überraschungs-Schalter für die Wachphase im Kreislauf (Auftrag Nutzer 2026-11-27, Weg 2 aus dem
-  Eintrag davor). Neu in `sleep.py loop --gates` (Commit nach diesem Eintrag; ohne Schalter unverändert):
-  `surprise` (je Update: die Regel läuft auf dem ganzen Tages-Batch, aber nur solange ≥ 10 % der 64 Beispiele
-  falsch sind; so bleibt ihr Arbeitsbereich „ganzer Batch“ erhalten) und `surprise_ex` (je Beispiel: die Regel
-  läuft nur auf den falschen Beispielen). Der Schalter wirkt im Kreislauf und in `wake_only`, nicht in `grad`.
-  Lauf: `loop --cases lib_prev lib_prev2 lib_xmFF lib_xm0F --learners grad rls_rf --gates none surprise
-  surprise_ex`, 4 Tage, Seeds 5–6 × 3 Ziehungen. Vorab gesehen (Proben, Seed 5, Ziehung 0, Lerner rls_rf):
-  surprise_ex auf xmFF: nach dem Wachen 0,07 / 0,03 / 0,01 / 0,01 (ohne Schalter 0,60 / 0,23 / 0,71 / 0,00);
-  surprise auf xmFF: nach dem Wachen 0,54 / 0,72 / 0,00 / 0,00, nach dem Schlaf 0,52 / 0,65 / 0,30 / 0,16;
-  surprise auf prev: nach dem Wachen 0,47 / 0,01 / 0,00 / 0,01, `wake_only` 0,47 / 0,75 / 0,94 / 0,94. Am Tag
-  2 lernt die Regel auf prev alle 20 Updates (mehr als 10 % falsch) und zerstört dabei W + S. Nebenbefund: In
-  `wake_only` läuft der Zeit-Eingang t / T der Regel über die Tage weiter (bis 4 statt bis 1); das trägt
-  vermutlich zum Absinken von `wake_only` im Eintrag davor bei. Lokal und auf dem Worker weichen die Werte
-  einzelner Episoden geringfügig ab (etwa 0,7051 gegen 0,7031), wie in Phase D.
-  **Vorhersage vor dem Lauf (2026-11-27):** (1) Keiner der beiden Schalter lässt den Kreislauf besser werden:
-  mit rls_rf auf xmFF und xm0F ist W + S nach Tag 4 bei beiden Schaltern nicht besser als nach Tag 1.
-  (2) surprise_ex schadet schon am ersten Tag: nach dem Wachen an Tag 1 auf xmFF um ≥ 0,20 unter dem Lauf ohne
-  Schalter. (3) Mit surprise bleibt der Einbruch an Tag 2 auf prev mit rls_rf: nach dem Wachen an Tag 2
-  ≤ 0,20. Vermutete Ursache: Die Regel antwortet auf einen schon niedrigen Fehler zu Beginn des Tages mit
-  zerstörenden Updates (ihr globaler Modulator hängt am Verlust S und an ΔS, und sie wurde nur auf Episoden
-  geformt, die bei hohem Verlust beginnen). Ein Schalter, der nur entscheidet, *ob* gelernt wird, behebt das
-  nicht; dafür muss die Regel im Kreislauf geformt werden (Weg 1).
+**Frage.** Hält ein Überraschungs-Schalter die Wach-Regel davon ab, im Kreislauf zu zerstören, was S schon
+kann, sodass der Kreislauf von Tag zu Tag besser wird?
+
+**Gemacht.** Commit bec11c8. Job `20261127-113322-sleep_gate1` (4 Fälle × 2 Schlaf-Lerner × 3 Schalter × 6
+Episoden = 144 Kreisläufe, 4 min). Vorhersage vor dem Lauf (wörtlich aus „Laufend / offen“):
+
+> - Phase F, Überraschungs-Schalter für die Wachphase im Kreislauf (Auftrag Nutzer 2026-11-27, Weg 2 aus dem
+>   Eintrag davor). Neu in `sleep.py loop --gates` (Commit nach diesem Eintrag; ohne Schalter unverändert):
+>   `surprise` (je Update: die Regel läuft auf dem ganzen Tages-Batch, aber nur solange ≥ 10 % der 64 Beispiele
+>   falsch sind; so bleibt ihr Arbeitsbereich „ganzer Batch“ erhalten) und `surprise_ex` (je Beispiel: die Regel
+>   läuft nur auf den falschen Beispielen). Der Schalter wirkt im Kreislauf und in `wake_only`, nicht in `grad`.
+>   Lauf: `loop --cases lib_prev lib_prev2 lib_xmFF lib_xm0F --learners grad rls_rf --gates none surprise
+>   surprise_ex`, 4 Tage, Seeds 5–6 × 3 Ziehungen. Vorab gesehen (Proben, Seed 5, Ziehung 0, Lerner rls_rf):
+>   surprise_ex auf xmFF: nach dem Wachen 0,07 / 0,03 / 0,01 / 0,01 (ohne Schalter 0,60 / 0,23 / 0,71 / 0,00);
+>   surprise auf xmFF: nach dem Wachen 0,54 / 0,72 / 0,00 / 0,00, nach dem Schlaf 0,52 / 0,65 / 0,30 / 0,16;
+>   surprise auf prev: nach dem Wachen 0,47 / 0,01 / 0,00 / 0,01, `wake_only` 0,47 / 0,75 / 0,94 / 0,94. Am Tag
+>   2 lernt die Regel auf prev alle 20 Updates (mehr als 10 % falsch) und zerstört dabei W + S. Nebenbefund: In
+>   `wake_only` läuft der Zeit-Eingang t / T der Regel über die Tage weiter (bis 4 statt bis 1); das trägt
+>   vermutlich zum Absinken von `wake_only` im Eintrag davor bei. Lokal und auf dem Worker weichen die Werte
+>   einzelner Episoden geringfügig ab (etwa 0,7051 gegen 0,7031), wie in Phase D.
+>   **Vorhersage vor dem Lauf (2026-11-27):** (1) Keiner der beiden Schalter lässt den Kreislauf besser werden:
+>   mit rls_rf auf xmFF und xm0F ist W + S nach Tag 4 bei beiden Schaltern nicht besser als nach Tag 1.
+>   (2) surprise_ex schadet schon am ersten Tag: nach dem Wachen an Tag 1 auf xmFF um ≥ 0,20 unter dem Lauf ohne
+>   Schalter. (3) Mit surprise bleibt der Einbruch an Tag 2 auf prev mit rls_rf: nach dem Wachen an Tag 2
+>   ≤ 0,20. Vermutete Ursache: Die Regel antwortet auf einen schon niedrigen Fehler zu Beginn des Tages mit
+>   zerstörenden Updates (ihr globaler Modulator hängt am Verlust S und an ΔS, und sie wurde nur auf Episoden
+>   geformt, die bei hohem Verlust beginnen). Ein Schalter, der nur entscheidet, *ob* gelernt wird, behebt das
+>   nicht; dafür muss die Regel im Kreislauf geformt werden (Weg 1).
+
+**Ergebnis.** layer_s@25k, Testwertung nach Tag 1 / 2 / 3 / 4, Mittel über 6 Episoden (Zeilen „keiner“ wie im
+Eintrag davor; `grad` als Kontrolle: prev 0,81 → 1,00, prev2 0,81 → 1,00, xmFF 0,01 → 0,04, xm0F 0,04 → 0,07):
+
+| Fall, Lerner | Schalter | nach dem Wachen | nach dem Schlaf (W + S) | `wake_only` | Wach-Updates je Tag (von 20) |
+|---|---|---|---|---|---|
+| xmFF, rls_rf | keiner | 0,58 / 0,49 / 0,43 / 0,10 | 0,57 / 0,51 / 0,49 / 0,38 | 0,58 / 0,59 / 0,52 / 0,41 | 20 |
+| | surprise | 0,51 / 0,67 / 0,57 / **0,71** | 0,49 / 0,60 / 0,61 / **0,66** | 0,51 / 0,52 / 0,45 / 0,45 | 5,5 / 2,8 / 5,5 / 2,8 |
+| | surprise_ex | 0,06 / 0,05 / 0,03 / 0,04 | 0,05 / 0,04 / 0,03 / 0,03 | 0,06 / 0,01 / 0,01 / 0,00 | (Teil-Batches) |
+| xm0F, rls_rf | keiner | 0,76 / 0,36 / 0,28 / 0,49 | 0,70 / 0,53 / 0,38 / 0,43 | 0,76 / 0,66 / 0,49 / 0,44 | 20 |
+| | surprise | 0,71 / 0,74 / 0,70 / 0,69 | 0,66 / 0,71 / 0,75 / **0,77** | 0,71 / 0,74 / 0,78 / 0,54 | 1,7 / 1,7 / 2,5 / 2,3 |
+| | surprise_ex | 0,06 / 0,03 / 0,02 / 0,03 | 0,06 / 0,04 / 0,03 / 0,03 | 0,06 / 0,01 / 0,01 / 0,00 | (Teil-Batches) |
+| prev, grad | keiner | 0,68 / 0,95 / 0,98 / 0,99 | 0,80 / 0,97 / 0,99 / 1,00 | 0,68 / 0,92 / 0,97 / 0,98 | 20 |
+| | surprise | 0,55 / 0,87 / 0,93 / 0,95 | 0,68 / 0,92 / 0,95 / 0,96 | 0,55 / 0,81 / 0,89 / 0,91 | 8,5 / 3,2 / 0,7 / 0 |
+| prev, rls_rf | surprise | 0,55 / 0,30 / 0,19 / 0,15 | 0,51 / 0,42 / 0,34 / 0,29 | | 8,5 / 11 / 15 / 15 |
+| prev2, grad | keiner | 0,74 / 0,96 / 0,99 / 1,00 | 0,83 / 0,98 / 0,99 / 1,00 | 0,74 / 0,94 / 0,97 / 0,98 | 20 |
+| | surprise | 0,56 / 0,84 / 0,92 / 0,93 | 0,65 / 0,89 / 0,93 / 0,95 | 0,56 / 0,79 / 0,89 / 0,90 | 7,8 / 3,7 / 0,5 / 0 |
+| prev2, rls_rf | surprise | 0,56 / 0,19 / 0,03 / 0,01 | 0,43 / 0,29 / 0,16 / 0,10 | | 7,8 / 13 / 20 / 20 |
+
+Je Episode, surprise mit rls_rf: xmFF W + S nach dem Schlaf Tag 4 − Tag 1 +0,17 ± 0,05 (5 von 6 steigen; die
+sechste fällt an Tag 3 ein und erholt sich teilweise), xm0F +0,11 ± 0,02 (6 von 6 steigen stetig). Tag 4 gegen
+ein einmaliges Wachen ohne Schalter (0,58 / 0,76): xmFF +0,08 ± 0,05 (5 von 6), xm0F +0,01 ± 0,01 (4 von 6).
+Gegen `wake_only` mit demselben Schalter an Tag 4: xmFF +0,21 ± 0,12 (4 von 6), xm0F +0,23 ± 0,17 (2 von 6;
+der Mittelwert kommt von Einbrüchen in `wake_only`).
+
+**Vergleich mit der Vorhersage.** (1) Nicht getroffen: Mit surprise und rls_rf wird W + S auf beiden
+Kopf-Aufgaben besser (xmFF 0,49 → 0,66, xm0F 0,66 → 0,77); nur surprise_ex bleibt ohne Gewinn. (2) Getroffen:
+surprise_ex nach dem Wachen an Tag 1 auf xmFF 0,06 gegen 0,58 ohne Schalter. (3) Nicht getroffen: prev mit
+rls_rf nach dem Wachen an Tag 2 0,30, nicht ≤ 0,20 (aber weiter fallend: 0,19 / 0,15). Bilanz: 1 von 3
+getroffen. Die Probe-Episode (Seed 5, Ziehung 0), auf die sich Vorhersage (1) stützte, war die eine von 6, die
+einbricht.
+
+**Schluss.** (a) **Der erste Kreislauf, der von Tag zu Tag besser wird:** Auf den Kopf-Aufgaben mit Schalter je
+Update und rls_rf als Schlaf-Lerner steigt W + S über 4 Tage stetig (xm0F in allen 6 Episoden) und endet
+über allem, was ein einzelnes Wachen oder gewöhnliches Training mit Adam erreicht (xmFF 0,66 gegen 0,58 und
+0,04). (b) **Wie es dazu kommt:** Der Schalter lässt die Wach-Regel nur kurz laufen (am ersten Tag etwa 5 von
+20 Updates, danach 2–3), also nur, solange sie in ihrem Arbeitsbereich ist. Den größten Teil der Arbeit macht
+der Schlaf: S passt sich jede Nacht an neue Träume an, beschriftet von W + S + F, also fast von sich selbst plus
+einer kleinen Korrektur des Tages. Wie viel die Wachphase an den Tagen 2–4 beiträgt und wie viel das
+wiederholte Schlafen allein, ist nicht getrennt. (c) **Der Schalter je Beispiel taugt nicht:** Die Regel wurde
+auf ganzen Batches geformt; auf Teil-Batches aus den falschen Beispielen bricht sie sofort ein. (d) **Innen kein
+Gewinn:** prev und prev2 mit grad laufen ohnehin an die Decke, mit Schalter etwas langsamer; mit rls_rf (nur
+Kopf) kann S die Innen-Fähigkeit nicht tragen, die Beschriftungen werden schlecht, der Kreislauf fällt.
+(e) **Noch nicht gezeigt: „besser als reines Training“.** Die faire Kontrolle für Kopf-Aufgaben ist nicht Adam
+(0,04), sondern rls_rf selbst, direkt auf den echten Beispielen aller 4 Tage (256 statt 64). Diese Kontrolle
+fehlt, ebenso ein Kreislauf nur aus Schlaf (ohne Wachen an den Tagen 2–4). Erst damit lässt sich sagen, ob
+der Kreislauf etwas bringt, was Training nicht bringt.
+
+**Belege.** `results/sleep_gate.jsonl` (144 Zeilen).
+
+## Laufend / offen
 
 - Noch in Bits: `*_parts` (die Anpassungs-Studien servo / robot sind seit 2026-11-23 umgestellt); nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.
