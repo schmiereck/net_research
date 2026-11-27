@@ -5558,6 +5558,58 @@ und Folge der Handlung), eine Wahrnehmung der aufgabenrelevanten Größe, und ei
 **Belege.** `results/label_map.jsonl` (1 Zeile: Ergänzer nach 4000 Schritten mit Tabellen-Treffern je Gerät),
 `results/latent_sleep_holdout2.jsonl` (24 Zeilen).
 
+## 2026-11-27 — Phase F, genauerer Latent-Prädiktor: breiteres Netz und Kopf-Konsistenz heben die Träume in der nie gesehenen Hälfte von 0,71 auf 0,78; in der gesehenen Hälfte liegen sie jetzt fast bei direktem Training
+
+**Frage.** Wie viel der Lücke zwischen Prädiktor-Träumen (0,71) und echter Erfahrung der zurückgehaltenen Lagen
+(0,97) lässt sich durch einen genaueren Prädiktor schließen?
+
+**Gemacht.** Commit vor diesem Eintrag; Prädiktor-Varianten lokal (je 6–15 min), Schlaf-Lauf lokal mit 2
+Prozessen (1 min, 24 Episoden). Vorhersage und Entwicklung vor dem Lauf (wörtlich aus „Laufend / offen“):
+
+> - Phase F, genauerer Latent-Prädiktor (Auftrag Nutzer 2026-11-27). Neu (Commit nach diesem Eintrag):
+>   `latent_pred.py --hid` (Breite), `--head-w` (Kopf-Konsistenz: der eingefrorene Kopf soll aus dem vorhergesagten
+>   Latent dasselbe lesen wie aus dem echten, zusätzlicher Verlust auf seinen Ausgaben), `--scenes` (Training auf den
+>   ersten n Szenen; Voreinstellung 4000, wie bisher); 12 000 Würfel-Szenen mit Kamerabild exportiert (dieselben
+>   wie `gazemulti_train.npz`). Entwicklung auf Startnetz 5 (Kopf liest den Würfel aus dem vorhergesagten Latent
+>   nach 1 / 2 / 3 / 4 Schritten; Bezug `_roll8` 0,58 / 0,47 / 0,43 / 0,39; `results/latent_pred.jsonl`): Breite 512
+>   0,63 / 0,52 / 0,42 / 0,38; Kopf-Konsistenz 0,59 / 0,52 / 0,42 / 0,36; beides (`_h512hw1`, gewählt) 0,64 / 0,54 /
+>   0,47 / 0,44; beides auf 12 000 Szenen mit 4 Läufen je Szene 0,61 / 0,52 / 0,42 / 0,38 (mehr Szenen helfen nicht).
+>   Startnetz 6 mit `_h512hw1`: 0,60 / 0,48 / 0,45 / 0,41 (`_roll8` 0,59 / 0,51 / 0,42 / 0,38). Lauf: `--holdout`,
+>   24 Episoden, Quelle learn1_fam mit `--pred-tag _h512hw1`, nach `results/latent_sleep_holdout3.jsonl`; Bezug
+>   learn1_fam mit `_roll8`: zurückgehalten 0,71, gesehen 0,94. Vorab gesehen (Probe Seed 5, Ziehung 0,
+>   zurückgehalten an Tag 4): flipx 0,79 (`_roll8` 0,72), weak 0,93 (0,83).
+>   **Vorhersage vor dem Lauf (2026-11-27):** (1) Der genauere Prädiktor hebt die Träume in der zurückgehaltenen
+>   Hälfte: learn1_fam an Tag 4 ≥ 0,74 (Bezug 0,71). (2) Der Gewinn liegt vor allem auf Startnetz 5 (dort ist der
+>   Prädiktor deutlich besser geworden, auf 6 kaum): Gewinn auf 5 ≥ Gewinn auf 6 + 0,03. (3) Die gesehene Hälfte
+>   bleibt: innerhalb ± 0,02 von 0,94.
+
+**Ergebnis.** Quelle learn1_fam (Hypothesen-Suche als Abbildung), W + S, Mittel über 24 Episoden:
+
+| Prädiktor | zurückgehalten Tag 1 / 2 / 3 / 4 | gesehen Tag 1 / 4 |
+|---|---|---|
+| `_roll8` (Bezug) | 0,57 / 0,66 / 0,68 / 0,71 | 0,85 / 0,94 |
+| **`_h512hw1`** | **0,69 / 0,75 / 0,77 / 0,78** | **0,92 / 0,96** |
+| *rls_direct (Bezug)* | 0,03 / 0,03 / 0,03 / 0,03 | 0,85 / 0,97 |
+| *Obergrenze unlab_all_fam* | 0,96 / … / 0,97 | 0,98 / 0,98 |
+
+Gewinn zurückgehalten an Tag 4 gepaart +0,07 ± 0,01 (23 von 24), Startnetz 5 +0,09, Startnetz 6 +0,04. Je Gerät
+(`_roll8` → `_h512hw1`): flipx 0,66 → 0,75, offx 0,61 → 0,69, rot90 0,64 → 0,72, strong 0,84 → 0,87, swap 0,67 →
+0,74, weak 0,86 → 0,90.
+
+**Vergleich mit der Vorhersage.** (1) Getroffen: 0,78 (≥ 0,74). (2) Getroffen: Gewinn auf 5 um 0,04 größer als
+auf 6. (3) Nicht getroffen: Die gesehene Hälfte bleibt nicht gleich, sie steigt (0,94 → 0,96). Bilanz: 2 von 3
+getroffen.
+
+**Schluss.** (a) Ein Viertel der Lücke zur echten Erfahrung ist geschlossen (0,71 → 0,78 von 0,97), auf allen sechs
+Geräten. (b) Der genauere Prädiktor hilft auch dort, wo echte Erfahrung vorliegt: In der gesehenen Hälfte liegen
+die Träume jetzt bei 0,96, direktes Training bei 0,97; nach der ersten Nacht 0,92 gegen 0,85. (c) Was half:
+Breite und der Kopf-Konsistenz-Verlust zusammen; mehr Szenen halfen nicht. Die Lesbarkeit des vorhergesagten
+Latents einen Schritt voraus (0,64 / 0,60) liegt noch klar unter der des echten (0,73 / 0,76): Der Prädiktor bleibt
+der Engpass. (d) Weiterhin mit der Hypothesen-Suche, die die Art der Aufgabe kennt.
+
+**Belege.** `results/latent_pred.jsonl` (+4 Zeilen: `_h512`, `_hw1`, `_h512hw1` auf Startnetz 5, `_h512hw1_12k`
+auf 12 000 Szenen, `_h512hw1` Startnetz 6), `results/latent_sleep_holdout3.jsonl` (24 Zeilen).
+
 ## Laufend / offen
 
 - Phase F, Wach-Regel per ES im Kreislauf geformt (Auftrag Nutzer 2026-11-27, Weg 1). Neu (Commit nach
@@ -5579,23 +5631,6 @@ und Folge der Handlung), eine Wahrnehmung der aufgabenrelevanten Größe, und ei
   liegt das Mittel von W + S über die Tage 1–4 um ≥ 0,05 über `pos_map`, an Tag 8 aber höchstens 0,03 über
   `rls_direct`. (3) Die neue Regel wacht mehr: Wach-Updates an den Tagen 2–4 im Mittel mindestens doppelt so
   viele wie bei `pos_map`.
-
-- Phase F, genauerer Latent-Prädiktor (Auftrag Nutzer 2026-11-27). Neu (Commit nach diesem Eintrag):
-  `latent_pred.py --hid` (Breite), `--head-w` (Kopf-Konsistenz: der eingefrorene Kopf soll aus dem vorhergesagten
-  Latent dasselbe lesen wie aus dem echten, zusätzlicher Verlust auf seinen Ausgaben), `--scenes` (Training auf den
-  ersten n Szenen; Voreinstellung 4000, wie bisher); 12 000 Würfel-Szenen mit Kamerabild exportiert (dieselben
-  wie `gazemulti_train.npz`). Entwicklung auf Startnetz 5 (Kopf liest den Würfel aus dem vorhergesagten Latent
-  nach 1 / 2 / 3 / 4 Schritten; Bezug `_roll8` 0,58 / 0,47 / 0,43 / 0,39; `results/latent_pred.jsonl`): Breite 512
-  0,63 / 0,52 / 0,42 / 0,38; Kopf-Konsistenz 0,59 / 0,52 / 0,42 / 0,36; beides (`_h512hw1`, gewählt) 0,64 / 0,54 /
-  0,47 / 0,44; beides auf 12 000 Szenen mit 4 Läufen je Szene 0,61 / 0,52 / 0,42 / 0,38 (mehr Szenen helfen nicht).
-  Startnetz 6 mit `_h512hw1`: 0,60 / 0,48 / 0,45 / 0,41 (`_roll8` 0,59 / 0,51 / 0,42 / 0,38). Lauf: `--holdout`,
-  24 Episoden, Quelle learn1_fam mit `--pred-tag _h512hw1`, nach `results/latent_sleep_holdout3.jsonl`; Bezug
-  learn1_fam mit `_roll8`: zurückgehalten 0,71, gesehen 0,94. Vorab gesehen (Probe Seed 5, Ziehung 0,
-  zurückgehalten an Tag 4): flipx 0,79 (`_roll8` 0,72), weak 0,93 (0,83).
-  **Vorhersage vor dem Lauf (2026-11-27):** (1) Der genauere Prädiktor hebt die Träume in der zurückgehaltenen
-  Hälfte: learn1_fam an Tag 4 ≥ 0,74 (Bezug 0,71). (2) Der Gewinn liegt vor allem auf Startnetz 5 (dort ist der
-  Prädiktor deutlich besser geworden, auf 6 kaum): Gewinn auf 5 ≥ Gewinn auf 6 + 0,03. (3) Die gesehene Hälfte
-  bleibt: innerhalb ± 0,02 von 0,94.
 
 - Noch in Bits: `*_parts` (die Anpassungs-Studien servo / robot sind seit 2026-11-23 umgestellt); nicht neu gerechnet:
   Größen-Studie, langsame Gitter, `in12`, Lehrpläne mit `*_parts`.

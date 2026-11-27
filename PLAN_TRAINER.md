@@ -1738,6 +1738,10 @@ Reihenfolge seit 2026-11-08 (mit dem Teacher-Actor-Konzept aus 4c):
     Ein über viele zufällige Kalibrierungen gelernter Tabellen-Ergänzer (Test-Geräte ausgeschlossen) ist der
     gesuchte allgemeine Weg, nach 45 min Training noch schwach (Träume 0,29). Nächstes: Ergänzer länger trainieren
     (Worker), Prädiktor genauer (Lücke 0,71 → 0,97 zur echten Erfahrung), Stufe 2 live in MuJoCo.
+  - **Genauerer Prädiktor (2026-11-27, `results/latent_sleep_holdout3.jsonl`):** Breite 512 und Kopf-Konsistenz
+    (der eingefrorene Kopf liest aus dem vorhergesagten Latent dasselbe wie aus dem echten): Träume in der nie
+    gesehenen Hälfte 0,71 → 0,78, in der gesehenen 0,94 → 0,96 (direktes Training 0,97). Mehr Szenen halfen nicht.
+    Eingeplant: Ergänzer länger trainieren (Worker nach `loop_w1`), Stufe 2 live in MuJoCo.
 - Langzeittest: 20 neue Varianten nacheinander lernen und dabei das Vergessen und die Generalisierung
   verfolgen.
 
